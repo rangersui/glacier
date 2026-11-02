@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glacier · 星舰冰川 demo</title>
+<link rel="stylesheet" href="glacier.css">
+<style>
+  /* demo 自己的布局。设计语言的部分全在 glacier.css 里，这里只有排版。 */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: auto; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font: 14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  a { color: var(--agy-accent-cyan); }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 24px 20px 80px; }
+  .topbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 48px; }
+  .topbar .brand { font: 600 12px/1 ui-monospace, "Cascadia Code", Consolas, monospace; letter-spacing: 2px; color: #7dcfff; margin-right: auto; }
+  .topbar .clock { font: 600 12px/1 ui-monospace, "Cascadia Code", Consolas, monospace; color: #e0f7ff; }
+  .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: start; margin-bottom: 40px; }
+  .hero h1 { font-size: 40px; line-height: 1.1; margin: 0 0 12px; color: #eef3ff; letter-spacing: -0.5px; }
+  .hero h1 small { display: block; font-size: 13px; font-weight: 500; letter-spacing: 3px; color: #7dcfff; margin-bottom: 10px; }
+  .hero p.lead { color: #aab6dc; margin: 0 0 22px; font-size: 15px; }
+  .bricks { display: flex; flex-wrap: wrap; gap: 10px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .gl-card h3 { margin: 0 0 6px; font-size: 14px; color: #eef3ff; }
+  .gl-card p { margin: 0; color: #b8c4e8; }
+  .gl-card p + p { margin-top: 8px; }
+  .gl-card code { font: 12px ui-monospace, "Cascadia Code", Consolas, monospace; color: #ffd285; }
+  .panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px 18px; }
+  .panel label { display: block; font: 600 11px/1 ui-monospace, Consolas, monospace; letter-spacing: 1px; color: #7dcfff; margin-bottom: 7px; text-transform: uppercase; }
+  .panel .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .panel .gl-brick { padding: 6px 10px; font-size: 12px; }
+  .panel .gl-brick.on { color: #fff6e0; }
+  .panel .gl-brick.on::after { content: "●"; margin-left: 6px; font-size: 8px; color: #ffd285; vertical-align: middle; }
+  input[type="range"] { width: 100%; accent-color: #ffd285; }
+  /* 一颗自己漂的节点：带 data-gl-track，引擎逐帧跟着它量矩形、被手电探测（lamp 模式下还跟着受光）；它自己一句光的代码都没有 */
+  .drifter { position: fixed; left: 0; top: 0; z-index: 5; animation: drift 14s ease-in-out infinite alternate; }
+  @keyframes drift { 0% { transform: translate(60vw, 18vh); } 50% { transform: translate(28vw, 42vh); } 100% { transform: translate(66vw, 58vh); } }
+  .readout { font: 11.5px/1.6 ui-monospace, "Cascadia Code", Consolas, monospace; color: #9fb3d9; white-space: pre-wrap; }
+  .readout b { color: #e0f7ff; font-weight: 600; }
+  section { margin-top: 44px; }
+  section h2 { font-size: 12px; letter-spacing: 3px; color: #7dcfff; text-transform: uppercase; margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .scroller { height: 260px; overflow: auto; padding: 12px; border-radius: 14px; background: rgba(8, 12, 24, 0.5); display: flex; flex-direction: column; gap: 9px; }
+  .scroller .gl-brick { flex: none; }
+  footer { margin-top: 60px; color: #6c7aa6; font-size: 12px; }
+  @media (max-width: 760px) { .hero { grid-template-columns: 1fr; } .hero h1 { font-size: 30px; } }
+</style>
+</head>
+<body class="gl-stage">
+<div class="wrap">
+
+  <nav class="topbar">
+    <span class="brand">GLACIER · 星舰冰川</span>
+    <button class="gl-brick gl-nav"><span class="gl-icon">＋</span> 新建对话</button>
+    <button class="gl-brick gl-nav"><span class="gl-icon">⏱</span> 自动化任务</button>
+    <button class="gl-brick gl-nav"><span class="gl-icon">🧊</span> 冰山列表</button>
+    <span class="clock" id="clock">—</span>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <h1><small>DESIGN LANGUAGE</small>一艘停在冰川上的星舰</h1>
+      <p class="lead">背后有一盏按真实时间走动的灯，管色温和浓淡；控件的受光默认是从左上来的平行光（台灯规则），把鼠标移过去，待机的砖会被手电照出一圈边。加 <code>?light=lamp</code> 让受光跟着灯转：把时间从 09:00 拨到 18:00，整页的高光都会翻过来。</p>
+      <div class="bricks">
+        <button class="gl-brick gl-fresh">当前会话</button>
+        <button class="gl-brick">Casual Evening…</button>
+        <button class="gl-brick">MATLAB MCP 简介</button>
+        <button class="gl-brick">Libusb Guide</button>
+        <button class="gl-brick">星舰冰川 · 设计规格</button>
+        <button class="gl-brick gl-alert">⚠ 后台任务待确认</button>
+        <button class="gl-brick">网关 v2.1 媒体附件</button>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="gl-card gl-pop-in">
+        <h3>两个文件，一行代码</h3>
+        <p>引入 <code>glacier.css</code> 和 <code>glacier.js</code>，然后 <code>Glacier.init()</code>。画布、太阳、灯、打光、手电、尺寸变化全部自动；给元素加 <code>.gl-brick</code> / <code>.gl-card</code> 就会受光，新塞进来的节点也一样。</p>
+      </div>
+      <div class="gl-card">
+        <h3>一盏灯，三个消费者</h3>
+        <p>背景里的恒星、overlay 上的光球、root 上的四组光色，用的都是同一个点。这一页的所有东西都在听 <code>gl.sun</code>。</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="gl-card">
+    <div class="panel">
+      <div style="grid-column: 1 / -1;">
+        <label>时间 <span id="hourLabel" style="color:#ffd285"></span></label>
+        <input type="range" id="hour" min="0" max="24" step="0.05" value="12">
+      </div>
+      <div>
+        <label>时钟</label>
+        <div class="row gl-track" data-group="mode">
+          <button class="gl-brick" data-v="realtime">实时</button>
+          <button class="gl-brick" data-v="timelapse">延时</button>
+          <button class="gl-brick" data-v="sunset">落日 16–19 来回</button>
+          <button class="gl-brick" data-v="manual">手动</button>
+        </div>
+      </div>
+      <div>
+        <label>背景</label>
+        <div class="row gl-track" data-group="background">
+          <button class="gl-brick" data-v="scene">scene 动画</button>
+          <button class="gl-brick" data-v="static">static 一帧</button>
+          <button class="gl-brick" data-v="none">none 无画布</button>
+          <button class="gl-brick" data-v="photo">photo 照片</button>
+        </div>
+      </div>
+      <div>
+        <label>星区</label>
+        <div class="row gl-track" data-group="sector">
+          <button class="gl-brick" data-v="cryo_blend">冰星</button>
+          <button class="gl-brick" data-v="cryo_pure">纯冰</button>
+          <button class="gl-brick" data-v="red_giant">红巨星</button>
+          <button class="gl-brick" data-v="pulsar">脉冲星</button>
+        </div>
+      </div>
+      <div>
+        <label>舰态</label>
+        <div class="row gl-track" data-group="ship">
+          <button class="gl-brick" data-v="IDLE">IDLE</button>
+          <button class="gl-brick" data-v="THINKING">THINKING</button>
+          <button class="gl-brick" data-v="TOOL">TOOL</button>
+          <button class="gl-brick" data-v="STREAM">STREAM</button>
+        </div>
+      </div>
+      <div>
+        <label>生命周期</label>
+        <div class="row">
+          <button class="gl-brick" id="btnStop">stop()</button>
+          <button class="gl-brick" id="btnStart">start()</button>
+          <button class="gl-brick" id="btnDestroy">destroy()</button>
+          <button class="gl-brick" id="btnInit">init()</button>
+          <button class="gl-brick" id="btnAdd">塞一块新砖</button>
+        </div>
+      </div>
+      <div style="grid-column: 1 / -1;">
+        <label>状态</label>
+        <div class="readout" id="readout">—</div>
+      </div>
+    </div>
+  </div>
+
+  <section>
+    <h2>更多冰砖 · 往下滚：fixed 模式一次都不重算，lamp 模式停下后重量一轮</h2>
+    <div class="grid" id="moreCards"></div>
+  </section>
+
+  <section>
+    <h2>内部滚动容器</h2>
+    <div class="scroller" id="scroller"></div>
+    <button class="gl-brick drifter" data-gl-track title="自己在飘的节点：没写任何光的代码，只贴了 .gl-brick 和 data-gl-track">🛰 漂移节点</button>
+  </section>
+
+  <footer>Glacier 设计语言 · 源头在 DESIGN.md · 本页只是宿主，宿主只做三件事：给画布、给类名、调 init()。</footer>
+</div>
+
+<script src="glacier.js"></script>
+<script>
+  // ---- 填充滚动内容（都是普通元素 + 类名，库会自己找到它们） ----
+  const more = document.getElementById("moreCards");
+  for (let i = 0; i < 18; i++) {
+    const card = document.createElement("div");
+    card.className = "gl-card";
+    card.innerHTML = `<h3>卡片 ${String(i + 1).padStart(2, "0")}</h3><p>平行光下每块砖的光和它在哪无关，写一次就永远对；点光模式只打视口外扩 160px 以内的。</p><div class="bricks" style="margin-top:10px"><button class="gl-brick">砖 A</button><button class="gl-brick">砖 B</button></div>`;
+    more.appendChild(card);
+  }
+  const scroller = document.getElementById("scroller");
+  for (let i = 0; i < 24; i++) {
+    const b = document.createElement("button");
+    b.className = "gl-brick";
+    b.textContent = `会话 ${String(i + 1).padStart(2, "0")} · 滚动中引擎什么都不做`;
+    scroller.appendChild(b);
+  }
+
+  // ---- 初始化：URL 里可带 ?bg=photo&photo=<图片URL>&time=9&light=lamp&idle=6&drifter=0 之类 ----
+  const q = new URLSearchParams(location.search);
+  if (q.get("drifter") === "0") document.querySelector(".drifter").remove(); // 测基线用：一个常动的元素会逼整页 60fps 合成
+  // photo 模式的底片：没有真照片时，把场景渲染一帧当占位（真照片见 README §2）
+  let placeholderPhoto = null;
+  const photoUrl = () => {
+    if (q.get("photo")) return q.get("photo");
+    if (!placeholderPhoto) {
+      const p = document.createElement("canvas");
+      const sc = new Glacier.Scene(p, { sector: "cryo_blend" });
+      sc.setSun(Glacier.sun.computeSunState(16.5, 960, 600));
+      sc.renderOnce();
+      placeholderPhoto = p.toDataURL("image/jpeg", 0.85);
+    }
+    return placeholderPhoto;
+  };
+  const initOptions = () => ({
+    background: q.get("bg") || "scene",
+    photo: photoUrl(),
+    time: q.has("time") ? Number(q.get("time")) : (q.get("mode") || "realtime"),
+    sector: q.get("sector") || "cryo_blend",
+    lightDirection: q.get("light") === "lamp" ? "lamp" : "fixed",
+    idleDivider: Number(q.get("idle") || 3),
+    onUpdate: () => render()
+  });
+  var gl = Glacier.init(initOptions()); // var：onUpdate 在 init 返回前就会被调一次，render 里要能看到 gl 还没赋值
+  window.gl = gl; // 控制台里玩：gl.setHour(18)
+
+  // ---- 计数 / 帧时统计（只是 demo 的仪表，库里没有这些） ----
+  // relights：引擎给砖写变量的轮数（relightNow）；measures：只量矩形不写的轮数（fixed 模式滚动停下给手电用）
+  const stats = { frames: 0, drawn: 0, ms: 0, since: performance.now(), relights: 0, measures: 0 };
+  const instrument = () => {
+    if (!gl.__wrapped) {
+      const relight = gl.relightNow.bind(gl), measure = gl.measureRects.bind(gl);
+      gl.relightNow = () => { stats.relights++; relight(); };
+      gl.measureRects = () => { stats.measures++; measure(); };
+      gl.__wrapped = true;
+    }
+    const sc = gl.scene;
+    if (!sc || sc.__wrapped) return;
+    const orig = sc.renderFrame.bind(sc);
+    sc.renderFrame = (now, force) => { const t0 = performance.now(); stats.frames++; const drawnBefore = sc.lastFrameTime; orig(now, force); const dt = performance.now() - t0; if (sc.lastFrameTime !== drawnBefore || force) { stats.drawn++; stats.ms += dt; } };
+    sc.__wrapped = true;
+  };
+  window.glStats = () => {
+    const sec = (performance.now() - stats.since) / 1000;
+    const out = { seconds: +sec.toFixed(1), loopFrames: stats.frames, drawnFrames: stats.drawn, drawnPerSec: +(stats.drawn / sec).toFixed(1), avgDrawMs: stats.drawn ? +(stats.ms / stats.drawn).toFixed(2) : 0, mainThreadMsPerSec: +(stats.ms / sec).toFixed(1), relights: stats.relights, measures: stats.measures };
+    stats.frames = 0; stats.drawn = 0; stats.ms = 0; stats.since = performance.now();
+    return out;
+  };
+
+  // ---- 控件 ----
+  const $ = (id) => document.getElementById(id);
+  const hourInput = $("hour");
+  const mark = (group, v) => document.querySelectorAll(`[data-group="${group}"] .gl-brick`).forEach((b) => b.classList.toggle("on", b.dataset.v === v));
+  const fmt = (h) => `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.floor((h % 1) * 60)).padStart(2, "0")}`;
+  function render() {
+    if (!gl) return;
+    const s = gl.sun;
+    if (!s) { $("clock").textContent = "—"; $("readout").textContent = "（已 destroy）"; return; }
+    $("clock").textContent = `${s.isDay ? "☀" : "☾"} ${fmt(s.h)}`;
+    $("hourLabel").textContent = fmt(s.h);
+    if (document.activeElement !== hourInput) hourInput.value = s.h.toFixed(2);
+    // 按钮的 data-v 和时钟模式对不上一一对应：loop 要分"延时（整天）"和"落日（区间）"，fixed 对应"手动"
+    const modeKey = gl.mode === "loop" ? (gl.clock?.loop && gl.clock.loop.span < 24 ? "sunset" : "timelapse") : gl.mode === "fixed" ? "manual" : gl.mode;
+    mark("mode", modeKey); mark("background", gl.background); mark("sector", gl.options.sector);
+    mark("ship", gl.scene ? gl.scene.shipState : "IDLE");
+    const first = document.querySelector(".hero .gl-brick");
+    $("readout").innerHTML =
+      `lamp <b>${Math.round(s.sunX)}, ${Math.round(s.sunY)}</b> / ${s.W}×${s.H}   glow <b>${s.lampGlow.toFixed(2)}</b>   crest <b>${s.sunCrest}</b>   photo <b>${document.body.style.getPropertyValue("--agy-sun-photo")}</b> × <b>${document.body.style.getPropertyValue("--agy-sun-exposure")}</b>\n` +
+      `background <b>${gl.background}</b>${gl.reducedMotion ? "（系统减弱动态：scene 已退成 static）" : ""}   light <b>${gl.lightDirection}</b>   mode <b>${gl.mode}</b>   relights <b>${stats.relights}</b>   measures <b>${stats.measures}</b>\n` +
+      `brick[0] sx <b>${first.style.getPropertyValue("--ice-sx")}</b>  sy <b>${first.style.getPropertyValue("--ice-sy")}</b>  dark <b>${first.style.getPropertyValue("--ice-dark-x")} ${first.style.getPropertyValue("--ice-dark-y")}</b>  deg <b>${first.style.getPropertyValue("--ice-deg")}</b>`;
+  }
+  hourInput.addEventListener("input", () => { gl.setHour(Number(hourInput.value)); $("hourLabel").textContent = fmt(Number(hourInput.value)); });
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-group] .gl-brick");
+    if (!b || !gl || gl.destroyed) return;
+    const g = b.closest("[data-group]").dataset.group, v = b.dataset.v;
+    if (g === "mode") { if (v === "sunset") gl.setLoop({ from: 16, to: 19, duration: 12000, bounce: true }); else gl.setMode(v); }
+    else if (g === "background") { gl.setBackground(v); instrument(); }
+    else if (g === "sector") gl.setSector(v);
+    else if (g === "ship") gl.setShip(v);
+    render();
+  });
+  $("btnStop").onclick = () => { gl.stop(); render(); };
+  $("btnStart").onclick = () => { gl.start(); render(); };
+  $("btnDestroy").onclick = () => { gl.destroy(); render(); };
+  $("btnInit").onclick = () => { gl = window.gl = Glacier.init({ ...initOptions(), background: gl.options.background, time: gl.options.time }); instrument(); render(); };
+  let added = 0;
+  $("btnAdd").onclick = () => { // 新节点：不注册、不调 relight()，observe 看见它就打光
+    const b = document.createElement("button"); b.className = "gl-brick"; b.textContent = `新砖 ${String(++added).padStart(2, "0")}`;
+    document.querySelector(".hero .bricks").appendChild(b);
+  };
+  document.addEventListener("scroll", () => render(), { capture: true, passive: true }); // 只刷读数
+
+  instrument();
+  render();
+</script>
+</body>
+</html>
