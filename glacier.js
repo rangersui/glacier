@@ -720,6 +720,7 @@
       this.lampMode = o.lightDirection === "lamp";
       this.root.style.setProperty("--gl-dim", String(Math.max(0, Math.min(1, Number(o.dim) || 0))));
       this.root.style.setProperty("--torch-r", `${Math.max(0, Number(o.torchRadius) || 0)}px`);
+      this.scrollers = new Set();
       this.torched = new Set(); this.torchEls = []; this.torchPos = null; this.torchFocus = null; this.torchRaf = 0;
       this.tracked = []; this.trackRaf = 0; this.observer = null; this.observeTimer = 0;
       this.clock = { mode: "manual", hour: 12 };
@@ -907,10 +908,20 @@
         lightWidget(el, r, light);
         this.lit.add(el);
       }
+      this.syncScrollers();
     }
     // 手电要知道砖在哪：一轮读、零写
     measureRects() {
       for (const el of this.torchEls) if (el.isConnected) el.__glRect = rectOf(el.getBoundingClientRect());
+      this.syncScrollers();
+    }
+    // 矩形刚量完，每个滚动容器的基线就是此刻的 scrollTop；砖的归属缓存也作废（可能有新砖）
+    syncScrollers() {
+      for (const sc of this.scrollers) {
+        if (!sc.isConnected) { this.scrollers.delete(sc); continue; }
+        sc.__glScrollPos = { x: sc.scrollLeft, y: sc.scrollTop };
+        delete sc.__glBricks;
+      }
     }
     // ---- 会动的节点：逐帧跟踪 --------------------------------------------------
     // 只对 trackSelector 命中的元素做：每帧量一次矩形（这是本库唯一的逐帧布局读取，所以只给会动的东西用），
@@ -961,14 +972,34 @@
       this.observeTimer = setTimeout(() => { this.observeTimer = 0; this.scheduleRelight(); }, 120);
     }
     // ---- 滚动：期间什么都不做，停下 settleDelay 后 lamp 模式重打一轮光；fixed 模式只给手电刷新矩形 ----
-    onScroll() {
+    onScroll(sc) {
       this.scrolling = true;
+      // 滚动中不读布局，但手电要跟着砖走：把这个容器里砖的缓存矩形按滚动位移平移（读一次 scrollTop，不触发重排），
+      // 然后让手电按新位置重新探测。停下后再真量一轮纠偏。
+      if (sc && this.torchEls.length) {
+        const prev = sc.__glScrollPos;
+        const now = { x: sc.scrollLeft, y: sc.scrollTop };
+        sc.__glScrollPos = now;
+        if (prev) {
+          const dx = now.x - prev.x, dy = now.y - prev.y;
+          if (dx || dy) {
+            const inside = sc.__glBricks || (sc.__glBricks = this.torchEls.filter((el) => sc === document.scrollingElement || sc.contains(el)));
+            for (const el of inside) {
+              const r = el.__glRect;
+              if (!r) continue;
+              r.left -= dx; r.right -= dx; r.top -= dy; r.bottom -= dy;
+            }
+            if (this.torchPos || this.torchFocus) this.scheduleTorch();
+          }
+        }
+      }
       clearTimeout(this.settleTimer);
       this.settleTimer = setTimeout(() => {
         this.settleTimer = 0;
         this.scrolling = false;
         if (this.lampMode) this.relightNow();
         else if (this.torchEls.length) this.measureRects();
+        if (this.torchPos || this.torchFocus) this.scheduleTorch();
       }, this.options.settleDelay);
     }
 
@@ -976,7 +1007,24 @@
     bind() {
       const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); this.listeners.push([target, type, fn, opts]); };
       on(window, "resize", () => { this.update(); if (!this.lampMode) this.scheduleRelight(); }); // 平行光：砖不变，只刷新手电矩形
-      if (this.lampMode || this.options.torch) on(document, "scroll", () => this.onScroll(), { capture: true, passive: true });
+      if (this.lampMode || this.options.torch) {
+        // 整页滚动器先登记：首轮量矩形时就记下基线，第一下滚轮的位移不会丢
+        const page = document.scrollingElement || document.documentElement;
+        this.scrollers.add(page);
+        on(document, "scroll", (e) => {
+          const t = e.target;
+          const sc = t === document ? page : t;
+          if (!sc || sc.nodeType !== 1) { this.onScroll(null); return; }
+          if (!this.scrollers.has(sc)) {
+            // 第一次见到的子容器：scroll 事件到达时它已经滚完了，没法知道滚了多少，
+            // 所以真量一轮当基线（一个容器一辈子只多付这一次），而不是把滚完的位置当起点
+            this.scrollers.add(sc);
+            if (this.torchEls.length) this.measureRects(); else this.syncScrollers();
+            if (this.torchPos || this.torchFocus) this.scheduleTorch(); // 矩形刚变，这一帧手电就按新位置重探
+          }
+          this.onScroll(sc);
+        }, { capture: true, passive: true });
+      }
       if (this.options.observe) this.observeRoot();
       if (this.options.torch) {
         const sel = this.options.torchSelector;
