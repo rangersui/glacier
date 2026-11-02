@@ -8,7 +8,8 @@
 glacier/
 ├── glacier.css   令牌、@property 注册、画布层、.gl-brick / .gl-nav / .gl-card / .gl-alert / .gl-track 规则（无 !important、无宿主选择器）
 ├── glacier.js    Glacier.sun / Scene / Lamp / lightWidget / applySunVars，加 Glacier.init()
-├── demo.html     演示页：英雄区 + 冰砖 + 卡片、时间滑块、时钟 / 背景（含照片）/ 星区 / 舰态开关、生命周期按钮、漂移节点
+├── demo.html     组件目录：每个组件一节（砖的五种状态、暗槽、卡片、光栅、晶格、图标、漂移节点、滚动容器）+ 工程面板（时间 / 时钟 / 背景 / 星区 / 舰态 / 生命周期 / 读数）
+├── bridge.html   舰桥：用这套积木搭的暗座舱范例——三个问题（在哪 / 几点 / 有没有事）、两个旋钮（去哪 / 多快）、航点光栅 + 当月日历晶格 + 告警行（A 模拟、Esc 清）
 └── README.md     本文件
 ```
 
@@ -37,6 +38,11 @@ glacier/
 
 `glacier.js` 只声明一个全局 `window.Glacier`（CommonJS 环境下同时 `module.exports`），没有依赖，没有构建步骤。
 也可以不用 `init()`，直接拿底层的 `Glacier.sun` / `Scene` / `Lamp` / `lightWidget` 自己拼（hudd 的 overlay 就是这么用的，见 §4）。
+
+### 两个页面
+
+- `demo.html` 是**组件目录**：每个组件一节，各带一行规矩，每块砖都能按（同组单选 `.on`、告警点一下算确认、漂移节点点一下停）；底下是工程面板和压力测试（更多卡片、内部滚动容器、漂移节点）。背景默认空的，工程面板或 `?bg=scene` 叫回那颗球。URL 参数 `?bg=scene|static|photo&photo=<URL>&time=9&light=lamp&idle=6&drifter=0`。
+- `bridge.html` 是**舰桥**：用同一套积木搭的暗座舱范例（DESIGN.md §4.2）。一切正常时面板是黑的；左边航点光栅（去哪：母星 / 轨道站 / 红巨星 / 脉冲星 / 深空，每个航点带自己的星区和钟），顶上时钟旋钮（多快：航点时刻 / 实时 / 延时 / 手动拨），右边当月日历晶格（今天 `.on`），底部告警行平时是空的（按 A 模拟一条，Esc 清掉；真宿主接心跳）。舷窗默认是空的（`background: "none"`：深空基底 + 灯的轨道线，不画球——自发光的行星会掀了黑位地板、淹了刀锋）；`?bg=photo&photo=<URL>` 放一张灰阶负片当天体，`?bg=scene` 把球叫回来看对比。
 
 ## 2. `Glacier.init(options)` 选项
 
@@ -124,7 +130,7 @@ glacier/
 | `Glacier.sun.sampleTable(step)` / `stateFromTable(table, hour, W, H)` / `frameFromModel(hour)` | 关键帧表：采样内置公式、按表插值出状态、取公式在某小时的一帧 |
 | `new Glacier.Scene(planetCanvas, { sector, idleDivider })` | 背景引擎。`setSun(state)`、`setSector()`、`setShipState()`、`start()` / `stop()`、`renderOnce()` |
 | `new Glacier.Lamp(canvas)` → `draw(state, hour, W, H, { path, pathKey, loop })` | 灯 overlay。`path(hour) → { x, y, isDay }` 是轨迹采样器（默认 `Lamp.formulaPath(W, H)`），`pathKey` 换表时要换，`loop = { from, span }` 要加亮的区间。位置取整后没变、颜色没变、尺寸没变就不重画 |
-| `Glacier.lightWidget(el, rect, light)` | 给一个元素写五个受光变量。`light` 是 `{ x, y }` 点光（和 `rect` 同一坐标系；hudd 里是屏幕坐标，于是多个窗口共享一盏灯）或 `{ dx, dy }` 平行光（单位方向，光 → 元素；`rect` 可以不给） |
+| `Glacier.lightWidget(el, rect, light)` | 给一个元素写五个受光变量（`--ice-sx / sy` 库自己的 CSS 已不读——刀锋并进了环——仍然写着，给 hudd 这类自带 CSS 的宿主用）。`light` 是 `{ x, y }` 点光（和 `rect` 同一坐标系；hudd 里是屏幕坐标，于是多个窗口共享一盏灯）或 `{ dx, dy }` 平行光（单位方向，光 → 元素；`rect` 可以不给） |
 | `Glacier.FIXED_LIGHT` | 默认的平行光方向，`(0.45, 0.89)` 归一化 |
 | `Glacier.applySunVars(el, state)` | 把四组光色、`--agy-sun-ta`、`--agy-sun-photo`、`--agy-sun-exposure` 写到 `el` 上，同值不写 |
 | `Glacier.SECTOR_PALETTES` | 四个星区的配色表 |
@@ -133,12 +139,14 @@ glacier/
 
 - 令牌在 `:root`：`--agy-bg`、`--agy-fg`、`--agy-accent*`、`--agy-card-alpha`，动效 `--agy-ease-out / spring / inout`、`--agy-dur-fast / base / slow`。
 - 解算器写的五个 `--ice-*` 变量用 `@property` 注册成**不继承**：只在被写的那个元素上用，不在伪元素 / 子元素里读。`--torch-*` 相反，注册成继承且有类型，`::before` 才能读到、`--torch-a` 才能过渡。
-- 砖的 `box-shadow` 由 `--ice-*` 驱动，**没有过渡**，别给它加 `transition: box-shadow`。刀锋偏移在 CSS 里 `round()` 到 1px 格，边永远是整像素。
-- 静止态的砖是哑光底片（比面板亮 3%，零边零渐变）；刀锋 + 墙 + 玻璃噪点只在悬停 / `.gl-fresh` / `.on` / `.gl-alert` / 按下时出现。
+- 砖的配方是逐像素量 Windhawk 任务栏那块磁贴抄回来的（DESIGN.md §4.3）：点亮态是**一片比面板亮的玻璃**（透明底 + 沿盒子对角线的浅玻璃渐变），外面一圈 1px 的对角线渐变环（`::before`，迎光角香槟 → 冰白 → 深海蓝 → 近黑），背光侧 1px 深海蓝墙（`box-shadow inset`，由 `--ice-dark-*` 定方向），零外投影。对角线角度 `--ice-diag` 由 `measureRects()` 按盒子尺寸写（宽砖≈横着走，顶边只在左端亮），`lamp` 模式不写、回退到 `--ice-deg`。墙的 `box-shadow` **没有过渡**，别给它加 `transition: box-shadow`；偏移 `round()` 到 1px 格。
+- 静止态的砖是哑光底片（比面板亮 3%，零边零渐变）；玻璃 + 环 + 墙只在悬停 / `.gl-fresh` / `.on` / `.gl-alert` / 按下时出现；悬停的环比选中淡一档（62%）。砖的 `::before` 永远是那一圈 1px：静止态归手电，点亮态归太阳，宿主别占它。
+- `.on` 不贴指示器：环从悬停的 62% 到 100%，正文暖白，砖里的 `<small>` 读数亮成电光青。红灯芯（`.gl-alert` 的 `::after`）只给"要你看"。
 - `.gl-fresh` = 极寒凝结态（和悬停同一套），`.on` = 选中，`.gl-pop-in` = 面板进场动画，`.gl-track` = 一组小开关共用的下沉暗槽，`.gl-icon` = 把彩色图标压成冷银灰。
 - `.gl-alert`：告警 / 要你看的砖（红巨星频段）——勃艮第酒红底 + 底部绯红短灯芯，用于后台任务待确认、报错、未读。红只给这类状态，装饰不许用。
 - 卡片的边是一圈 1px 渐变环（`::after`，迎光角琥珀 → 冰白 → 淡蓝 → 透明 → 背光角近黑），方向由 `--ice-deg` 决定。
 - 圆角用 `--glacier-radius`（默认 6px）覆盖。
+- **阵列**（控件是光的传感器，排法决定光场看不看得见，DESIGN.md §4.1）：`.gl-louver` 一维光栅——等高长条竖排、长边朝光，`--gl-louver-gap`（缝，默认 10px）/ `--gl-louver-h`（条高，默认 38px），节距 40–50px 让 160px 的手电里装 3–4 条；`.gl-lattice` 二维晶格——等大方格、缝 ≤ 6px、圆角 2px，`--gl-lattice-cols / -cell / -gap`（默认 7 / 40px / 4px），相邻刀锋融成一道亮缝、交叉点起十字星；格里的 `.gl-lattice-label`（星期、坐标轴）和 `.gl-void`（空位）不是砖、不受光、只占格。
 - 背景层类名：`.gl-layer` 公共（fixed 铺满、`z-index: -1`、不吃事件），`.gl-layer-planet`（按 `--gl-dim` 压暗）、`.gl-layer-lamp`（screen 混合）、`.gl-layer-photo`（`cover`，`opacity = exposure × (1 − dim)`，`.gl-photo-gray` 加灰）、`.gl-layer-tint`（`--agy-sun-photo`，color 混合）。
 
 ## 6. 性能

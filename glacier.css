@@ -5,6 +5,7 @@
      2. 冰砖光学变量的 @property 注册（不继承，解算器逐元素写）
      3. 背景画布层 .gl-layer（init() 创建的画布用）
      4. 冰砖 .gl-brick / .gl-nav、卡片 .gl-card 的受光规则
+     4b. 阵列 .gl-louver（一维光栅）/ .gl-lattice（二维晶格）：传感器的摆放
      5. 尊重系统「减弱动态效果」
    没有 !important，没有任何宿主选择器；类名都以 gl- 开头，变量以 --agy- / --ice- / --torch- 开头
    （那是设计语言自己的命名空间）。公式和 DESIGN.md §4 一致。
@@ -72,16 +73,21 @@
 @property --ice-dark-x { syntax: "*"; inherits: false; }
 @property --ice-dark-y { syntax: "*"; inherits: false; }
 @property --ice-deg { syntax: "*"; inherits: false; }
+@property --ice-diag { syntax: "*"; inherits: false; } /* 盒子对角线的角度（平行光下由 measureRects 写），环和填充沿它走 */
 /* 鼠标手电的变量要让 ::before 读到，所以 inherits: true；有类型，--torch-a 才能过渡 */
 @property --torch-x { syntax: "<length>"; inherits: true; initial-value: -9999px; }
 @property --torch-y { syntax: "<length>"; inherits: true; initial-value: -9999px; }
 @property --torch-a { syntax: "<number>"; inherits: true; initial-value: 0; }
 
 /* ==========================================================================
-   冰砖（.gl-brick）：凸面水晶键帽。三个光学要素（都由解算器按光的方向写）：
-   1. 迎光刀锋高光（inset --ice-sx/--ice-sy，0px 模糊，指向光）
-   2. 背光内倒角（inset --ice-dark-x/y，死黑）
-   3. 反光带渐变（linear-gradient 的 --ice-deg，从迎光角扫到背光角）
+   冰砖（.gl-brick）：一块比面板亮的玻璃片，不是一块比面板暗的板砖。
+   配方是逐像素量 Windhawk 任务栏那块"最好看的砖"（brave.png，DESIGN.md §4.3）抄回来的：
+   1. 填充：透明底 + 一道沿盒子对角线的浅玻璃渐变，到处都比面板亮（迎光角 +15% 冰白 → 背光角一点蓝），没有黑底
+   2. 环：一圈 1px 的渐变环（::before，padding + mask 异或），沿同一条对角线：迎光角香槟 → 冰白 → 深海蓝 → 近黑。
+      一条对角线从角到角，所以宽砖的顶边只在左端亮、往右淡出，不是一条油漆线
+   3. 墙：背光侧 1px 实心深海蓝内倒角（inset --ice-dark-x/y），和环的暗端叠成 2px 的厚度；零外投影，连接触影都没有
+   4. 选中不贴指示器：环 62% → 100% 的亮度跃迁 + 字通电（正文暖白、读数电光青）。任务栏那根底部青药丸是
+      "程序在后台跑着"的意思，我们没这个语义，不抄
    ========================================================================== */
 .gl-brick {
   position: relative;
@@ -113,26 +119,71 @@
   background-color: rgba(255, 255, 255, 0.03);
 }
 
-/* 极寒凝结态 / 选中（.on）/ 悬停：刀锋 2.2px + 棱镜色散 + 双层硬切底座 */
+/* 环（::before）：所有砖都有这一圈 1px 的位置，静止态归手电（下面），点亮态归太阳（这里）。
+   padding + 两层 mask 异或只留外圈 1px，圆角跟着砖走；z-index -1 压在文字下、砖自己的背景上 */
+.gl-brick::before {
+  content: "";
+  --ice-diag: inherit; /* 两个角度都注册为 inherits:false，伪元素要显式拿一份，否则环永远 135deg 而填充跟着对角线走，两者拧巴 */
+  --ice-deg: inherit;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* 极寒凝结态 / 选中（.on）/ 悬停：浅玻璃填充 + 对角线渐变环 + 1px 深海蓝墙。
+   量出来的值（2× 截图换算到 1×）：填充迎光角比面板亮 22 级、中间 12、背光角 8，没有一处比面板暗；
+   环的亮端 1px，暗端连墙 2px；环顶边从香槟（左）→ 灰白（中）→ 蓝灰（右）；没有外投影 */
 .gl-brick.gl-fresh,
 .gl-brick.on,
 .gl-brick:hover {
   opacity: 1;
   color: #f4f8ff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
-  background-color: rgba(20, 28, 50, 0.86);
-  background-image:
-    linear-gradient(
-      var(--ice-deg, 135deg),
-      color-mix(in srgb, var(--agy-sun-sheen, rgba(255, 210, 155, 0.36)) 45%, transparent) 0%,
-      rgba(165, 225, 255, 0.18) 36%,
-      rgba(24, 52, 102, 0.24) 64%,
-      rgba(0, 4, 14, 0.55) 100%
-    );
+  background-color: transparent;
+  background-image: linear-gradient(
+    var(--ice-diag, var(--ice-deg, 135deg)),
+    rgba(240, 252, 255, 0.15) 0%,
+    rgba(140, 208, 255, 0.08) 40%,
+    rgba(80, 130, 210, 0.14) 100%
+  );
   box-shadow:
-    inset round(var(--ice-sx, 2.2px), 1px) round(var(--ice-sy, 2.2px), 1px) 0px 0px var(--agy-sun-crest, rgba(255, 206, 145, 0.94)),
-    inset round(calc(var(--ice-dark-x, -4.5px) * 0.5), 1px) round(calc(var(--ice-dark-y, -4.5px) * 0.5), 1px) 0px 0px rgba(2, 5, 14, 0.96),
-    0px 1px 0px 0px rgba(0, 2, 8, 0.5);
+    inset round(calc(var(--ice-dark-x, -4.5px) * 0.25), 1px) round(calc(var(--ice-dark-y, -4.5px) * 0.25), 1px) 0px 0px rgba(5, 10, 24, 0.9);
+}
+.gl-brick.gl-fresh::before,
+.gl-brick.on::before,
+.gl-brick:hover::before {
+  background: linear-gradient(
+    var(--ice-diag, var(--ice-deg, 135deg)),
+    var(--agy-sun-crest, rgba(255, 206, 145, 0.94)) 0%,
+    rgba(240, 252, 255, 0.3) 26%,
+    rgba(8, 20, 40, 0.44) 55%,
+    rgba(5, 10, 24, 0.94) 100%
+  );
+  opacity: 1;
+}
+/* 悬停比选中淡一档（任务栏：Hover 用 EdgeSoft，Active 用 Edge）*/
+.gl-brick:hover:not(.on):not(.gl-fresh):not(.gl-alert)::before {
+  opacity: 0.62;
+}
+/* 选中（.on）不贴任何指示器：任务栏那根底部青药丸的意思是"这个程序在后台跑着"，我们没有这个语义，
+   贴上去就是贴纸（Gemini：红巨星.exe 已最小化到任务栏）。选中只靠两件本来就在的东西说话：
+   环从悬停的 62% 跃迁到 100%，字自己通电——正文暖白，读数（small）亮成电光青。青只给"你在这"，但它是字，不是贴纸 */
+.gl-brick small {
+  color: rgba(196, 208, 245, 0.5); /* 读数：待机烟熏灰 */
+  font-variant-numeric: tabular-nums;
+}
+.gl-brick.on {
+  color: #fff6e0;
+}
+.gl-brick.on small {
+  color: rgba(37, 244, 238, 0.85); /* 通电：电光青 */
 }
 
 /* 告警 / 要你看（.gl-alert）：红巨星频段。配方是 Windhawk 任务栏"请求注意"态吸过来的——
@@ -144,16 +195,24 @@
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
   background-color: rgba(96, 22, 44, 0.62);
   background-image: linear-gradient(
-    var(--ice-deg, 135deg),
+    var(--ice-diag, var(--ice-deg, 135deg)),
     rgba(255, 150, 160, 0.16) 0%,
     rgba(214, 64, 96, 0.14) 36%,
     rgba(72, 12, 34, 0.3) 64%,
     rgba(20, 2, 10, 0.6) 100%
   );
   box-shadow:
-    inset round(var(--ice-sx, 2.2px), 1px) round(var(--ice-sy, 2.2px), 1px) 0px 0px rgba(255, 170, 165, 0.9),
-    inset round(calc(var(--ice-dark-x, -4.5px) * 0.5), 1px) round(calc(var(--ice-dark-y, -4.5px) * 0.5), 1px) 0px 0px rgba(14, 2, 8, 0.96),
-    0px 1px 0px 0px rgba(0, 2, 8, 0.5);
+    inset round(calc(var(--ice-dark-x, -4.5px) * 0.25), 1px) round(calc(var(--ice-dark-y, -4.5px) * 0.25), 1px) 0px 0px rgba(14, 2, 8, 0.96);
+}
+.gl-brick.gl-alert::before {
+  background: linear-gradient(
+    var(--ice-diag, var(--ice-deg, 135deg)),
+    rgba(255, 170, 165, 0.9) 0%,
+    rgba(255, 200, 205, 0.4) 26%,
+    rgba(72, 12, 34, 0.5) 55%,
+    rgba(20, 2, 10, 0.94) 100%
+  );
+  opacity: 1;
 }
 .gl-brick.gl-alert::after {
   content: "";
@@ -176,24 +235,14 @@
    相邻的砖也被余光照到一小截。颜色用太阳当时的 crest（不另起光源色）；已点亮的砖（悬停 / fresh / on / alert）
    不参与——它们归太阳管。环形用 padding + 两层 mask 异或做，圆角跟着砖走。 */
 .gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert)::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
   background: radial-gradient(
     var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y),
     var(--agy-sun-crest, rgba(255, 206, 145, 0.9)) 0%,
     rgba(122, 162, 247, 0.38) 45%,
     transparent 72%
   );
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
   opacity: var(--torch-a);
   transition: opacity 160ms var(--agy-ease-out, ease-out);
-  pointer-events: none;
 }
 
 /* 共享暗槽（.gl-track）：同一组的几个小开关装进一条下沉的轨道里——比面板暗 3%，不带金边。
@@ -211,6 +260,54 @@
   background-color: transparent;
 }
 
+/* ==========================================================================
+   阵列：控件是光的传感器，排法决定光场看不看得见（DESIGN.md §4.1）。
+   一块砖只能告诉你一个点的光，一排等距的砖才把衰减画出来。两种合法的排法：
+   .gl-louver  一维光栅：等高长条竖排，长边朝光。节距（条高 + 缝）40–50px，160px 的手电里装 3–4 条；
+               缝 8–12px，全页一个值——缝是暗的部分，不是空白
+   .gl-lattice 二维晶格：等大方格，缝 ≤ 6px，圆角 0–2px。相邻两条 1px 刀锋隔 4px 眼睛分不开，融成一道亮缝，
+               光于是属于缝而不是格子；鼠标停在交叉点亮起的是经线和纬线（Win10 日历 / 计算器那种十字星）。
+               圆角跟节距走：独立砖 5–6px，密晶格 0–2px——四个圆角会在每个交点留一个暗菱形，把十字切断
+   ========================================================================== */
+.gl-louver {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-louver-gap, 10px);
+}
+.gl-louver > .gl-brick {
+  width: 100%;
+  min-height: var(--gl-louver-h, 38px);
+  justify-content: space-between;
+}
+.gl-lattice {
+  display: grid;
+  grid-template-columns: repeat(var(--gl-lattice-cols, 7), var(--gl-lattice-cell, 40px));
+  gap: var(--gl-lattice-gap, 4px);
+  justify-content: start;
+}
+.gl-lattice > .gl-brick {
+  width: var(--gl-lattice-cell, 40px);
+  height: var(--gl-lattice-cell, 40px);
+  padding: 0;
+  justify-content: center;
+  border-radius: 2px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+/* 晶格里的标签（星期、坐标轴）和空位：不是砖，不受光，只占格 */
+.gl-lattice > .gl-lattice-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--gl-lattice-cell, 40px);
+  font: 600 10px/1 ui-monospace, "Cascadia Code", Consolas, monospace;
+  letter-spacing: 1px;
+  color: rgba(196, 208, 245, 0.38);
+}
+.gl-lattice > .gl-void {
+  visibility: hidden;
+}
+
 /* 悬停：不位移不缩放，只是亮起来（上面那条规则），叠到同级之上 */
 .gl-brick:hover {
   z-index: 30;
@@ -219,11 +316,15 @@
 /* 按下：键帽压进插座 */
 .gl-brick:active {
   transform: translateY(1px);
-  box-shadow:
-    inset round(var(--ice-sx, 2px), 1px) round(var(--ice-sy, 2px), 1px) 0px 0px var(--agy-sun-crest, rgba(255, 206, 145, 0.7)),
-    inset round(calc(var(--ice-dark-x, -3px) * 0.5), 1px) round(calc(var(--ice-dark-y, -3px) * 0.5), 1px) 0px 0px rgba(2, 5, 14, 0.96),
-    0px 1px 0px 0px rgba(0, 2, 8, 0.5);
+  background-image: linear-gradient(
+    var(--ice-diag, var(--ice-deg, 135deg)),
+    rgba(240, 252, 255, 0.03) 0%,
+    rgba(5, 10, 24, 0.5) 100%
+  );
   transition-duration: 0.04s;
+}
+.gl-brick:active::before {
+  opacity: 0.4;
 }
 
 /* ==========================================================================
@@ -257,16 +358,12 @@
   color: #a9bddf;
 }
 
-/* 玻璃噪点：Windows 亚克力的磨砂感一半来自噪点。亮砖和卡片盖一层极淡的分形噪点（SVG feTurbulence），
-   放在背景之上、内容之下（z-index -1，元素自己是堆叠上下文）。 */
+/* 玻璃噪点：Windows 亚克力的磨砂感一半来自噪点。卡片盖一层极淡的分形噪点（SVG feTurbulence），
+   放在背景之上、内容之下（z-index -1，元素自己是堆叠上下文）。砖不盖：砖的 ::before 是环，而且 40px 的砖上噪点看不见 */
 .gl-card {
   isolation: isolate;
 }
-.gl-card::before,
-.gl-brick.gl-fresh::before,
-.gl-brick.on::before,
-.gl-brick.gl-alert::before,
-.gl-brick:hover::before {
+.gl-card::before {
   content: "";
   position: absolute;
   inset: 0;

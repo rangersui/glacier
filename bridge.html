@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glacier · 舰桥</title>
+<link rel="stylesheet" href="glacier.css">
+<style>
+  /* 舰桥：暗座舱（DESIGN.md §4.2）。一切正常时面板是黑的，亮着的东西就是要你看的东西。
+     只回答三个问题，按优先级：我在哪（舷窗 + 左边亮着的那条航点）、现在几点（顶上的太阳曲线和钟）、
+     有没有事（底部告警行，平时是空的）。只有两个旋钮：去哪（航点光栅）、多快（时钟）。没有效果强度。
+     设计语言的部分全在 glacier.css 里，这里只有排版。 */
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body { font: 13px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .bridge {
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 300px 1fr 304px;
+    grid-template-rows: auto 1fr auto;
+    gap: 22px 28px;
+    padding: 18px 26px 16px;
+  }
+  .mono { font: 600 11px/1 ui-monospace, "Cascadia Code", Consolas, monospace; letter-spacing: 2px; }
+
+  /* 顶：钟。太阳曲线是库画的 overlay，就在这条栏后面 */
+  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; }
+  .brand { color: #7dcfff; margin-right: auto; }
+  .clock { color: #e0f7ff; font-size: 13px; letter-spacing: 1px; min-width: 64px; text-align: right; }
+  .knob { display: flex; align-items: center; gap: 10px; }
+  .knob label { color: rgba(196, 208, 245, 0.45); }
+  .knob .gl-brick { padding: 5px 9px; font-size: 12px; }
+  input[type="range"] { width: 150px; height: 2px; accent-color: #ffd285; }
+
+  /* 中：舷窗。什么都不盖，只有底部一句话 */
+  .window { position: relative; }
+  .lore { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; color: rgba(196, 208, 245, 0.42); font-size: 12.5px; letter-spacing: 0.3px; }
+  .lore b { display: block; color: rgba(224, 247, 255, 0.7); font: 600 11px/1 ui-monospace, "Cascadia Code", Consolas, monospace; letter-spacing: 2px; margin-bottom: 8px; }
+
+  /* 左：航点光栅（去哪）。亮着的那条就是现在在的地方 */
+  .places h2, .cal h2 { margin: 0 0 10px; font: 600 10px/1 ui-monospace, "Cascadia Code", Consolas, monospace; letter-spacing: 3px; color: rgba(125, 207, 255, 0.6); }
+  .places .gl-louver { --gl-louver-h: 40px; --gl-louver-gap: 10px; }
+  .places .gl-brick small { font-size: 11px; } /* 颜色归库：待机烟熏灰，选中电光青 */
+
+  /* 右：当月日历晶格（几号）。今天是 .on */
+  .cal { justify-self: end; }
+
+  /* 底：告警行（有没有事）。平时空的——暗座舱，有事才出现 */
+  .annunciator { grid-column: 1 / -1; min-height: 40px; display: flex; gap: 10px; align-items: center; }
+  .annunciator .gl-brick { padding: 8px 14px; }
+  .hint { margin-left: auto; color: rgba(196, 208, 245, 0.22); font-size: 11px; }
+
+  @media (max-width: 900px) {
+    html, body { overflow: auto; }
+    .bridge { height: auto; min-height: 100vh; grid-template-columns: 1fr; grid-template-rows: auto auto minmax(220px, 1fr) auto auto; }
+    .cal { justify-self: start; }
+  }
+</style>
+</head>
+<body class="gl-stage">
+<div class="bridge">
+
+  <header class="top">
+    <span class="mono brand">GLACIER · 舰桥</span>
+    <div class="knob">
+      <label class="mono">时钟</label>
+      <div class="gl-track" id="clockMode">
+        <button class="gl-brick" data-v="place" title="回到这个航点自己的钟">航点时刻</button>
+        <button class="gl-brick" data-v="realtime" title="跟真实时间">实时</button>
+        <button class="gl-brick" data-v="timelapse" title="一天 24 秒">延时</button>
+      </div>
+      <input type="range" id="hour" min="0" max="24" step="0.05" value="12" title="手动拨时间">
+    </div>
+    <span class="mono clock" id="clock">—</span>
+  </header>
+
+  <aside class="places">
+    <h2>航点</h2>
+    <div class="gl-louver" id="places"></div>
+  </aside>
+
+  <main class="window">
+    <div class="lore" id="lore"></div>
+  </main>
+
+  <aside class="cal">
+    <h2 id="calTitle">—</h2>
+    <div class="gl-lattice" id="cal"></div>
+  </aside>
+
+  <footer class="annunciator" id="annunciator">
+    <span class="hint">A 模拟告警 · Esc 清除</span>
+  </footer>
+
+</div>
+
+<script src="glacier.js"></script>
+<script>
+  // ---- 航点：一个地方 = 一颗星 = 星区 + 它自己的钟 + 一句话。第一个是母星：打开页面落在这 ----
+  const PLACES = [
+    { id: "home", name: "母星 · 冰星黄昏", meta: "16:00–19:00 来回", sector: "cryo_blend",
+      clock: { loop: { from: 16, to: 19, duration: 24000, bounce: true } },
+      lore: "第三季风期将至，高空大气折射率偏高，今日晚霞预计持续四个标准时。" },
+    { id: "station", name: "轨道站 · 纯冰", meta: "跟实时", sector: "cryo_pure", clock: "realtime",
+      lore: "站内时间与母港同步。舷窗外的冰环每九十分钟完成一次自转。" },
+    { id: "giant", name: "红巨星 · 日冕边缘", meta: "17:36 定格", sector: "red_giant", clock: 17.6,
+      lore: "引擎逆着自转做同步巡航，太阳悬在天际线上三度。只要不发话，这片黄昏能停一个世纪。" },
+    { id: "pulsar", name: "脉冲星 · 高频昼夜", meta: "一天 24 秒", sector: "pulsar", clock: "timelapse",
+      lore: "近轨行星，昼夜更替极快。此地作息带着工业节拍，没人按「天」过日子。" },
+    { id: "deep", name: "深空 · 夜航", meta: "01:30 定格", sector: "cryo_blend", clock: 1.5,
+      lore: "无星区。灯调到最低，只保留航点光栅和一行坐标。" }
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (h) => `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.floor((h % 1) * 60)).padStart(2, "0")}`;
+
+  // 航点光栅：都是普通按钮 + 类名，光归库管
+  const louver = $("places");
+  for (const p of PLACES) {
+    const b = document.createElement("button");
+    b.className = "gl-brick";
+    b.dataset.id = p.id;
+    b.innerHTML = `<span>${p.name}</span><small>${p.meta}</small>`;
+    louver.appendChild(b);
+  }
+
+  // 当月日历晶格：标签和空位不是砖；今天 .on
+  const cal = $("cal"), today = new Date(), Y = today.getFullYear(), M = today.getMonth();
+  $("calTitle").textContent = `${Y} · ${String(M + 1).padStart(2, "0")}`;
+  for (const d of ["一", "二", "三", "四", "五", "六", "日"]) {
+    const s = document.createElement("span"); s.className = "gl-lattice-label"; s.textContent = d; cal.appendChild(s);
+  }
+  const lead = (new Date(Y, M, 1).getDay() + 6) % 7, days = new Date(Y, M + 1, 0).getDate();
+  for (let i = 0; i < lead; i++) { const v = document.createElement("span"); v.className = "gl-void"; cal.appendChild(v); }
+  for (let d = 1; d <= days; d++) {
+    const b = document.createElement("button");
+    b.className = "gl-brick" + (d === today.getDate() ? " on" : "");
+    b.textContent = d;
+    cal.appendChild(b);
+  }
+
+  // ---- 引擎：落在母星上。舷窗默认是空的：深空基底 + 灯的轨道线，没有球 ----
+  // 那颗橙蓝径向渐变的行星是自发光的小太阳，会把黑位地板掀了、把 1px 刀锋淹了（Gemini 的话：从黑曜石圣殿滑向天气预报 App）。
+  // 要天体就 ?bg=photo&photo=<URL>：灰阶负片 + 太阳色调，颜色 100% 顺从 sunTable；?bg=scene 把球叫回来看对比。
+  const q = new URLSearchParams(location.search);
+  var gl = Glacier.init({ // var：onUpdate 在 init 返回前就会被调一次
+    background: q.get("bg") || "none",
+    photo: q.get("photo"),
+    sector: PLACES[0].sector,
+    time: PLACES[0].clock,
+    idleDivider: 6,
+    onUpdate: () => render()
+  });
+  window.gl = gl;
+
+  // ---- 两个旋钮 ----
+  let current = PLACES[0], clockSel = "place"; // clockSel: "place" | "realtime" | "timelapse" | "manual"
+  const applyClock = (c) => {
+    if (typeof c === "number") gl.setHour(c);
+    else if (c && c.loop) gl.setLoop(c.loop);
+    else gl.setMode(c);
+  };
+  const jump = (p) => { // 去哪：星区 + 这个航点自己的钟 + 一句话。过渡由库里的颜色过渡兜底，不另加动画
+    current = p; clockSel = "place";
+    gl.setSector(p.sector);
+    applyClock(p.clock);
+    render();
+  };
+  louver.addEventListener("click", (e) => { const b = e.target.closest(".gl-brick"); if (b) jump(PLACES.find((p) => p.id === b.dataset.id)); });
+  $("clockMode").addEventListener("click", (e) => { // 多快
+    const b = e.target.closest(".gl-brick"); if (!b) return;
+    clockSel = b.dataset.v;
+    if (clockSel === "place") applyClock(current.clock); else gl.setMode(clockSel);
+    render();
+  });
+  $("hour").addEventListener("input", () => { clockSel = "manual"; gl.setHour(Number($("hour").value)); render(); });
+
+  // ---- 告警行：平时没有。A 模拟一条，Esc 清掉；点一条就是"看过了"。真宿主在这接心跳 / 任务状态 ----
+  const ann = $("annunciator"); let alerts = 0;
+  const ALERTS = ["⚠ 通讯 · 网关心跳丢失 ×3", "⚠ 后台任务待确认", "⚠ 轨道站 · 对接口压力异常"];
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "a" || e.key === "A") {
+      const b = document.createElement("button"); b.className = "gl-brick gl-alert gl-pop-in";
+      b.textContent = ALERTS[alerts++ % ALERTS.length]; b.onclick = () => b.remove();
+      ann.insertBefore(b, ann.firstChild);
+    }
+    if (e.key === "Escape") ann.querySelectorAll(".gl-alert").forEach((b) => b.remove());
+  });
+
+  function render() {
+    if (!gl || !gl.sun) return;
+    const s = gl.sun;
+    $("clock").textContent = `${s.isDay ? "☀" : "☾"} ${fmt(s.h)}`;
+    if (document.activeElement !== $("hour")) $("hour").value = s.h.toFixed(2);
+    louver.querySelectorAll(".gl-brick").forEach((b) => b.classList.toggle("on", b.dataset.id === current.id));
+    $("clockMode").querySelectorAll(".gl-brick").forEach((b) => b.classList.toggle("on", b.dataset.v === clockSel));
+    $("lore").innerHTML = `<b>${current.name}</b>${current.lore}`;
+  }
+  render();
+</script>
+</body>
+</html>

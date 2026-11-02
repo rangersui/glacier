@@ -699,7 +699,10 @@
   const VIEW_MARGIN = 160; // lamp 模式：视口外扩这么多像素以内的元素才打光
   const SUN_VARS = ["--agy-sun-crest", "--agy-sun-sheen", "--agy-sun-tint", "--agy-sun-caustic", "--agy-sun-ta", "--agy-sun-photo", "--agy-sun-exposure"];
   const BACKGROUNDS = ["scene", "static", "none", "photo"];
-  const WIDGET_VARS = ["--ice-sx", "--ice-sy", "--ice-dark-x", "--ice-dark-y", "--ice-deg"];
+  const WIDGET_VARS = ["--ice-sx", "--ice-sy", "--ice-dark-x", "--ice-dark-y", "--ice-deg", "--ice-diag"];
+  // 盒子对角线的角度（CSS 角：0 朝上、顺时针）。环和填充的渐变沿它从迎光角走到背光角：宽砖近乎横着走，
+  // 顶边只在左端亮，往右淡出，不是一条油漆线（Windhawk 任务栏 XAML 的 0,0→1,1 画刷就是这个行为）。只在平行光下写
+  const diagOf = (r) => `${Math.round((Math.atan2(r.width, -r.height) * 180) / Math.PI)}deg`;
   const TORCH_VARS = ["--torch-x", "--torch-y", "--torch-a"];
   const INSTANCE_KEY = "__glacierInstance";
   const { lightWidget, applySunVars } = Glacier;
@@ -873,7 +876,7 @@
       if (this.destroyed || !this.state) return;
       const o = this.options;
       const els = Array.from(this.root.querySelectorAll(o.selector));
-      this.torchEls = o.torch ? els.filter((el) => el.matches(o.torchSelector)) : [];
+      this.torchEls = els.filter((el) => el.matches(o.torchSelector)); // torch 关着也要这份：环的对角线角度靠它量
       this.tracked = o.trackSelector ? els.filter((el) => el.matches(o.trackSelector)) : [];
       if (this.tracked.length) this.startTracking();
       if (this.lampMode) this.relightLamp(els);
@@ -910,9 +913,15 @@
       }
       this.syncScrollers();
     }
-    // 手电要知道砖在哪：一轮读、零写
+    // 砖在哪、多大：一轮读（手电用矩形），然后只写一个变量（环的对角线角度，同值不写）
     measureRects() {
       for (const el of this.torchEls) if (el.isConnected) el.__glRect = rectOf(el.getBoundingClientRect());
+      if (!this.lampMode) { // 写阶段：对角线角度，同值不写
+        for (const el of this.torchEls) {
+          const r = el.__glRect; if (!r || !el.isConnected) continue;
+          const v = diagOf(r); if (el.style.getPropertyValue("--ice-diag") !== v) el.style.setProperty("--ice-diag", v);
+        }
+      }
       this.syncScrollers();
     }
     // 矩形刚量完，每个滚动容器的基线就是此刻的 scrollTop；砖的归属缓存也作废（可能有新砖）
