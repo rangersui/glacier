@@ -217,6 +217,10 @@
 @property --torch-x { syntax: "<length>"; inherits: true; initial-value: -9999px; }
 @property --torch-y { syntax: "<length>"; inherits: true; initial-value: -9999px; }
 @property --torch-a { syntax: "<number>"; inherits: true; initial-value: 0; }
+/* 太阳手电（第二支手电）的三个变量，同样要让伪元素读到、--sun-a 要能过渡 */
+@property --sun-x { syntax: "<length>"; inherits: true; initial-value: -9999px; }
+@property --sun-y { syntax: "<length>"; inherits: true; initial-value: -9999px; }
+@property --sun-a { syntax: "<number>"; inherits: true; initial-value: 0; }
 
 /* ==========================================================================
    金星带顶栏 / 分割栏（.gl-bar）：复刻 Windhawk 资源管理器命令栏的「左半深邃暗槽（地球影）+
@@ -393,6 +397,30 @@
   );
   opacity: var(--torch-a);
   transition: opacity 160ms var(--agy-ease-out, ease-out);
+}
+/* 太阳手电：轨道游标是第二支手电，同一配方（1px 外圈、同一色谱、同一衰减形状），只是更大（--sun-r）、更暗（--sun-a 跟 glow）、
+   更慢（800ms 释放，像荧光粉的余晖）。走 ::after，和鼠标那支互不打断；告警砖不参与（它的 ::after 是红灯芯）。
+   只照不动：不改任何状态，不派任何事件，钟不许停（DESIGN.md §3 探针五律） */
+.gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(
+    var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y),
+    rgba(255, 216, 155, 0.72) 0%,
+    rgba(230, 244, 255, 0.36) 32%,
+    transparent 66%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: var(--sun-a);
+  transition: opacity 800ms var(--agy-ease-out, ease-out);
+  pointer-events: none;
 }
 
 /* 共享暗槽（.gl-track）：同一组的几个小开关装进一条下沉的轨道里（复刻 Windhawk 资源管理器命令栏暗槽 #24050A18）。

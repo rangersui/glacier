@@ -194,6 +194,14 @@
           </div>
         </div>
         <div>
+          <label>轨道</label>
+          <div class="row gl-track" data-group="orbit">
+            <button class="gl-brick" data-v="formula">天穹弧</button>
+            <button class="gl-brick" data-v="circle">倾角环</button>
+            <button class="gl-brick" data-v="flat">掠日低弧</button>
+          </div>
+        </div>
+        <div>
           <label>背景</label>
           <div class="row gl-track" data-group="background">
             <button class="gl-brick" data-v="none">none</button>
@@ -278,6 +286,28 @@
     return out;
   };
 
+  // ---- 轨道：试验用的三条曲线（库里不留预设）。曲线必须是钟：单环闭合，一圈就是一天；光色、游标、底片探照灯、太阳手电全跟着表走 ----
+  let orbitSel = "formula";
+  const ORBITS = {
+    formula: () => null, // 内置天穹抛物线
+    circle: () => {
+      // 卡西尼 18° 倾角星环：对齐土星环视倾角，向阳前弧实亮、背阳蚀相暗丝
+      const tilt = -18 * (Math.PI / 180), ct = Math.cos(tilt), st = Math.sin(tilt);
+      return Glacier.sun.tableFromPath((t) => {
+        const a = 2 * Math.PI * t - Math.PI;
+        const x = 0.42 * Math.cos(a), y = 0.19 * Math.sin(a);
+        const front = Math.sin(a) <= 0.15;
+        return { u: 0.5 + x * ct - y * st, v: 0.48 + x * st + y * ct, isDay: front, glow: front ? 0.95 : 0.48 };
+      }, 96);
+    },
+    flat: () => Glacier.sun.tableFromPath((t) => {
+      // 掠日低弧：折返顶点落在视口外（u = -0.08 / 1.08），舷窗内只见两道舒展的掠地长弧，绝不在屏幕内急转弯
+      const a = 2 * Math.PI * t;
+      const day = Math.sin(a) >= 0;
+      return { u: 0.5 - 0.58 * Math.cos(a), v: day ? (0.76 - 0.14 * Math.sin(a)) : (0.76 + 0.09 * Math.sin(a)), isDay: day, glow: day ? 0.92 : 0.45 };
+    }, 96)
+  };
+
   // ---- 控件 ----
   const $ = (id) => document.getElementById(id);
   const hourInput = $("hour");
@@ -292,7 +322,7 @@
     if (document.activeElement !== hourInput) hourInput.value = s.h.toFixed(2);
     // 按钮的 data-v 和时钟模式对不上一一对应：loop 要分"延时（整天）"和"落日（区间）"，fixed 对应"手动"
     const modeKey = gl.mode === "loop" ? (gl.clock?.loop && gl.clock.loop.span < 24 ? "sunset" : "timelapse") : gl.mode === "fixed" ? "manual" : gl.mode;
-    mark("mode", modeKey); mark("background", gl.background);
+    mark("mode", modeKey); mark("background", gl.background); mark("orbit", orbitSel);
     const brickInfo = "locked 1px ring (100%×100% @ 0% 0% in oklch · #FFD89B → #E6F4FF → 暮光紫 → transparent 88% · inset -1.5px #06080E · 0 inline vars)";
     $("readout").innerHTML =
       `lamp <b>${Math.round(s.sunX)}, ${Math.round(s.sunY)}</b> / ${s.W}×${s.H}   glow <b>${s.lampGlow.toFixed(2)}</b>   photo mask <b>${document.body.style.getPropertyValue("--agy-sun-x")} ${document.body.style.getPropertyValue("--agy-sun-y")}</b> × <b>${document.body.style.getPropertyValue("--agy-sun-exposure")}</b>\n` +
@@ -306,6 +336,7 @@
     const g = b.closest("[data-group]").dataset.group, v = b.dataset.v;
     if (g === "mode") { if (v === "sunset") gl.setLoop({ from: 16, to: 19, duration: 12000, bounce: true }); else gl.setMode(v); }
     else if (g === "background") { gl.setBackground(v); instrument(); }
+    else if (g === "orbit") { orbitSel = v; gl.setSunTable(ORBITS[v] ? ORBITS[v]() : null); }
     render();
   });
   $("btnStop").onclick = () => { gl.stop(); render(); };

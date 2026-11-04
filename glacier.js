@@ -9,6 +9,7 @@
  *                         返回句柄 { setHour, setMode, setLoop, setSunTable, setBackground, setPhoto, relight, stop, destroy, sun … }
  *   Glacier.preloadPhoto(url) 提前取图并解码，之后 setPhoto 零等待
  *   挂上总线即受光：root 里新出现的 .gl-* 节点自动纳入（observe），会动的节点加 data-gl-track 逐帧跟着被手电探测
+ *   两支手电：鼠标（快）和太阳（慢，轨道游标经过的砖被擦亮、800ms 暗回去）同一配方；Glacier.sun.tableFromPath 造任意闭合轨道的表
  *
  * 性能守则同 DESIGN.md §13：灯只在动了才重画、渐变缓存、同值不写、读写分离、滚动中不读布局。
  * 砖与卡片走 CSS 常量，零内联 --ice-* 变量，滚动、对表都不碰砖；measureRects 只给鼠标手电读一轮矩形。
@@ -139,27 +140,62 @@
     for (let h = 0; h < 24 - 1e-9; h += step) t.push(frameFromModel(h));
     return t;
   };
-  /** 按表算某个小时的太阳状态（和 computeSunState 同样的返回结构） */
-  const stateFromTable = (table, hour, W, H) => {
-    if (!Array.isArray(table) || !table.length) return computeSunState(hour, W, H);
-    const h = ((hour % 24) + 24) % 24;
-    const kf = table
+  /** 按表算某个小时的太阳状态（和 computeSunState 同样的返回结构）。
+   *  位置 (u, v) 与亮度 glow 在等距表（>=4 帧、间隔之比 <=1.5）上用周期性 Catmull-Rom 三次样条，消除折线棱角；非等距表退回折线。 */
+  const catmullRom = (p0, p1, p2, p3, t) => {
+    const t2 = t * t, t3 = t2 * t;
+    return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+  };
+  // 归一化后的关键帧按表的身份缓存：同一张表第一次用时算一次（每帧要跑 frameFromModel），之后 240 段轨道、
+  // 每帧 28 个余晖采样都直接拿。宿主换表是换数组，自然换缓存；原地改表后要 setSunTable 重新喂
+  const kfCache = new WeakMap();
+  const keyframesOf = (table) => {
+    let kf = kfCache.get(table);
+    if (kf) return kf;
+    kf = table
       .filter((k) => Number.isFinite(k?.hour))
       .map((k) => ({ ...frameFromModel(k.hour), ...k, hour: ((k.hour % 24) + 24) % 24 }))
       .sort((a, b) => a.hour - b.hour);
-    if (!kf.length) return computeSunState(hour, W, H);
-    let a, b, t;
+    // 等距判定：相邻帧（含跨午夜那一段）的间隔之比在 1.5 以内才算等距；均匀 Catmull-Rom 只对等距表成立，
+    // 稀疏手写表（6、7、12、19 点四帧）走样条会忽快忽慢、过冲出屏，退回折线
+    let gmin = Infinity, gmax = 0;
+    for (let i = 0; i < kf.length; i++) {
+      const g = ((kf[(i + 1) % kf.length].hour - kf[i].hour) % 24 + 24) % 24 || 24;
+      gmin = Math.min(gmin, g); gmax = Math.max(gmax, g);
+    }
+    kf.uniform = kf.length >= 4 && gmax / gmin <= 1.5;
+    kfCache.set(table, kf);
+    return kf;
+  };
+  const stateFromTable = (table, hour, W, H) => {
+    if (!Array.isArray(table) || !table.length) return computeSunState(hour, W, H);
+    const h = ((hour % 24) + 24) % 24;
+    const kf = keyframesOf(table);
+    const n = kf.length;
+    if (!n) return computeSunState(hour, W, H);
+    let idx1, idx2, t;
     const i = kf.findIndex((k) => k.hour > h);
     if (i <= 0) {
-      a = kf[kf.length - 1]; b = kf[0];
-      const span = ((b.hour - a.hour) % 24 + 24) % 24 || 24;
-      t = (((h - a.hour) % 24) + 24) % 24 / span;
+      idx1 = n - 1; idx2 = 0;
+      const span = ((kf[0].hour - kf[n - 1].hour) % 24 + 24) % 24 || 24;
+      t = (((h - kf[n - 1].hour) % 24) + 24) % 24 / span;
     } else {
-      a = kf[i - 1]; b = kf[i];
-      t = (h - a.hour) / ((b.hour - a.hour) || 1);
+      idx1 = i - 1; idx2 = i;
+      t = (h - kf[idx1].hour) / ((kf[idx2].hour - kf[idx1].hour) || 1);
     }
-    if (kf.length === 1) { b = a; t = 0; }
-    const u = lerp(a.u, b.u, t), v = lerp(a.v, b.v, t), glow = Math.max(0, Math.min(1, lerp(a.glow, b.glow, t)));
+    if (n === 1) { idx2 = idx1; t = 0; }
+    const a = kf[idx1], b = kf[idx2];
+    let u, v, glow;
+    if (kf.uniform) {
+      const p0 = kf[(idx1 - 1 + n) % n], p3 = kf[(idx2 + 1) % n];
+      u = catmullRom(p0.u, a.u, b.u, p3.u, t);
+      v = catmullRom(p0.v, a.v, b.v, p3.v, t);
+      glow = Math.max(0, Math.min(1, catmullRom(p0.glow, a.glow, b.glow, p3.glow, t)));
+    } else {
+      u = lerp(a.u, b.u, t);
+      v = lerp(a.v, b.v, t);
+      glow = Math.max(0, Math.min(1, lerp(a.glow, b.glow, t)));
+    }
     const isDay = t < 0.5 ? !!a.isDay : !!b.isDay;
     const st = {
       h, u: lampPointAt(h, W, H).u, isDay, hour: h, W, H,
@@ -169,11 +205,23 @@
     for (const k of COLOR_KEYS) st[k] = lerpColor(a[k], b[k], t);
     return st;
   };
-  Glacier.sun = { lampPointAt, computeSunState, sampleTable, stateFromTable, frameFromModel };
+  /** 从"相位 → 位置"的函数造一张表：fn(t) 返回 { u, v, glow?, isDay? }，t ∈ [0, 1) 是一天的相位，u / v 是视口归一化坐标。
+   *  只收标量函数不收像素：曲线必须是钟——单环闭合或单程扫，一圈就是一天；光色从公式同一小时借（DESIGN.md §3 探针五律）。
+   *  默认 glow 恒 1、isDay 恒真（闭合轨道没有昼夜，整圈实线）；要呼吸、要虚线段，fn 自己返回 */
+  const tableFromPath = (fn, frames = 48) => {
+    const t = [];
+    for (let i = 0; i < frames; i++) {
+      const phase = i / frames, hour = phase * 24, q = fn(phase) || {};
+      const f = frameFromModel(hour);
+      t.push({ ...f, u: Number.isFinite(q.u) ? q.u : f.u, v: Number.isFinite(q.v) ? q.v : f.v, glow: Number.isFinite(q.glow) ? q.glow : 1, isDay: q.isDay === undefined ? true : !!q.isDay });
+    }
+    return t;
+  };
+  Glacier.sun = { lampPointAt, computeSunState, sampleTable, stateFromTable, frameFromModel, tableFromPath };
 
   // ==========================================================================
   // 2. 灯 overlay：轨迹就是「几点钟灯在哪」那张表画出来的线
-  //    静态层（轨迹 + loop 段 + 整点刻度，表 / 区间 / 昼夜 / 尺寸变了才重建）+ 游标（小柔光 + 点 + 时间，只重画脏矩形）
+  //    静态层（一根连续的三色游丝 + loop 段加亮，表 / 区间 / 尺寸变了才重建）+ 游标（星核 + 柔和日冕 + 身后余晖，只重画脏矩形）；时间读数在宿主的钟上，不画在画布里
   // ==========================================================================
   const toRgb = (color) => {
     if (!color) return [255, 220, 170];
@@ -184,17 +232,29 @@
     return [255, 220, 170];
   };
   const rgba = (c, a) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a.toFixed(3)})`;
-  const PATH_STEP = 0.5;   // 轨迹按表采样的步长（小时）：48 段
-  const CURSOR_R = 22;     // 游标柔光半径
-  const CURSOR_DIRTY = 96; // 游标脏矩形半边（柔光 + 刻度线 + 时间文字都在里面）
+  const PATH_STEP = 0.1;   // 轨迹按表高密采样步长（小时）：240 段 + 二次平滑样条，彻底消灭折线棱角与锯齿
+  const CURSOR_R = 28;     // 游标柔光半径
+  const CURSOR_DIRTY = 64; // 游标脏矩形半边
+  const TRAIL_H = 1.1, TRAIL_N = 28; // 余晖：游标身后 1.1 小时的平滑光学尾迹
+
+  const traceSmooth = (ctx, run) => {
+    ctx.beginPath();
+    ctx.moveTo(run[0].x, run[0].y);
+    if (run.length === 2) { ctx.lineTo(run[1].x, run[1].y); return; }
+    for (let i = 1; i < run.length - 1; i++) {
+      ctx.quadraticCurveTo(run[i].x, run[i].y, 0.5 * (run[i].x + run[i + 1].x), 0.5 * (run[i].y + run[i + 1].y));
+    }
+    const last = run[run.length - 1];
+    ctx.lineTo(last.x, last.y);
+  };
 
   class Lamp {
-    constructor(canvas) { this.canvas = canvas; this.lastKey = ""; this.staticKey = ""; this.staticLayer = null; this.glowCache = new Map(); this.prevRect = null; }
+    constructor(canvas) { this.canvas = canvas; this.lastKey = ""; this.staticKey = ""; this.staticLayer = null; this.glowCache = new Map(); this.prevRect = null; this.lastHour = null; }
     /** 默认路径：内置公式。init() 有表时传表的采样器进来（hour → { x, y, isDay }） */
     static formulaPath(W, H) { return (h) => lampPointAt(h, W, H); }
-    // 静态层：轨迹（按表每 PATH_STEP 小时采一个点，0 → 24 闭合）+ 子区间 loop 段加亮 + 整点刻度。
-    // 色散锁死为横跨视口的 Windhawk 黄金光谱（左琥珀 #FFCE91 → 中冰白 #F0FCFF → 右暮光紫 #BB9AF7），
-    // 因此静态层与当前时刻完全无关——只有表换了、子区间换了、视口尺寸换了才重建，时间走动时零重建、零跳变。
+    // 静态层：纯粹的 1px 连续光学游丝（零刻度毛刺、零虚线锯齿、零文字杂讯）。
+    // 色散与 .gl-bar / .gl-brick 完全同源（左香槟暖金 #FFD89B → 中冰晶白 #E6F4FF → 右暮光紫 #BB9AF7，两端向视口边缘柔和消隐）：
+    // 底层垫一圈 4.5px 极淡折射光晕消解像素阶梯，表层走 1.1px 连续锐利刀锋；背阳段（!isDay）只压低明度，绝不画丑陋的虚线。
     buildStatic(W, H, dpr, state, path, pathKey, loop) {
       const subLoop = loop && loop.span < 24 ? loop : null; // 整天循环（timelapse，span=24）不画局部加亮段
       const key = `${W}x${H}@${dpr}:${pathKey}:${subLoop ? `${subLoop.from}+${subLoop.span}` : ""}`;
@@ -202,63 +262,54 @@
       this.staticKey = key;
       const off = document.createElement("canvas"); off.width = Math.round(W * dpr); off.height = Math.round(H * dpr);
       const ctx = off.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const visible = (p) => p.y <= H + 40;
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      const visible = (p) => p.y <= H + 60 && p.y >= -60 && p.x >= -60 && p.x <= W + 60;
       const spectrumGrad = (a0, a1, a2) => {
         const g = ctx.createLinearGradient(0, 0, W, 0);
-        g.addColorStop(0, `rgba(255, 206, 145, ${a0})`);
-        g.addColorStop(0.5, `rgba(240, 252, 255, ${a1})`);
-        g.addColorStop(1, `rgba(187, 154, 247, ${a2})`);
+        g.addColorStop(0, `rgba(255, 216, 155, ${(a0 * 0.25).toFixed(3)})`);
+        g.addColorStop(0.14, `rgba(255, 216, 155, ${a0})`);
+        g.addColorStop(0.5, `rgba(230, 244, 255, ${a1})`);
+        g.addColorStop(0.86, `rgba(187, 154, 247, ${a2})`);
+        g.addColorStop(1, `rgba(187, 154, 247, ${(a2 * 0.25).toFixed(3)})`);
         return g;
       };
-      const dayGrad = spectrumGrad(0.22, 0.25, 0.22);
-      const nightGrad = spectrumGrad(0.13, 0.15, 0.13);
-      // 轨迹：同一昼夜的连续点连成一条折线；白天实线、夜里虚线
+      const dayHalo = spectrumGrad(0.055, 0.075, 0.055);
+      const dayBlade = spectrumGrad(0.32, 0.42, 0.32);
+      const nightBlade = spectrumGrad(0.08, 0.11, 0.09);
       const pts = [];
       for (let h = 0; h <= 24 + 1e-9; h += PATH_STEP) pts.push(path(h));
       const strokeRun = (run) => {
         if (run.length < 2) return;
         const day = !!run[0].isDay;
-        ctx.beginPath(); ctx.moveTo(run[0].x, run[0].y);
-        for (let i = 1; i < run.length; i++) ctx.lineTo(run[i].x, run[i].y);
-        ctx.setLineDash(day ? [] : [3, 7]); ctx.lineWidth = 1;
-        ctx.strokeStyle = day ? dayGrad : nightGrad;
+        if (day) {
+          traceSmooth(ctx, run);
+          ctx.lineWidth = 4.5; ctx.strokeStyle = dayHalo; ctx.stroke();
+        }
+        traceSmooth(ctx, run);
+        ctx.lineWidth = day ? 1.1 : 0.85;
+        ctx.strokeStyle = day ? dayBlade : nightBlade;
         ctx.stroke();
       };
       let run = [];
       for (const p of pts) {
         if (!visible(p)) { strokeRun(run); run = []; continue; }
-        if (run.length && !!run[0].isDay !== !!p.isDay) { run.push(p); strokeRun(run); run = [p]; continue; } // 昼夜交界点两段共用
+        if (run.length && !!run[0].isDay !== !!p.isDay) { run.push(p); strokeRun(run); run = [p]; continue; }
         run.push(p);
       }
       strokeRun(run);
-      ctx.setLineDash([]);
-      // 区间 loop 段加亮（仅 span < 24 的子区间，如母星 16→19）：from → from+span
+      // 区间 loop 段加亮（仅 span < 24 的子区间，如母星 16→19）：双层光学蚀刻（柔光底 + 1.35px 刀锋）
       if (subLoop) {
-        ctx.beginPath(); let started = false;
-        for (let t = 0; t <= subLoop.span + 1e-9; t += PATH_STEP / 2) {
+        const subRun = [];
+        for (let t = 0; t <= subLoop.span + 1e-9; t += PATH_STEP) {
           const p = path((subLoop.from + t) % 24);
-          if (!visible(p)) { started = false; continue; }
-          if (!started) { ctx.moveTo(p.x, p.y); started = true; } else ctx.lineTo(p.x, p.y);
+          if (visible(p)) subRun.push(p);
         }
-        ctx.lineWidth = 1.35; ctx.strokeStyle = spectrumGrad(0.46, 0.5, 0.46); ctx.stroke();
-      }
-      // 整点刻度：沿路径放，法线取相邻点；每 6 小时一根长的，分两批一次 stroke
-      ctx.lineWidth = 1;
-      for (const isMajor of [true, false]) {
-        ctx.beginPath();
-        const len = isMajor ? 7 : 3.5;
-        for (let h = 0; h < 24; h++) {
-          if ((h % 6 === 0) !== isMajor) continue;
-          const p = path(h);
-          if (p.y > H + 10 || p.y < -10) continue;
-          const q = path(h + 0.05);
-          const tx = q.x - p.x, ty = q.y - p.y, tl = Math.hypot(tx, ty) || 1;
-          const nx = -ty / tl, ny = tx / tl;
-          ctx.moveTo(p.x - nx * len, p.y - ny * len);
-          ctx.lineTo(p.x + nx * len, p.y + ny * len);
+        if (subRun.length >= 2) {
+          traceSmooth(ctx, subRun);
+          ctx.lineWidth = 5; ctx.strokeStyle = spectrumGrad(0.09, 0.12, 0.09); ctx.stroke();
+          traceSmooth(ctx, subRun);
+          ctx.lineWidth = 1.4; ctx.strokeStyle = spectrumGrad(0.56, 0.72, 0.56); ctx.stroke();
         }
-        ctx.strokeStyle = isMajor ? spectrumGrad(0.32, 0.36, 0.32) : spectrumGrad(0.16, 0.18, 0.16);
-        ctx.stroke();
       }
       this.staticLayer = off;
       return off;
@@ -271,7 +322,10 @@
       sp = document.createElement("canvas"); sp.width = Math.round(R * 2 * dpr); sp.height = Math.round(R * 2 * dpr);
       const g = sp.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
       const grad = g.createRadialGradient(R, R, 0, R, R, R);
-      grad.addColorStop(0, rgba(core, 0.75)); grad.addColorStop(0.1, rgba(corona, 0.5)); grad.addColorStop(0.4, rgba(corona, 0.17)); grad.addColorStop(1, rgba(corona, 0));
+      grad.addColorStop(0, rgba(core, 0.85));
+      grad.addColorStop(0.12, rgba([255, 224, 175], 0.52));
+      grad.addColorStop(0.36, rgba(corona, 0.16));
+      grad.addColorStop(1, rgba(corona, 0));
       g.fillStyle = grad; g.fillRect(0, 0, R * 2, R * 2);
       this.glowCache.set(key, sp);
       return sp;
@@ -284,7 +338,7 @@
       if (!(W > 0 && H > 0)) return false; // 0×0 的视口（隐藏的标签页）没得画
       const path = opts.path || Lamp.formulaPath(W, H), pathKey = opts.pathKey || "formula", loop = opts.loop || null;
       const x = state.sunX, y = state.sunY, glow = state.lampGlow ?? 1;
-      const key = `${Math.round(x)}:${Math.round(y)}:${state.orbCorona}:${state.orbCore}:${state.sunCrest}:${W}x${H}:${glow.toFixed(2)}:${state.isDay}:${pathKey}:${loop ? `${loop.from}+${loop.span}` : ""}`;
+      const key = `${Math.round(x)}:${Math.round(y)}:${state.orbCorona}:${state.orbCore}:${W}x${H}:${glow.toFixed(2)}:${state.isDay}:${pathKey}:${loop ? `${loop.from}+${loop.span}` : ""}`;
       if (key === this.lastKey) return false;
       this.lastKey = key;
       const canvas = this.canvas;
@@ -295,15 +349,18 @@
       const prevStaticKey = this.staticKey;
       const layer = this.buildStatic(W, H, dpr, state, path, pathKey, loop);
       const D = CURSOR_DIRTY;
-      // 时间文字的 y 被夹在视口里；游标在 05:00 / 19:00 掉到视口下面时文字还留在底边，脏矩形必须把它一起框进去，否则擦不掉
-      // 法线先算（时间文字的位置和脏矩形都要用；之前写在后面，触发了 TDZ，整个 init 在这里炸掉）
-      const q = path(hour + 0.05);
-      const tx = q.x - x, ty = q.y - y, tl = Math.hypot(tx, ty) || 1;
-      let nx = -ty / tl, ny = tx / tl;
-      if ((W / 2 - x) * nx + (H / 2 - y) * ny > 0) { nx = -nx; ny = -ny; }
-      const textY = Math.max(10, Math.min(H - 10, y + ny * 24));
-      const ry0 = Math.min(y - D, textY - 12), ry1 = Math.max(y + D, textY + 12);
-      const newRect = { x: x - D, y: ry0, w: D * 2, h: ry1 - ry0 }; // 游标 + 刻度线 + 时间文字都在这个框里
+      // 余晖：上一帧到这一帧游标往哪边走了，就在身后那一侧沿轨道画 TRAIL_H 小时的连续渐变光尾；没动（定格、首帧、大幅跳拨）就没有余晖
+      let delta = this.lastHour === null ? 0 : ((hour - this.lastHour) % 24 + 24) % 24;
+      if (delta > 12) delta -= 24;
+      this.lastHour = hour;
+      const trail = [];
+      if (Math.abs(delta) > 1e-4 && Math.abs(delta) <= 2) {
+        const dir = delta > 0 ? 1 : -1;
+        for (let i = 0; i <= TRAIL_N; i++) trail.push(path((hour - dir * TRAIL_H * (i / TRAIL_N) + 24) % 24));
+      }
+      let rx0 = x - D, rx1 = x + D, ry0 = y - D, ry1 = y + D;
+      for (const t of trail) { rx0 = Math.min(rx0, t.x - 8); rx1 = Math.max(rx1, t.x + 8); ry0 = Math.min(ry0, t.y - 8); ry1 = Math.max(ry1, t.y + 8); }
+      const newRect = { x: rx0, y: ry0, w: rx1 - rx0, h: ry1 - ry0 };
       const full = sizeChanged || !this.prevRect || this.staticKey !== prevStaticKey;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       if (full) { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(layer, 0, 0); }
@@ -315,20 +372,26 @@
       }
       this.prevRect = newRect;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      // 游标：小小的柔光 + 一个点
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      // 余晖：单笔连续平滑曲线 + 香槟暖金 → 冰晶白 → 暮光紫渐隐（零结节）
+      if (trail.length > 1) {
+        const head = trail[0], tail = trail[trail.length - 1], gFactor = Math.max(0.4, glow);
+        const tg = ctx.createLinearGradient(head.x, head.y, tail.x, tail.y);
+        tg.addColorStop(0, `rgba(255, 216, 155, ${(0.82 * gFactor).toFixed(3)})`);
+        tg.addColorStop(0.35, `rgba(230, 244, 255, ${(0.45 * gFactor).toFixed(3)})`);
+        tg.addColorStop(0.72, `rgba(187, 154, 247, ${(0.16 * gFactor).toFixed(3)})`);
+        tg.addColorStop(1, "rgba(187, 154, 247, 0)");
+        traceSmooth(ctx, trail);
+        ctx.lineWidth = 4; ctx.strokeStyle = tg; ctx.save(); ctx.globalAlpha = 0.24; ctx.stroke(); ctx.restore();
+        traceSmooth(ctx, trail);
+        ctx.lineWidth = 1.4; ctx.strokeStyle = tg; ctx.stroke();
+      }
+      // 游标：只画纯粹的光学星点（柔和日冕 + 1.8px 炽白星核），不画刻度棍、靶环和文字
       const corona = toRgb(state.orbCorona), core = toRgb(state.orbCore);
-      ctx.save(); ctx.globalAlpha = Math.max(0.25, glow);
+      ctx.save(); ctx.globalAlpha = Math.max(0.3, glow);
       ctx.drawImage(this.glowSprite(core, corona, CURSOR_R, dpr), x - CURSOR_R, y - CURSOR_R, CURSOR_R * 2, CURSOR_R * 2);
-      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fillStyle = rgba(core, 0.95); ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, 1.8, 0, Math.PI * 2); ctx.fillStyle = "#FFFDF8"; ctx.fill();
       ctx.restore();
-      // 「现在」刻度 + 时间，放在路径外侧（法线背离视口中心的那一侧）
-      ctx.beginPath(); ctx.moveTo(x + nx * 9, y + ny * 9); ctx.lineTo(x + nx * 18, y + ny * 18);
-      ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(core, 0.55 * glow + 0.15); ctx.stroke();
-      const normH = ((hour % 24) + 24) % 24;
-      const hh = String(Math.floor(normH)).padStart(2, "0"), mm = String(Math.floor((normH % 1) * 60)).padStart(2, "0");
-      ctx.font = '600 10px ui-monospace, "Cascadia Code", Consolas, monospace'; ctx.textBaseline = "middle"; ctx.textAlign = "center";
-      ctx.fillStyle = rgba(core, 0.5 * glow + 0.15);
-      ctx.fillText(`${state.isDay ? "☀" : "☾"} ${hh}:${mm}`, x + nx * 42, textY);
       return true;
     }
   }
@@ -363,6 +426,8 @@
   //   torch        鼠标手电（Win10 Reveal）：待机态的砖平时无玻璃无边，鼠标 torchRadius 像素内的砖按远近显出 1px 三色边缘；
   //                已点亮的砖不参与；键盘焦点等价于手电停在那一格
   //   torchRadius  手电半径（像素，默认 160）；torchSelector 哪些元素受手电（默认 .gl-brick）
+  //   sunTorch     太阳也是一支手电（默认开，需要 torch 开着）：轨道游标经过的砖，1px 边被它擦亮再在 800ms 里暗回去。
+  //                同一配方、半径 1.5 倍、亮度跟 glow 走；只照不动，不改任何状态
   //   observe      监视 root 里的节点增删：新塞进来的 .gl-brick 节点自动纳入手电探测（挂上总线即受光，不用注册）
   //   trackSelector 会自己动的节点（漂移、拖拽、动画）：带这个选择器的元素逐帧重新量矩形、重新被手电探测；
   //                 默认 [data-gl-track]。不动的元素别加，省着算
@@ -377,6 +442,7 @@
     photo: null,
     torch: true,
     torchRadius: 160,
+    sunTorch: true,
     torchSelector: ".gl-brick",
     observe: true,
     trackSelector: "[data-gl-track]",
@@ -393,6 +459,8 @@
   const BACKGROUNDS = ["none", "photo"];
   const LOOP_TICK = 80; // loop / timelapse 模式对表的节拍（毫秒）
   const TORCH_VARS = ["--torch-x", "--torch-y", "--torch-a"];
+  const SUN_TORCH_VARS = ["--sun-x", "--sun-y", "--sun-a"];
+  const SUN_TORCH_SCALE = 1.5; // 太阳手电半径 = torchRadius × 1.5
   const INSTANCE_KEY = "__glacierInstance";
   const { applySunVars } = Glacier;
 
@@ -429,6 +497,8 @@
       this.root = o.root || document.body;
       this.root.style.setProperty("--gl-dim", String(Math.max(0, Math.min(1, Number(o.dim) || 0))));
       this.root.style.setProperty("--torch-r", `${Math.max(0, Number(o.torchRadius) || 0)}px`);
+      this.root.style.setProperty("--sun-r", `${Math.round(Math.max(0, Number(o.torchRadius) || 0) * SUN_TORCH_SCALE)}px`);
+      this.sunTorched = new Set();
       this.scrollers = new Set();
       this.photoFading = []; // setPhoto 正在淡出的旧底片，unmount 时一起收
       this.shownPhoto = null; // 当前挂着的底片 URL（photo 模式）
@@ -544,6 +614,7 @@
       this.state = this.options.sunTable ? stateFromTable(this.options.sunTable, hour, W, H) : computeSunState(hour, W, H);
       if (this.lamp && !document.hidden) this.lamp.draw(this.state, hour, W, H, this.lampOpts(W, H));
       applySunVars(this.root, this.state);
+      if (this.options.torch && this.options.sunTorch) this.scheduleTorch(); // 太阳挪了，它那支手电也要重探（rAF 合并）
       this.options.onUpdate?.(this.state);
     }
 
@@ -574,6 +645,7 @@
       this.tracked = (o.torch && o.trackSelector) ? this.torchEls.filter((el) => el.matches(o.trackSelector)) : [];
       if (this.torchEls.length && !this.scrolling) this.measureRects();
       if (this.tracked.length) this.startTracking();
+      if (this.torchEls.length) this.scheduleTorch(); // 矩形刚量好：两支手电（鼠标、太阳）按新矩形探一轮
     }
     // 砖在哪、多大：纯读一轮矩形给手电用，零 DOM 样式写入
     measureRects() {
@@ -607,7 +679,7 @@
         el.__glRect = rectOf(b);
         moved = true;
       }
-      if (moved && (this.torchPos || this.torchFocus)) this.applyTorch();
+      if (moved && this.anyTorchLit()) { this.applyTorch(); if (this.options.sunTorch) this.applySunTorch(); }
       this.trackRaf = requestAnimationFrame(() => this.trackFrame());
     }
     // ---- 节点增删：挂上总线即受光 ----------------------------------------------
@@ -642,7 +714,7 @@
               if (!r) continue;
               r.left -= dx; r.right -= dx; r.top -= dy; r.bottom -= dy;
             }
-            if (this.torchPos || this.torchFocus) this.scheduleTorch();
+            if (this.anyTorchLit()) this.scheduleTorch();
           }
         }
       }
@@ -651,7 +723,7 @@
         this.settleTimer = 0;
         this.scrolling = false;
         if (this.torchEls.length) this.measureRects();
-        if (this.torchPos || this.torchFocus) this.scheduleTorch();
+        if (this.anyTorchLit()) this.scheduleTorch();
       }, this.options.settleDelay);
     }
 
@@ -672,7 +744,7 @@
             // 所以真量一轮当基线（一个容器一辈子只多付这一次），而不是把滚完的位置当起点
             this.scrollers.add(sc);
             if (this.torchEls.length) this.measureRects(); else this.syncScrollers();
-            if (this.torchPos || this.torchFocus) this.scheduleTorch(); // 矩形刚变，这一帧手电就按新位置重探
+            if (this.anyTorchLit()) this.scheduleTorch(); // 矩形刚变，这一帧手电就按新位置重探
           }
           this.onScroll(sc);
         }, { capture: true, passive: true });
@@ -702,35 +774,53 @@
     // 其它砖根本不知道鼠标在动，所以几百块砖也不重绘全页。
     scheduleTorch() {
       if (this.torchRaf || this.destroyed) return;
-      this.torchRaf = requestAnimationFrame(() => { this.torchRaf = 0; this.applyTorch(); });
+      this.torchRaf = requestAnimationFrame(() => { this.torchRaf = 0; this.applyTorch(); if (this.options.sunTorch) this.applySunTorch(); });
     }
-    applyTorch() {
-      if (this.destroyed) return;
-      const R = Math.max(0, Number(this.options.torchRadius) || 0), R2 = R * R;
-      const p = this.torchPos, f = this.torchFocus;
-      const keep = new Set();
-      if (p && R > 0) {
+    // 有没有哪支手电亮着：鼠标在窗口里、有键盘焦点、或者开了太阳手电（它永远在走）。矩形一变就得重探
+    anyTorchLit() { return !!(this.torchPos || this.torchFocus || this.options.sunTorch); }
+    // 一支手电照一轮：光源 (x, y)、半径 R，半径内的砖写 vars = [x, y, a] 三个变量（相对砖左上角的坐标 + 亮度），
+    // 上一轮亮着、这一轮不在半径内的砖把变量删掉。两支手电（鼠标、太阳）都走这里，只是光源、半径、变量名、亮度不同
+    lightBricks(x, y, R, vars, alpha, prev) {
+      const keep = new Set(), R2 = R * R;
+      if (R > 0 && Number.isFinite(x) && Number.isFinite(y)) {
         for (const el of this.torchEls) {
           const r = el.__glRect;
           if (!r || !el.isConnected) continue;
-          const dx = p.x < r.left ? r.left - p.x : p.x > r.right ? p.x - r.right : 0;
-          const dy = p.y < r.top ? r.top - p.y : p.y > r.bottom ? p.y - r.bottom : 0;
+          const dx = x < r.left ? r.left - x : x > r.right ? x - r.right : 0;
+          const dy = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
           if (dx * dx + dy * dy > R2) continue;
-          this.setTorch(el, p.x - r.left, p.y - r.top);
+          this.setLight(el, vars, x - r.left, y - r.top, alpha);
           keep.add(el);
         }
       }
-      if (f && f.__glRect && f.isConnected) { this.setTorch(f, f.__glRect.width / 2, f.__glRect.height / 2); keep.add(f); }
-      for (const el of this.torched) {
-        if (!keep.has(el)) for (const k of TORCH_VARS) el.style.removeProperty(k);
-      }
-      this.torched = keep;
+      return keep;
     }
-    setTorch(el, x, y) {
+    setLight(el, vars, x, y, alpha) {
       const st = el.style, vx = `${x.toFixed(1)}px`, vy = `${y.toFixed(1)}px`;
-      if (st.getPropertyValue("--torch-x") !== vx) st.setProperty("--torch-x", vx);
-      if (st.getPropertyValue("--torch-y") !== vy) st.setProperty("--torch-y", vy);
-      if (st.getPropertyValue("--torch-a") !== "1") st.setProperty("--torch-a", "1");
+      if (st.getPropertyValue(vars[0]) !== vx) st.setProperty(vars[0], vx);
+      if (st.getPropertyValue(vars[1]) !== vy) st.setProperty(vars[1], vy);
+      if (st.getPropertyValue(vars[2]) !== alpha) st.setProperty(vars[2], alpha);
+    }
+    static release(prev, keep, vars) { for (const el of prev) if (!keep.has(el)) for (const k of vars) el.style.removeProperty(k); }
+    // 太阳手电：光源是轨道游标在视口里的位置，半径 1.5 倍，亮度跟 glow 走，夜里暗一点。
+    // 只照不动：不加类、不改状态、不派事件。钟不许停，所以它永远在走
+    applySunTorch() {
+      if (this.destroyed || !this.state) return;
+      const R = Math.max(0, Number(this.options.torchRadius) || 0) * SUN_TORCH_SCALE;
+      const a = (0.3 + 0.5 * (this.state.lampGlow ?? 1)).toFixed(2);
+      const keep = this.lightBricks(this.state.sunX, this.state.sunY, R, SUN_TORCH_VARS, a);
+      Instance.release(this.sunTorched, keep, SUN_TORCH_VARS);
+      this.sunTorched = keep;
+    }
+    // 鼠标手电：光源是指针；键盘焦点等价于手电停在那一格的正中
+    applyTorch() {
+      if (this.destroyed) return;
+      const R = Math.max(0, Number(this.options.torchRadius) || 0);
+      const p = this.torchPos, f = this.torchFocus;
+      const keep = p ? this.lightBricks(p.x, p.y, R, TORCH_VARS, "1") : new Set();
+      if (f && f.__glRect && f.isConnected) { this.setLight(f, TORCH_VARS, f.__glRect.width / 2, f.__glRect.height / 2, "1"); keep.add(f); }
+      Instance.release(this.torched, keep, TORCH_VARS);
+      this.torched = keep;
     }
 
     // ---- 公开句柄 ------------------------------------------------------------
@@ -818,10 +908,11 @@
       this.unmountBackground();
       this.canvases.lamp?.remove(); this.canvases.lamp = null; this.lamp = null;
       const rs = this.root.style;
-      for (const k of [...SUN_VARS, "--torch-r", "--gl-dim"]) rs.removeProperty(k);
+      for (const k of [...SUN_VARS, "--torch-r", "--sun-r", "--gl-dim"]) rs.removeProperty(k);
       for (const el of this.torchEls) delete el.__glRect;
       for (const el of this.torched) for (const k of TORCH_VARS) el.style.removeProperty(k);
-      this.torched.clear(); this.torchEls = [];
+      for (const el of this.sunTorched) for (const k of SUN_TORCH_VARS) el.style.removeProperty(k);
+      this.torched.clear(); this.sunTorched.clear(); this.torchEls = [];
       if (this.root[INSTANCE_KEY] === this) delete this.root[INSTANCE_KEY];
       this.state = null;
     }

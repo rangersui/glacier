@@ -53,8 +53,9 @@ glacier/
 | `photo` | `null` | 照片 URL（`background: "photo"` 用）。底片永远是 100% 纯黑白银盐灰阶（不染任何彩色），由太阳游标的径向遮罩局部照亮显影 |
 | `time` | `"realtime"` | 时钟（现在几点）：`"realtime"` 每 `realtimeInterval` 毫秒对一次表；数字 = 定住这个小时；`"timelapse"` 一天循环（从当前时刻起一圈 `timelapseDuration` 毫秒）；`{ loop: { from, to, duration, bounce } }` 区间来回；`"external"` 不自己走，宿主用 `setHour()` 推 |
 | `sunTable` | `null` | 关键帧表（几点钟长什么样，见第 3 节末）；`null` 用内置公式 |
-| `lampOverlay` | `true` | 是否画灯 overlay：轨迹按「几点钟灯在哪」那张表采样画（有 `sunTable` 按表，没有按公式；每 0.5 小时一个点，白天实线、夜里虚线）、整点刻度沿着路径放、子区间 `loop` 模式（`span < 24`）把区间那段加亮、当前时刻是一个小柔光游标 + 时间。轨迹与刻度直接用横跨视口的「琥珀 → 冰白 → 金星带暮光紫」水平渐变绘制，静态层与时刻彻底无关（时间走动零重建，换表 / 换子区间 / 改尺寸才重建），游标只重画脏矩形 |
+| `lampOverlay` | `true` | 是否画灯 overlay：轨迹按「几点钟灯在哪」那张表画成一根连续的 1px 光学游丝（有 `sunTable` 用周期性 Catmull-Rom 样条（表要等距：>=4 帧且相邻间隔之比 <=1.5，否则退回折线），没有用内置公式；240 段二次平滑样条 + 底层 4.5px 极淡折射晕染 + 表层「香槟暖金 → 冰晶白 → 金星带暮光紫」水平光谱，背阳段只压低明度，零刻度毛刺、零虚线锯齿），子区间 `loop` 模式（`span < 24`）把区间那段加亮，当前时刻是一枚柔和日冕包裹的 1.8px 炽白星点游标（不带刻度棍和画布浮字），运动时身后沿轨道拖出一段单笔连续三色渐隐光尾。静态层与时刻彻底无关（时间走动零重建，换表 / 换子区间 / 改尺寸才重建），游标只重画脏矩形 |
 | `torch` / `torchRadius` / `torchSelector` | `true` / `160` / `".gl-brick"` | 鼠标手电（Win10 Reveal）：待机态的砖平时无玻璃无边，鼠标半径内的砖按远近浮现三色径向光圈（琥珀 → 冰白 → 暮光紫），相邻的砖被余光照到一截；已点亮的砖不参与；键盘焦点等价于手电停在那一格。不读布局，只给半径内的砖写 `--torch-*` 变量 |
+| `sunTorch` | `true` | 太阳也是一支手电（要 `torch` 开着）：轨道游标经过的砖，1px 边被擦亮、800ms 暗回去。同一配方，半径 `torchRadius × 1.5`，亮度跟 `glow` 走；只照不动，不改状态 |
 | `observe` | `true` | 监视 `root` 里的节点增删：新塞进来的 `.gl-brick` 节点自动纳入鼠标手电探测，不用注册、不用调 `relight()` |
 | `trackSelector` | `"[data-gl-track]"` | 会自己动的节点（漂移、拖拽、动画）逐帧重新量矩形、被手电探测。这是本库唯一的逐帧布局读取，只给会动的东西加 |
 | `dim` | `0.3` | 底片压暗 0–1：照片层不透明度乘 `(1 − dim)`，面板后面的背景要安静 |
@@ -98,8 +99,8 @@ glacier/
 库往页面上写的东西（也就是 `destroy()` 会收回的东西）：
 
 - `root` 前面的背景层（从下到上）：`photo` 模式一个 `div.gl-layer-photo`（淡化期间短暂两个），再加一张 `canvas.gl-layer-lamp`（`lampOverlay: false` 就没有）
-- `root.style` 上的 `--agy-sun-x` / `--agy-sun-y`（太阳探照灯在视口里的百分比坐标）、`--agy-sun-exposure`（0.68–1.0，微弱明度呼吸）、`--gl-dim`、`--torch-r`。四组光色、`--agy-sun-photo` 彩色染色和 `--agy-sun-ta` 均已砍掉
-- 冰砖和卡片**零常驻内联变量**（全部走 `glacier.css` 焊死的 1px 切边 + `100% 100% at 0% 0%` 归一化三色光学常量）；仅在鼠标手电半径内的砖写三个 `--torch-x / --torch-y / --torch-a`，鼠标移开即删
+- `root.style` 上的 `--agy-sun-x` / `--agy-sun-y`（太阳探照灯在视口里的百分比坐标）、`--agy-sun-exposure`（0.68–1.0，微弱明度呼吸）、`--gl-dim`、`--torch-r`、`--sun-r`。四组光色、`--agy-sun-photo` 彩色染色和 `--agy-sun-ta` 均已砍掉
+- 冰砖和卡片**零常驻内联变量**（全部走 `glacier.css` 焊死的 1px 切边 + `100% 100% at 0% 0%` 归一化三色光学常量）；仅在鼠标手电半径内的砖写三个 `--torch-x / --torch-y / --torch-a`（鼠标移开即删），太阳手电半径内的砖写三个 `--sun-x / --sun-y / --sun-a`（游标走开即删）
 - `window` 上一个 `resize`，`document` 上一个 `visibilitychange`；开了手电时 `document` 上一个捕获、被动的 `scroll`、`pointermove / pointerleave`、`root` 上的 `focusin / focusout`（以及开了 `observe` 时一个 `MutationObserver`）
 
 ### 太阳拆成两层：表 + 时钟
@@ -124,6 +125,7 @@ glacier/
 |---|---|
 | `Glacier.sun.lampPointAt(hour, W, H)` | 时间 → 灯在 W×H 里的位置（白天 05–19 抛物线，夜里低轨道从右走回左） |
 | `Glacier.sun.computeSunState(hour, W, H)` | 位置 + 四组光色 + `lampGlow`（靠近下沿渐隐） |
+| `Glacier.sun.tableFromPath(fn, frames = 48)` | 从"相位 → 位置"的函数造一张表：`fn(t)` 返回 `{ u, v, glow?, isDay? }`，`t ∈ [0, 1)` 是一天的相位。任意闭合曲线（圆、扁弧、你自己的一圈）都从这进来；光色从公式同一小时借。曲线必须是钟：单环闭合或单程扫（`DESIGN.md` §3 探针五律） |
 | `Glacier.sun.sampleTable(step)` / `stateFromTable(table, hour, W, H)` / `frameFromModel(hour)` | 关键帧表：采样内置公式、按表插值出状态、取公式在某小时的一帧 |
 | `new Glacier.Lamp(canvas)` → `draw(state, hour, W, H, { path, pathKey, loop })` | 灯 overlay。`path(hour) → { x, y, isDay }` 是轨迹采样器（默认 `Lamp.formulaPath(W, H)`），`pathKey` 换表时要换，`loop = { from, span }` 要加亮的区间。位置取整后没变、颜色没变、尺寸没变就不重画 |
 | `Glacier.applySunVars(el, state)` | 把 `--agy-sun-x`、`--agy-sun-y`、`--agy-sun-exposure` 写到 `el` 上，同值不写 |
@@ -132,7 +134,7 @@ glacier/
 
 - 令牌在 `:root`：`--agy-bg`、`--agy-fg`、`--agy-accent-cyan`、`--agy-card-alpha`，动效 `--agy-ease-out / spring`、`--agy-dur-base / slow`，底片透射基准 `--gl-photo-level: 0.55`，三轨字体栈 `--gl-font-mono`（等宽遥测轨：`JetBrains Mono` / `Cascadia Code`）、`--gl-font-serif`（细衬线标题/叙事轨：`Newsreader` + `Noto Serif SC`）、`--gl-font-sans`（高内白无衬线正文轨：`Inter` + `Noto Sans SC`），以及焊死的磁贴光学常量 `--gl-crest-line`（水平 90° `in oklch`：香槟暖金 → 冰晶白 → 金星带暮光紫）、`--gl-edge`（`100% 100% at 0% 0% in oklch` 归一化 1px 单层刀锋，88% 处彻底透明归零）、`--gl-brick-fill`（左上 10% 香槟金微光 + 左下 16% 皇家钴蓝呼吸微光）。
 - 字体加载：`demo.html` 和 `bridge.html` 顶部带 Google Fonts 的 `<link>`（加载 `Inter` 400/500、`JetBrains Mono` 400/600、`Newsreader` 400、`Noto Sans SC` 400/500、`Noto Serif SC` 400），保证任何裸机打开都有完整的三轨字体与 500 字重；离线环境下本机装了 `Cascadia Code` + `Noto Sans SC` + `Noto Serif SC` 也能原地命中（若裸 Windows 既离线又没装 Noto，衬线轨会退回 `Georgia + SimSun` 宋体）。`.gl-stage` 带 `-webkit-font-smoothing: antialiased`（仅 macOS 生效，Windows 仍走系统 DirectWrite）。
-- `--torch-*` 用 `@property` 注册成继承且有类型，`::before` 才能读到、`--torch-a` 才能过渡。不再有任何 `--ice-*` 内联变量（见 `DESIGN.md` §4.3–4.4）。
+- `--torch-*`（鼠标手电，`::before`）和 `--sun-*`（太阳手电，`::after`）都用 `@property` 注册成继承且有类型，伪元素才能读到、`-a` 才能过渡。两支手电同一配方：1px 外圈、同一色谱、同一衰减；太阳那支半径 `--sun-r`（root 上，= torchRadius × 1.5）、亮度跟 glow、释放 800ms。不再有任何 `--ice-*` 内联变量（见 `DESIGN.md` §4.3–4.4）。
 - `.gl-bar`：金星带顶栏 / 分割栏（复刻 Windhawk 命令栏：左半地球影暗槽 + 右半金星带瑞利散射紫微雾 + 底部 1px `--gl-crest-line` 光谱地平线）。
 - **未选中保持烟熏磨砂，点亮态严格对齐 Windows 11 开始菜单磁贴（Word 磁贴）的通透黑曜石结构**（`DESIGN.md` §4.3–4.4）：
   - **静止态**：均匀的烟熏磨砂暗底（`rgba(18, 22, 32, 0.42)`，`.gl-track` 暗槽内完全透明 `transparent`），无边框、无杂斑；静止态 `::before` 仅在鼠标手电靠近时按距离浮现 1px 切边。
