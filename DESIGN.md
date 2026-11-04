@@ -180,8 +180,8 @@
    - 键盘 `:focus-visible` 焦点补光精准落在游标键帽处（`7 + ratio × (width − 14)`），不卡在滑块正中；纯鼠标点击或拖拽后移开指针不留残光。
 2. **暗槽输入框与命令栏（`.gl-input`）**：
    - **凹凸反相**：冰砖向外凸（左上亮刃、右下暗槽），输入框向内沉（Inset Trench：左上被舱壁遮挡压 `inset 1.5px 1.5px 0 #03050B` 硬暗崖，槽肚锁死 `#060911` 深渊黑，绝不在左上角糊灰白雾）。
-   - **圆角贴合底刃**：利用 `1px solid transparent` 的天然圆角 `border-box`，上半圈至距底 `6px` 处用 `#03050B` 封死，让底部 `1px` 迎光底刃（待机接收 `--torch-*` / `--sun-*`，聚焦点亮 `--gl-crest-line`）顺着左右下角的 `6px` 圆角弧度自然向上弯折包入并渐隐，绝不平直戳出圆角；`<textarea>` 强制 `resize: none` 消灭原生右下双斜杠。
-   - **文字明度阶跃**：未聚焦待机态文字压在 `#8E9BAE` 冷石板银灰（等宽变体 `.gl-input.gl-mono` 压在 `#7A90A8`，前缀图标 `.gl-icon` 同频压暗），只有真正聚焦（`:focus` / `:focus-within`）时才提亮到 `#DCE8FF` 冰晶白（图标提亮为 `#7DCFFF`），打字光标锁死 `#FFD89B` 香槟暖金。
+   - **圆角贴合底刃与单列表标量过渡**：利用 `1px solid transparent` 的天然圆角 `border-box`，上半圈至距底 `6px` 处用 `#03050B` 封死，让底部 `1px` 迎光底刃顺着左右下角的 `6px` 圆角弧度自然向上弯折包入并渐隐，绝不平直戳出圆角；`<textarea>` 强制 `resize: none` 消灭原生右下双斜杠。Rest / Hover / Focus 严禁写三套不同的 `background` 层列表（否则浏览器无法插值、瞬间跳变），统一共用同一份层列表（双路手电永远留在列表内），靠 `@property` 标量驱动：`--gl-fill`（`<number>`，`0 → 1`，`160ms`）控制槽肚呼吸微光，`:hover` 只点亮 `--gl-fill: 1` 并把文字抬一档（`#A6B6CC`），底刃与手电绝不动；`--gl-lip`（`<percentage>`，`0% → 100%`，`220ms`）控制 `--gl-crest-line` 在 `0 100%` 处从左端迎光处向右漫开的 `background-size` 宽度，只有 `:focus / :focus-within` 才触发 `--gl-lip: 100%` 把全宽底刃咬住，鼠标移开后手电正常熄灭而底刃留存。
+   - **文字明度阶跃**：未聚焦待机态文字压在 `#8E9BAE` 冷石板银灰（等宽变体 `.gl-input.gl-mono` 压在 `#7A90A8`，前缀图标 `.gl-icon` 同频压暗），`:hover` 抬至 `#A6B6CC`，只有真正聚焦（`:focus` / `:focus-within`）时才提亮到 `#DCE8FF` 冰晶白（图标提亮为 `#7DCFFF`），打字光标锁死 `#FFD89B` 香槟暖金。
 3. **光学数据表（`.gl-table`）**：
    - 严禁竖向铁丝网边框。表头 `th` 走 `--gl-font-mono` 等宽遥测轨（`#7DCFFF` + `letter-spacing: 0.12em`），底下压一道 `1px --gl-crest-line` 光谱地平线；数值列（`.num`）右对齐并锁死 `tabular-nums`。
    - 每一行（`tbody tr`）挂在手电与太阳总线上，径向光只投射在行底那根 `1px` 水平细刃（`0 100% / 100% 1px no-repeat`）上；非末行单元格带静态微暗底线（`tbody tr:not(:last-child) td`），悬停时整行浮现微光与底部 `1px` 光谱线，数值列提亮为 `#64E8E5` 电光青。
@@ -200,7 +200,7 @@
 
 规则：
 
-- 只过渡 `transform`、`opacity`、颜色与 `@property` 注册的手电强度（`--torch-a` / `--sun-a`）。
+- 只过渡 `transform`、`opacity`、颜色与 `@property` 注册的光学标量（`--torch-a` / `--sun-a` / `--gl-lip` / `--gl-fill`）。
 - 尊重系统"减弱动态效果"（`@media (prefers-reduced-motion: reduce)`）：所有动画与过渡瞬时完成（`0.01ms`）。
 
 ## 6. 性能守则与剃刀记录

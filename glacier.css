@@ -243,6 +243,11 @@
 @property --sun-x { syntax: "<length>"; inherits: true; initial-value: -9999px; }
 @property --sun-y { syntax: "<length>"; inherits: true; initial-value: -9999px; }
 @property --sun-a { syntax: "<number>"; inherits: true; initial-value: 0; }
+/* 暗槽状态过渡标量：共用同一套 background 层列表，只改标量以实现平滑插值
+   --gl-lip：聚焦底刃从左端迎光处往右漫开的宽度（rest/hover 0% → focus 100%）
+   --gl-fill：槽肚呼吸微光强度（rest 0 → hover/focus 1） */
+@property --gl-lip { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
+@property --gl-fill { syntax: "<number>"; inherits: false; initial-value: 0; }
 
 /* 双路手电的唯一配方（DESIGN.md §1「唯一锚点」在 CSS 里的唯一来源）：
    --gl-torch-ring 鼠标手电、--gl-sun-ring 太阳手电，冰砖 / 滑轨 / 输入框 / 表格行都只引用这两个变量，不许再抄一份。
@@ -866,8 +871,15 @@
   border-radius: 6px;
   border: 1px solid transparent;
   background:
+    radial-gradient(
+      90% 60% at 35% 100% in oklab,
+      rgba(255, 216, 155, calc(0.045 * var(--gl-fill))) 0%,
+      rgba(45, 110, 255, calc(0.055 * var(--gl-fill))) 55%,
+      transparent 100%
+    ) padding-box,
     linear-gradient(#060911, #060911) padding-box,
     linear-gradient(180deg, #03050B 0%, #03050B calc(100% - 6px), rgba(3, 5, 11, 0.45) calc(100% - 2px), transparent 100%) border-box,
+    var(--gl-crest-line) 0 100% / var(--gl-lip) 100% no-repeat border-box,
     var(--gl-torch-ring) border-box,
     var(--gl-sun-ring) border-box,
     linear-gradient(rgba(196, 208, 245, 0.08), rgba(196, 208, 245, 0.08)) border-box,
@@ -882,6 +894,8 @@
   transition:
     --torch-a 160ms var(--gl-ease-out, ease-out),
     --sun-a 800ms var(--gl-ease-out, ease-out),
+    --gl-lip 220ms var(--gl-ease-out, ease-out),
+    --gl-fill 160ms var(--gl-ease-out, ease-out),
     color 160ms var(--gl-ease-out, ease-out),
     box-shadow var(--gl-dur-base) var(--gl-ease-out);
 }
@@ -943,26 +957,17 @@ textarea.gl-input {
     inset -1px -1px 0 #04060C,
     inset 1px 1px 0 rgba(240, 252, 255, 0.12);
 }
-.gl-input:hover:not(:focus):not(:focus-within) {
+/* 悬停（:hover）不碰底刃、不碰手电：仅将槽肚微光（--gl-fill: 0 → 1）在 160ms 内淡入，文字提亮一档；
+   聚焦（:focus / :focus-within）才是意图：全宽底刃（--gl-lip: 0% → 100%）从左端迎光处向右侧在 220ms 内漫开，手电继续保留在层列表中 */
+.gl-input:hover {
+  --gl-fill: 1;
   color: #A6B6CC;
-  background:
-    linear-gradient(#070A13, #070A13) padding-box,
-    linear-gradient(180deg, #03050B 0%, #03050B calc(100% - 6px), rgba(3, 5, 11, 0.45) calc(100% - 2px), transparent 100%) border-box,
-    linear-gradient(
-      90deg in oklab,
-      rgba(255, 216, 155, 0.42) 0%,
-      rgba(230, 244, 255, 0.52) 50%,
-      rgba(187, 154, 247, 0.42) 100%
-    ) border-box;
 }
 .gl-input:focus,
 .gl-input:focus-within {
+  --gl-lip: 100%;
+  --gl-fill: 1;
   color: #DCE8FF;
-  background:
-    radial-gradient(90% 60% at 35% 100% in oklab, rgba(255, 216, 155, 0.045) 0%, rgba(45, 110, 255, 0.055) 55%, transparent 100%) padding-box,
-    linear-gradient(#070A14, #070A14) padding-box,
-    linear-gradient(180deg, #03050B 0%, #03050B calc(100% - 6px), rgba(3, 5, 11, 0.35) calc(100% - 2px), transparent 100%) border-box,
-    var(--gl-crest-line) border-box;
   box-shadow:
     inset 1.5px 1.5px 0 #03050B,
     inset 0 2px 6px rgba(0, 2, 8, 0.92),
@@ -1099,7 +1104,10 @@ textarea.gl-input {
   .gl-brick,
   .gl-brick::before,
   .gl-card,
-  .gl-pop-in {
+  .gl-pop-in,
+  .gl-input,
+  .gl-slider,
+  .gl-table tbody tr {
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
     transition-duration: 0.01ms;
