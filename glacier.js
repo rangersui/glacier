@@ -1,10 +1,10 @@
 /**
  * glacier.js — Glacier（星舰冰川）设计语言的独立浏览器库
  *
- * 一盏灯，两个消费者（轨道游标、底片），加一个把它们装到页面上的 init()：
+ * 一盏灯，两个消费者（轨道游标、黑白底片探照灯遮罩），加一个把它们装到页面上的 init()：
  *   Glacier.sun          太阳模型：时间 → 位置（横跨整个视口的轨道）→ 光色与亮度；关键帧表 sampleTable / stateFromTable
  *   Glacier.Lamp         灯 overlay：柔光球 + 三色光谱轨迹弧 + 刻度 + 当前时间（静态层不随时间重建）
- *   Glacier.applySunVars 把底片的太阳色和曝光（--agy-sun-photo / --agy-sun-exposure）写到一个元素（通常是 body）上
+ *   Glacier.applySunVars 把底片探照灯坐标与微弱明度呼吸（--agy-sun-x / --agy-sun-y / --agy-sun-exposure）写到一个元素（通常是 body）上
  *   Glacier.init(options) 建画布、起太阳、画灯、鼠标手电（控件材质走 CSS 焊死的 1px 环 + 100% 100% at 0% 0% 归一化三色常量，零内联 --ice-*），
  *                         返回句柄 { setHour, setMode, setLoop, setSunTable, setBackground, setPhoto, relight, stop, destroy, sun … }
  *   Glacier.preloadPhoto(url) 提前取图并解码，之后 setPhoto 零等待
@@ -335,31 +335,22 @@
   Glacier.Lamp = Lamp;
 
   // ==========================================================================
-  // 3. 太阳光色广播
+  // 3. 太阳位置与微弱明度广播（底片 100% 消色差黑白银盐灰阶，零色相染色）
   // ==========================================================================
-  // 把底片要的两样写到一个元素（通常是 body）上，同值不写。材质是 CSS 常数，太阳只管底片的色相和曝光
-  // （四组光色和字影浓度 --agy-sun-ta 已砍：库的 CSS 没人读；Antigravity 那边的 PDF 字影是它自己的模块在写）
+  // 材质是 CSS 常数，底片是纯黑白银盐负片；太阳只管底片暗房探照灯的坐标（--agy-sun-x / --agy-sun-y）和极克制的明度呼吸（--agy-sun-exposure）
   Glacier.applySunVars = (el, state) => {
     const st = el.style;
     const set = (k, val) => { if (val && st.getPropertyValue(k) !== val) st.setProperty(k, val); };
-    // 不透明的太阳色（crest 和 tint 各半，去 alpha：正午冰青、晨昏琥珀、夜里紫蓝）和曝光（灯亮度 → 0.5–1）
-    set("--agy-sun-photo", photoColor(state.sunCrest, state.sunTint));
-    set("--agy-sun-exposure", (0.5 + 0.5 * (state.lampGlow ?? 1)).toFixed(2));
-  };
-  const photoColor = (crest, tint) => {
-    const A = parseColor(crest) || [255, 206, 145, 1], B = parseColor(tint) || A;
-    const raw = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, (A[2] + B[2]) / 2];
-    // crest 带大量高光白（如夜里 min=184），直接当底片染色会把星云染成灰白；拉开色度把白底压到 35%、主通道拉满 255
-    const lo = Math.min(...raw), hi = Math.max(...raw), span = hi - lo || 1, floor = lo * 0.35;
-    const [r, g, b] = raw.map((v) => Math.round(floor + ((v - lo) / span) * (255 - floor)));
-    return `rgb(${r}, ${g}, ${b})`;
+    set("--agy-sun-x", `${((state.sunU ?? 0.5) * 100).toFixed(1)}%`);
+    set("--agy-sun-y", `${((state.sunV ?? 0.25) * 100).toFixed(1)}%`);
+    set("--agy-sun-exposure", (0.68 + 0.32 * (state.lampGlow ?? 1)).toFixed(2));
   };
 
   // ==========================================================================
   // 4. init()：把上面三件东西装到一个页面上
   // ==========================================================================
   // 选项（全部可省）：
-  //   background   "none" 不建背景层，只有灯 + 冰砖 | "photo" 照片当背景：零画布，单节点 div.gl-layer-photo（::before 灰阶底片 + ::after 染色）
+  //   background   "none" 不建背景层，只有灯 + 冰砖 | "photo" 照片当背景：零画布，单节点 div.gl-layer-photo（::before 纯黑白灰阶底片 + ::after 太阳探照灯遮罩）
   //   photo        照片 URL（background: "photo" 用）
   //   time         "现在几点"的时钟：
   //                  "realtime"  跟真实时间（每 realtimeInterval 对一次表）
@@ -398,7 +389,7 @@
   };
   Glacier.DEFAULTS = DEFAULTS;
 
-  const SUN_VARS = ["--agy-sun-photo", "--agy-sun-exposure"];
+  const SUN_VARS = ["--agy-sun-x", "--agy-sun-y", "--agy-sun-exposure"];
   const BACKGROUNDS = ["none", "photo"];
   const LOOP_TICK = 80; // loop / timelapse 模式对表的节拍（毫秒）
   const TORCH_VARS = ["--torch-x", "--torch-y", "--torch-a"];
@@ -472,7 +463,7 @@
     mountBackground(mode) {
       if (!BACKGROUNDS.includes(mode)) mode = "none";
       this.background = mode;
-      // 照片：零画布、单层 div（::before 灰阶底片 + ::after multiply 太阳染色，外层 isolation + screen 叠上黑位地板）
+      // 照片：零画布、单层 div（::before 纯黑白灰阶底片 + ::after 太阳探照灯遮罩，外层 isolation + screen 叠上黑位地板）
       if (mode === "photo") this.photoLayers = [this.makePhotoLayer(this.options.photo)];
       this.placeLayers();
     }
@@ -544,7 +535,7 @@
     stopClock() { if (this.clockTimer) { clearInterval(this.clockTimer); this.clockTimer = 0; } }
 
     // ---- 太阳状态：算一次、发给灯和 root ------------------------------------
-    // 砖和卡片的材质直接走 CSS 常数，所以这里只碰灯和 root（底片的色相、曝光）。
+    // 砖和卡片的材质直接走 CSS 常数，底片永远纯黑白灰阶，所以这里只碰灯和 root（探照灯坐标、微弱明度呼吸）。
     update() {
       if (this.destroyed) return;
       const [W, H] = viewport();

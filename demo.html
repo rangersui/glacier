@@ -73,7 +73,7 @@
   <header class="hero">
     <div>
       <h1><small>DESIGN LANGUAGE</small>一艘停在冰川上的星舰</h1>
-      <p class="lead">背后有一盏按真实时间走动的灯，管轨迹游标和底片曝光；控件的材质是焊死在空间里的 Windhawk 三色棱镜（1px 环：左上香槟暖金 <code>#FFD89B</code> → 冰晶白 <code>#E6F4FF</code> → 暮光紫，64% 后归零；厚度靠右下 <code>inset -1.5px</code> 的零模糊内暗槽），未选中绝不带玻璃与边，只有选中或鼠标手电靠近时才浮现立体玻璃键帽。这一页每个组件一节，各带一行规矩，每块砖都能按：同组单选、告警点一下算确认、漂移节点点一下停。用这些积木搭成的舰桥在 <a href="bridge.html">bridge.html</a>。背景默认是空的，工程面板里切 photo 看底片。</p>
+      <p class="lead">背后有一盏按真实时间走动的灯，管轨迹游标和黑白底片的探照灯显影位置；控件的材质是焊死在空间里的 Windhawk 三色棱镜（1px 环：左上香槟暖金 <code>#FFD89B</code> → 冰晶白 <code>#E6F4FF</code> → 暮光紫，64% 后归零；厚度靠右下 <code>inset -1.5px</code> 的零模糊内暗槽），未选中绝不带玻璃与边，只有选中或鼠标手电靠近时才浮现立体玻璃键帽。这一页每个组件一节，各带一行规矩，每块砖都能按：同组单选、告警点一下算确认、漂移节点点一下停。用这些积木搭成的舰桥在 <a href="bridge.html">bridge.html</a>。背景默认是空的，工程面板里切 photo 看底片。</p>
       <div class="bricks">
         <button class="gl-brick gl-fresh">当前会话</button>
         <button class="gl-brick">Casual Evening…</button>
@@ -91,7 +91,7 @@
       </div>
       <div class="gl-card">
         <h3>一盏灯，两个消费者</h3>
-        <p>overlay 上的轨道游标、root 上底片的色相与曝光，用的都是同一个点；砖和卡片的材质是 CSS 常数，不听太阳。这一页会动的东西都在听 <code>gl.sun</code>。</p>
+        <p>overlay 上的轨道游标、root 上黑白底片的探照灯坐标与微弱明度呼吸，用的都是同一个点；底片永远是 100% 黑白银盐灰阶（零色相串味），砖和卡片的材质是 CSS 常数。这一页会动的东西都在听 <code>gl.sun</code>。</p>
       </div>
     </div>
   </header>
@@ -321,7 +321,7 @@
     mark("mode", modeKey); mark("background", gl.background);
     const brickInfo = "locked 1px ring (100%×100% @ 0% 0% in oklch · #FFD89B → #E6F4FF → 暮光紫 → transparent 88% · inset -1.5px #06080E · 0 inline vars)";
     $("readout").innerHTML =
-      `lamp <b>${Math.round(s.sunX)}, ${Math.round(s.sunY)}</b> / ${s.W}×${s.H}   glow <b>${s.lampGlow.toFixed(2)}</b>   crest <b>${s.sunCrest}</b>   photo <b>${document.body.style.getPropertyValue("--agy-sun-photo")}</b> × <b>${document.body.style.getPropertyValue("--agy-sun-exposure")}</b>\n` +
+      `lamp <b>${Math.round(s.sunX)}, ${Math.round(s.sunY)}</b> / ${s.W}×${s.H}   glow <b>${s.lampGlow.toFixed(2)}</b>   photo mask <b>${document.body.style.getPropertyValue("--agy-sun-x")} ${document.body.style.getPropertyValue("--agy-sun-y")}</b> × <b>${document.body.style.getPropertyValue("--agy-sun-exposure")}</b>\n` +
       `background <b>${gl.background}</b>   mode <b>${gl.mode}</b>   relights <b>${stats.relights}</b>   measures <b>${stats.measures}</b>\n` +
       `brick[0] <b>${brickInfo}</b>`;
   }

@@ -98,7 +98,7 @@
 <script src="glacier.js"></script>
 <script>
   // ---- 航点：一个地方 = 一颗星 = 底片 + 它自己的钟 + 一句话。第一个是母星：打开页面落在这 ----
-  // 底片都是 NASA 图库的灰阶负片（出处见 photos/README.md），通过 --gl-photo-level: 0.48 + 135° 三色空间色散提供 ~28% 可折射底光
+  // 底片都是 NASA 图库的 100% 纯黑白银盐灰阶负片（出处见 photos/README.md），只提供明暗纹理与毛玻璃折射底光（零色相污染），由太阳游标的径向暗房遮罩局部显影
   const PLACES = [
     { id: "home", name: "母星 · 冰星黄昏", meta: "16:00–19:00 来回",
       clock: { loop: { from: 16, to: 19, duration: 24000, bounce: true } },
@@ -151,7 +151,7 @@
     b.classList.add("on");
   });
 
-  // ---- 引擎：落在母星上。舷窗是母星的底片：--gl-photo-level: 0.48 + 135° 空间三色色散，为毛玻璃提供可折射底光 ----
+  // ---- 引擎：落在母星上。舷窗是母星的纯黑白银盐底片：太阳游标走到哪，径向探照灯遮罩就把哪里的黑白星环照亮显影 ----
   // 那颗橙蓝径向渐变的行星是自发光的小太阳，会把黑位地板掀了、把 1px 刀锋淹了，所以不画；
   // ?bg=none 看纯黑 + 轨道线，?photo=<URL> 换自己的底片。
   const q = new URLSearchParams(location.search);

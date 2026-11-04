@@ -15,8 +15,8 @@
   --agy-fg: #c4d0f5;
   --agy-accent-cyan: #2ac3de;
   --agy-card-alpha: 0.82;
-  /* 底片曝光基准：既保持暗座舱的克制，又留足 ~30% 透射率供毛玻璃与冰砖折射（Windhawk GlacierGlass 透射率 28%） */
-  --gl-photo-level: 0.48;
+  /* 底片曝光基准：纯黑白银盐底片不染彩色，留足 25%–35% 银灰透射率供毛玻璃与冰砖折射（Windhawk GlacierGlass 透射率 28%） */
+  --gl-photo-level: 0.55;
 
   /* 焊死的 Windows 11 磁贴（Word 磁贴）/ 任务栏黄金光学常量：
      1. 严禁往按钮肚子里灌实心蓝油漆：点亮态肚子保持 80%+ 深邃黑曜石透明感（rgba(18, 22, 32, 0.78)），
@@ -70,16 +70,18 @@
 /* 场景压暗：init({ dim }) 写 --gl-dim；行星层按它降透明度并降饱和，玻璃压在上面才像玻璃 */
 .gl-layer-lamp { mix-blend-mode: screen; }
 /* 照片背景（background: "photo"）：一张图就是一个独立合成单元（.gl-layer-photo，isolation: isolate + screen 混合）。
-   ::before 画高反差灰阶底片（太空底是纯黑 #000），::after 用 multiply 做空间色散染色（向阳侧暖金 → 航点主色 → 背阳侧金星带暮光紫）；
-   染完后再以 screen 混合、按 --gl-photo-level（0.48 亚克力透光平衡，既保持暗座舱克制又留足 ~28% 可折射底光）× --agy-sun-exposure × (1 - --gl-dim) 叠上黑位地板：
-   纯黑区域在 multiply 与 screen 下恒为 0（绝不污染 #13141c 黑位地板，无需 mask-image），淡入淡出改外层 opacity 时
-   每一帧都是满色度的成品图，物理上不可能在中途泛白或残留鬼影。 */
+   底片永远锁死 100% 消色差的纯黑白银盐灰阶（Luminance Only），绝不染任何彩色——把全部色相预算留给前景的 1px 棱镜刀锋与钴蓝暗涌，
+   彻底杜绝彩色底片透进半透明 .gl-brick 时造成色相串味（如黄昏棕橙把按钮钴蓝搅成脏灰绿）。
+   ::before 画高反差纯黑白银盐底片（太空底是纯黑 #000），::after 是跟随太阳游标坐标（--agy-sun-x / --agy-sun-y）的径向暗房遮罩（Spatial Masking）：
+   平时深空底片压在暗部里，只有太阳游标所在的星轨扇区被照出 25%–35% 的银灰锐度，时间推进时白光探照灯在黑白星环纹理上缓缓滑过；
+   外层再以 screen 混合、按 --gl-photo-level（0.55）× --agy-sun-exposure × (1 - --gl-dim) 叠上 #13141c 黑位地板，
+   淡入淡出改外层 opacity 时物理上不可能泛白或残留鬼影。 */
 .gl-layer-photo {
   background-size: 0;
   background-repeat: no-repeat;
   isolation: isolate;
   mix-blend-mode: screen;
-  opacity: calc(var(--gl-photo-level, 0.48) * var(--agy-sun-exposure, 1) * (1 - var(--gl-dim, 0.3)));
+  opacity: calc(var(--gl-photo-level, 0.55) * var(--agy-sun-exposure, 1) * (1 - var(--gl-dim, 0.3)));
   transition: opacity 700ms var(--agy-ease-out, ease-out);
 }
 .gl-layer-photo::before,
@@ -93,18 +95,15 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  filter: grayscale(1) contrast(1.25) brightness(0.82); /* 底片永远是灰阶：颜色只许来自 ::after 的太阳染色 */
+  filter: grayscale(1) contrast(1.32) brightness(0.92); /* 100% 消色差纯黑白银盐底片：只提供明度起伏与毛玻璃折射纹理，零色相污染 */
 }
 .gl-layer-photo::after {
-  background-color: var(--agy-sun-photo, rgb(95, 175, 255));
-  background-image: linear-gradient(
-    135deg,
-    rgba(255, 196, 130, 0.72) 0%,
-    transparent 48%,
-    rgba(175, 135, 250, 0.72) 100%
+  background: radial-gradient(
+    85vmax circle at var(--agy-sun-x, 50%) var(--agy-sun-y, 25%),
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.18) 50%,
+    rgba(0, 0, 0, 0.42) 100%
   );
-  mix-blend-mode: multiply;
-  transition: background-color 700ms var(--agy-ease-out, ease-out);
 }
 
 /* 鼠标手电的变量要让 ::before 读到，所以 inherits: true；有类型，--torch-a 才能过渡 */

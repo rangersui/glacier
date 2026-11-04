@@ -1,7 +1,7 @@
 # Glacier · 星舰冰川 — 独立浏览器库
 
 > 把「一艘停在冰川上的星舰」这套设计语言（规格见上一级的 `DESIGN.md`）打包成两个文件，任何网页 / Electron / WebView 都能直接用。
-> **把时间拍扁进空间**：点亮的冰砖、毛玻璃卡片、金星带顶栏（`.gl-bar`）、鼠标手电与太阳轨道弧线，统一锁死 Windhawk 同款的「晨曦琥珀 `#FFCE91` → 正午冰白 `#F0FCFF` → 金星带暮光紫 `#BB9AF7` + 右下 2px 深海黑内墙 `#030610`」三色空间光谱；未选中的按钮绝对不带玻璃与边框，一排里只有选中的那一颗是精致的立体玻璃键帽。背后有一盏按时间走动的太阳，沿横跨视口的轨道推进游标、驱动天体底片的色相与曝光。
+> **把时间拍扁进空间**：点亮的冰砖、毛玻璃卡片、金星带顶栏（`.gl-bar`）、鼠标手电与太阳轨道弧线，统一锁死 Windhawk 同款的「香槟暖金 `#FFD89B` → 冰晶白 `#E6F4FF` → 金星带暮光紫 + 右下 `inset -1.5px` 深海黑内槽」三色空间光谱；未选中的按钮绝对不带玻璃与边框，一排里只有选中的那一颗是精致的立体玻璃键帽。背后的天体底片则永远锁死 **100% 纯黑白银盐灰阶**（零色相染色、零色相串味），一盏按时间走动的太阳沿横跨视口的轨道推进游标，并用径向暗房探照灯遮罩在黑白底片上局部显影。
 
 ```
 glacier/
@@ -41,7 +41,7 @@ glacier/
 ### 两个页面
 
 - `demo.html` 是**组件目录**：每个组件一节，各带一行规矩，每块砖都能按（同组单选 `.on`、告警点一下算确认、漂移节点点一下停）；底下是工程面板和压力测试（更多卡片、内部滚动容器、漂移节点）。背景默认空的，工程面板里切 photo 看底片。URL 参数 `?bg=none|photo&photo=<URL>&time=9&drifter=0`。
-- `bridge.html` 是**舰桥**（舷窗是当前航点的 NASA 灰阶底片，`--gl-photo-level: 0.48` 亚克力透光平衡；`?bg=none` 纯黑）：用同一套积木搭的暗座舱范例（DESIGN.md §4.2）。一切正常时面板是黑的；左边航点光栅（去哪：母星 / 轨道站 / 红巨星 / 脉冲星 / 深空，每个航点带自己的底片和钟），顶上时钟旋钮（多快：航点时刻 / 实时 / 延时 / 手动拨），右边当月日历晶格（今天 `.on`），底部告警行平时是空的（按 A 模拟一条，Esc 清掉；真宿主接心跳）。`?photo=<URL>` 换成自己的灰阶负片（这时航点不再换片）。
+- `bridge.html` 是**舰桥**（舷窗是当前航点的 NASA 100% 纯黑白银盐灰阶底片，`--gl-photo-level: 0.55` 亚克力透光平衡；`?bg=none` 纯黑）：用同一套积木搭的暗座舱范例（DESIGN.md §4.2）。一切正常时面板是黑的；左边航点光栅（去哪：母星 / 轨道站 / 红巨星 / 脉冲星 / 深空，每个航点带自己的底片和钟），顶上时钟旋钮（多快：航点时刻 / 实时 / 延时 / 手动拨），右边当月日历晶格（今天 `.on`），底部告警行平时是空的（按 A 模拟一条，Esc 清掉；真宿主接心跳）。`?photo=<URL>` 换成自己的灰阶负片（这时航点不再换片）。
 
 ## 2. `Glacier.init(options)` 选项
 
@@ -50,7 +50,7 @@ glacier/
 | 选项 | 默认 | 含义 |
 |---|---|---|
 | `background` | `"none"` | `"none"` 不建背景层，只有灯 + 冰砖；`"photo"` 照片当背景（零画布，单节点 `div.gl-layer-photo`，见下面「照片当背景」） |
-| `photo` | `null` | 照片 URL（`background: "photo"` 用）。底片永远转灰阶，颜色只来自太阳染色 |
+| `photo` | `null` | 照片 URL（`background: "photo"` 用）。底片永远是 100% 纯黑白银盐灰阶（不染任何彩色），由太阳游标的径向遮罩局部照亮显影 |
 | `time` | `"realtime"` | 时钟（现在几点）：`"realtime"` 每 `realtimeInterval` 毫秒对一次表；数字 = 定住这个小时；`"timelapse"` 一天循环（从当前时刻起一圈 `timelapseDuration` 毫秒）；`{ loop: { from, to, duration, bounce } }` 区间来回；`"external"` 不自己走，宿主用 `setHour()` 推 |
 | `sunTable` | `null` | 关键帧表（几点钟长什么样，见第 3 节末）；`null` 用内置公式 |
 | `lampOverlay` | `true` | 是否画灯 overlay：轨迹按「几点钟灯在哪」那张表采样画（有 `sunTable` 按表，没有按公式；每 0.5 小时一个点，白天实线、夜里虚线）、整点刻度沿着路径放、子区间 `loop` 模式（`span < 24`）把区间那段加亮、当前时刻是一个小柔光游标 + 时间。轨迹与刻度直接用横跨视口的「琥珀 → 冰白 → 金星带暮光紫」水平渐变绘制，静态层与时刻彻底无关（时间走动零重建，换表 / 换子区间 / 改尺寸才重建），游标只重画脏矩形 |
@@ -66,9 +66,11 @@ glacier/
 
 ### 照片当背景
 
-底片与玻璃折射的平衡（`--gl-photo-level: 0.48`）：天体照片在背景里既不能像自发光的塑料球那样抢正文，又要留出约 28%–30% 的透射率供上面的毛玻璃卡片和点亮冰砖折射（对应 Windhawk `GlacierGlass` 的 `0xB8` 透射率）。所以照片层的不透明度 = `--gl-photo-level`（定值 0.48）× `--agy-sun-exposure` × `(1 − dim)`，底片过 `contrast(1.25) brightness(0.82)`，染色层叠上太阳色与 135° 向阳暖金→背阳暮光紫的空间色散。`photos/` 里有五张 NASA 灰阶负片和出处（`photos/README.md`），舰桥一个航点一张。
+底片与玻璃折射的平衡（`--gl-photo-level: 0.55` + 100% 纯黑白银盐灰阶）：天体照片在背景里既不能像自发光的塑料球或跑马灯那样抢正文，又要留出约 28%–35% 的银灰透射率供上面的毛玻璃卡片和点亮冰砖折射（对应 Windhawk `GlacierGlass` 的 `0xB8` 透射率），同时**绝不能给底片染彩色**（一旦底片染上黄昏棕橙或午夜紫蓝，透进半透明 `.gl-brick` 就会把按钮原本的皇家钴蓝搅成脏灰绿）。因此：
+- **底片只管纹理与明度（Luminance Only）**：永远锁死 `grayscale(1) contrast(1.32) brightness(0.92)` 纯黑白银盐灰阶，把全部色相预算留给前景按钮的 1px 棱镜刀锋与钴蓝暗涌；
+- **太阳探照灯局部显影（Spatial Masking）**：不用全屏一起忽明忽暗的廉价呼吸灯，而是让 `::after` 盖一层以太阳游标坐标（`--agy-sun-x`、`--agy-sun-y`）为圆心的 `85vmax` 径向暗房遮罩——太阳游标所在的星轨扇区把底下的黑白土星环照出 25%–35% 的银白锐度，其余深空压在暗部里；时间推进时，白光探照灯在黑白星环纹理上缓缓滑过。`photos/` 里有五张 NASA 灰阶负片和出处（`photos/README.md`），舰桥一个航点一张。
 
-`Glacier.init({ background: "photo", photo: "photos/home.jpg" })`。一张图一个 `div.gl-layer-photo`，不建任何画布：节点自己是一个独立合成单元（`isolation: isolate` + `screen` 混合叠上黑位地板），`::before` 画高反差灰阶底片（`cover` 居中，默认先 `grayscale(1)`），`::after` 用 `multiply` 把太阳色（`--agy-sun-photo`）与 135° 暖金→暮光紫空间色散染进纹理——纯黑在 multiply 和 screen 下恒为 0，黑位地板永远不被染，700ms 交叉淡化时每一帧都是满色度成品图，中途绝不泛白；曝光跟灯的亮度走（`--agy-sun-exposure` = 0.5 + 0.5 × `lampGlow`，夜里暗一些），`dim` 照旧压暗。不对照片用 `hue-rotate`。
+`Glacier.init({ background: "photo", photo: "photos/home.jpg" })`。一张图一个 `div.gl-layer-photo`，不建任何画布：节点自己是一个独立合成单元（`isolation: isolate` + `screen` 混合叠上黑位地板），`::before` 画高反差纯黑白银盐底片（`cover` 居中），`::after` 叠上跟随太阳坐标 `--agy-sun-x / --agy-sun-y` 的径向暗房遮罩——纯黑在 screen 下恒为 0，黑位地板永远不被污染，700ms 交叉淡化时每一帧都是干净的黑白银盐成品图，中途绝不泛白或串色；外层不透明度 = `--gl-photo-level`（0.55）× `--agy-sun-exposure`（0.68–1.0 微弱呼吸）× `(1 − dim)`。
 
 换成自己的照片：`demo.html` 和 `bridge.html` 默认都用 `photos/home.jpg`（卡西尼拍的土星新月，可带 `?photo=<URL>` 覆盖）。自己选图时，深色、大面积、太空底接近纯黑的图最合适。
 
@@ -96,7 +98,7 @@ glacier/
 库往页面上写的东西（也就是 `destroy()` 会收回的东西）：
 
 - `root` 前面的背景层（从下到上）：`photo` 模式一个 `div.gl-layer-photo`（淡化期间短暂两个），再加一张 `canvas.gl-layer-lamp`（`lampOverlay: false` 就没有）
-- `root.style` 上的 `--agy-sun-photo`（底片的太阳色，不透明）、`--agy-sun-exposure`（0.5–1，跟灯亮度）、`--gl-dim`、`--torch-r`。四组光色和 `--agy-sun-ta` 已砍：库的 CSS 没人读
+- `root.style` 上的 `--agy-sun-x` / `--agy-sun-y`（太阳探照灯在视口里的百分比坐标）、`--agy-sun-exposure`（0.68–1.0，微弱明度呼吸）、`--gl-dim`、`--torch-r`。四组光色、`--agy-sun-photo` 彩色染色和 `--agy-sun-ta` 均已砍掉
 - 冰砖和卡片**零常驻内联变量**（全部走 `glacier.css` 焊死的 1px 切边 + `100% 100% at 0% 0%` 归一化三色光学常量）；仅在鼠标手电半径内的砖写三个 `--torch-x / --torch-y / --torch-a`，鼠标移开即删
 - `window` 上一个 `resize`，`document` 上一个 `visibilitychange`；开了手电时 `document` 上一个捕获、被动的 `scroll`、`pointermove / pointerleave`、`root` 上的 `focusin / focusout`（以及开了 `observe` 时一个 `MutationObserver`）
 
@@ -124,11 +126,11 @@ glacier/
 | `Glacier.sun.computeSunState(hour, W, H)` | 位置 + 四组光色 + `lampGlow`（靠近下沿渐隐） |
 | `Glacier.sun.sampleTable(step)` / `stateFromTable(table, hour, W, H)` / `frameFromModel(hour)` | 关键帧表：采样内置公式、按表插值出状态、取公式在某小时的一帧 |
 | `new Glacier.Lamp(canvas)` → `draw(state, hour, W, H, { path, pathKey, loop })` | 灯 overlay。`path(hour) → { x, y, isDay }` 是轨迹采样器（默认 `Lamp.formulaPath(W, H)`），`pathKey` 换表时要换，`loop = { from, span }` 要加亮的区间。位置取整后没变、颜色没变、尺寸没变就不重画 |
-| `Glacier.applySunVars(el, state)` | 把 `--agy-sun-photo`、`--agy-sun-exposure` 写到 `el` 上，同值不写 |
+| `Glacier.applySunVars(el, state)` | 把 `--agy-sun-x`、`--agy-sun-y`、`--agy-sun-exposure` 写到 `el` 上，同值不写 |
 
 ## 5. CSS 约定
 
-- 令牌在 `:root`：`--agy-bg`、`--agy-fg`、`--agy-accent-cyan`、`--agy-card-alpha`，动效 `--agy-ease-out / spring`、`--agy-dur-base / slow`，底片透射基准 `--gl-photo-level: 0.48`，以及焊死的磁贴光学常量 `--gl-crest-line`（水平 90° `in oklch`：香槟暖金 → 冰晶白 → 金星带暮光紫）、`--gl-edge`（`100% 100% at 0% 0% in oklch` 归一化 1px 单层刀锋，88% 处彻底透明归零）、`--gl-brick-fill`（左上 10% 香槟金微光 + 左下 16% 皇家钴蓝呼吸微光）。
+- 令牌在 `:root`：`--agy-bg`、`--agy-fg`、`--agy-accent-cyan`、`--agy-card-alpha`，动效 `--agy-ease-out / spring`、`--agy-dur-base / slow`，底片透射基准 `--gl-photo-level: 0.55`，以及焊死的磁贴光学常量 `--gl-crest-line`（水平 90° `in oklch`：香槟暖金 → 冰晶白 → 金星带暮光紫）、`--gl-edge`（`100% 100% at 0% 0% in oklch` 归一化 1px 单层刀锋，88% 处彻底透明归零）、`--gl-brick-fill`（左上 10% 香槟金微光 + 左下 16% 皇家钴蓝呼吸微光）。
 - `--torch-*` 用 `@property` 注册成继承且有类型，`::before` 才能读到、`--torch-a` 才能过渡。不再有任何 `--ice-*` 内联变量（见 `DESIGN.md` §4.3–4.4）。
 - `.gl-bar`：金星带顶栏 / 分割栏（复刻 Windhawk 命令栏：左半地球影暗槽 + 右半金星带瑞利散射紫微雾 + 底部 1px `--gl-crest-line` 光谱地平线）。
 - **未选中保持烟熏磨砂，点亮态严格对齐 Windows 11 开始菜单磁贴（Word 磁贴）的通透黑曜石结构**（`DESIGN.md` §4.3–4.4）：
@@ -140,7 +142,7 @@ glacier/
 - 卡片的边同样是一圈 1px 的 `--gl-edge` 渐变环（`::after`，85% 不透明：左上香槟暖金 → 冰晶白 → 暮光紫 → 88% 处归零）；厚度靠 `inset -1.5px` 的内暗槽，不在环里。
 - 圆角用 `--glacier-radius`（默认 6px）覆盖。
 - **阵列**（控件是光的传感器，排法决定光场看不看得见，DESIGN.md §4.1）：`.gl-louver` 一维光栅——等高长条竖排、长边朝光，`--gl-louver-gap`（缝，默认 10px）/ `--gl-louver-h`（条高，默认 38px），节距 40–50px 让 160px 的手电里装 3–4 条；`.gl-lattice` 二维晶格——等大方格、缝 ≤ 6px、圆角 2px，`--gl-lattice-cols / -cell / -gap`（默认 7 / 40px / 4px），相邻刀锋融成一道亮缝、交叉点起十字星；格里的 `.gl-lattice-label`（星期、坐标轴）和 `.gl-void`（空位）不是砖、不受光、只占格。
-- 背景层类名：`.gl-layer` 公共（fixed 铺满、`z-index: -1`、不吃事件），`.gl-layer-lamp`（screen 混合）、`.gl-layer-photo`（单节点 `isolation: isolate` + `screen` 混合：`::before` 画底片，`::after` 用 `multiply` 染 `--agy-sun-photo`，外层 `opacity = photo-level × exposure × (1 − dim)`）。
+- 背景层类名：`.gl-layer` 公共（fixed 铺满、`z-index: -1`、不吃事件），`.gl-layer-lamp`（screen 混合）、`.gl-layer-photo`（单节点 `isolation: isolate` + `screen` 混合：`::before` 画 100% 纯黑白银盐底片，`::after` 画跟随 `--agy-sun-x / --agy-sun-y` 的径向暗房遮罩，外层 `opacity = photo-level × exposure × (1 − dim)`）。
 
 ## 6. 性能
 
