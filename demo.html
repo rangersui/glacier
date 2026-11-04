@@ -17,7 +17,7 @@
   }
   a { color: var(--agy-accent-cyan); }
   .wrap { max-width: 1040px; margin: 0 auto; padding: 24px 20px 80px; }
-  .topbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 48px; }
+  .topbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 48px; padding: 10px 14px; border-radius: 8px 8px 0 0; }
   .topbar .brand { font: 600 12px/1 ui-monospace, "Cascadia Code", Consolas, monospace; letter-spacing: 2px; color: #7dcfff; margin-right: auto; }
   .topbar a.gl-brick { text-decoration: none; }
   .topbar .clock { font: 600 12px/1 ui-monospace, "Cascadia Code", Consolas, monospace; color: #e0f7ff; }
@@ -61,7 +61,7 @@
 <body class="gl-stage">
 <div class="wrap">
 
-  <nav class="topbar">
+  <nav class="topbar gl-bar">
     <span class="brand">GLACIER · 组件目录</span>
     <button class="gl-brick gl-nav"><span class="gl-icon">＋</span> 新建对话</button>
     <button class="gl-brick gl-nav"><span class="gl-icon">⏱</span> 自动化任务</button>
@@ -73,7 +73,7 @@
   <header class="hero">
     <div>
       <h1><small>DESIGN LANGUAGE</small>一艘停在冰川上的星舰</h1>
-      <p class="lead">背后有一盏按真实时间走动的灯，管色温和浓淡；控件的受光默认是从左上来的平行光（台灯规则），把鼠标移过去，待机的砖会被手电照出一圈边。这一页每个组件一节，各带一行规矩，每块砖都能按：同组单选、告警点一下算确认、漂移节点点一下停。用这些积木搭成的舰桥在 <a href="bridge.html">bridge.html</a>。背景默认是空的，工程面板里能把球叫回来；加 <code>?light=lamp</code> 让受光跟着灯转。</p>
+      <p class="lead">背后有一盏按真实时间走动的灯，管轨迹游标和底片曝光；控件的材质是焊死在空间里的 Windhawk 三色棱镜（左上暖金 <code>#FFCE91</code> → 冰白 <code>#F0FCFF</code> → 金星带暮光紫 <code>#BB9AF7</code> + 右下 2px 深海暗墙），未选中绝不带玻璃与边，只有选中或鼠标手电靠近时才浮现立体玻璃键帽。这一页每个组件一节，各带一行规矩，每块砖都能按：同组单选、告警点一下算确认、漂移节点点一下停。用这些积木搭成的舰桥在 <a href="bridge.html">bridge.html</a>。背景默认是空的，工程面板里能把底片或球叫回来。</p>
       <div class="bricks">
         <button class="gl-brick gl-fresh">当前会话</button>
         <button class="gl-brick">Casual Evening…</button>
@@ -100,11 +100,11 @@
 
   <section>
     <h2>砖 · .gl-brick</h2>
-    <p class="rule">砖是状态，不是底座：静止态是 3% 的哑光底片，无边无影；只在悬停、按下、选中（<code>.on</code>）、新鲜（<code>.gl-fresh</code>）、告警（<code>.gl-alert</code>）时才出现刀锋 + 墙 + 玻璃盖板。一个面上同时说话的砖只有一两块。</p>
+    <p class="rule">严禁实心蓝油漆与双层斑马线框：静止态是均匀的烟熏磨砂底（暗槽内全透明）；点亮态肚子保持 80%+ 深邃黑曜石透明感（<code>rgba(18, 22, 32, 0.78)</code>），只留左上 10% 香槟暖金与左下 16% 皇家钴蓝呼吸微光，外加唯一一道 1px 单层光学刀锋（<code>#FFD89B → #E6F4FF → 88% transparent</code> 归零）与右下 <code>inset -1.5px #06080E</code> 硬朗内暗槽。</p>
     <div class="states">
-      <figure><button class="gl-brick">静止</button><figcaption>REST · 哑光 3%</figcaption></figure>
-      <figure><button class="gl-brick">把鼠标放上来</button><figcaption>HOVER · 刀锋 + 墙</figcaption></figure>
-      <figure><button class="gl-brick on">选中</button><figcaption>.ON</figcaption></figure>
+      <figure><button class="gl-brick">静止</button><figcaption>REST · 哑光 2.5%（无玻璃无边）</figcaption></figure>
+      <figure><button class="gl-brick">把鼠标放上来</button><figcaption>HOVER · 1,1,2,2 刀锋 + 墙</figcaption></figure>
+      <figure><button class="gl-brick on">选中</button><figcaption>.ON · 立体玻璃键帽</figcaption></figure>
       <figure><button class="gl-brick gl-fresh">新鲜</button><figcaption>.GL-FRESH · 极寒凝结</figcaption></figure>
       <figure><button class="gl-brick gl-alert">⚠ 要你看</button><figcaption>.GL-ALERT · 红只给要你看</figcaption></figure>
       <figure><button class="gl-brick gl-nav"><span class="gl-icon">🧊</span> 导航</button><figcaption>.GL-NAV · 更亮、圆角 5px</figcaption></figure>
@@ -157,11 +157,11 @@
 
   <section>
     <h2>卡片 · .gl-card</h2>
-    <p class="rule">大块冰板：毛玻璃 + 玻璃噪点 + 一圈连续的 1px 渐变环（迎光角琥珀 → 冰白 → 淡蓝 → 透明 → 背光角近黑），不是两条线。卡片装阵列，嵌套只许一层，里面不许有第三层边。</p>
+    <p class="rule">大块冰板：毛玻璃 + 玻璃噪点 + 一圈连续的 <code>1,1,2,2</code> 归一化渐变环（左上迎光角琥珀 <code>#FFCE91</code> → 冰白 <code>#F0FCFF</code> → 金星带暮光紫 <code>#BB9AF7</code> → 右下 2px 深海黑内墙），不是两条线。卡片装阵列，嵌套只许一层，里面不许有第三层边。</p>
     <div class="two">
       <div class="gl-card">
         <h3>一张卡片</h3>
-        <p>环的方向由 <code>--ice-deg</code> 决定；环里的衰减和暗侧都在同一圈里，不另画墙。</p>
+        <p>环用 <code>142%×142% @ 0% 0%</code> 椭圆径向渐变按盒子宽高自动归一化，左/顶 1px 迎光刀锋、右/底 2px 深海黑内墙在同一圈伪元素里完成。</p>
       </div>
       <div class="gl-card">
         <h3>卡片里装一条光栅</h3>
@@ -255,7 +255,7 @@
   <!-- ================= 压力测试 ================= -->
 
   <section>
-    <h2>更多卡片 · 往下滚：fixed 模式一次都不重算，lamp 模式停下后重量一轮</h2>
+    <h2>更多卡片 · 往下滚：控件走纯 CSS 常量，滚动中零布局读取、零重算，停下后只给手电刷一轮矩形</h2>
     <div class="grid" id="moreCards"></div>
   </section>
 
@@ -283,7 +283,7 @@
   for (let i = 0; i < 18; i++) {
     const card = document.createElement("div");
     card.className = "gl-card";
-    card.innerHTML = `<h3>卡片 ${String(i + 1).padStart(2, "0")}</h3><p>平行光下每块砖的光和它在哪无关，写一次就永远对；点光模式只打视口外扩 160px 以内的。</p><div class="bricks" style="margin-top:10px"><button class="gl-brick">砖 A</button><button class="gl-brick">砖 B</button></div>`;
+    card.innerHTML = `<h3>卡片 ${String(i + 1).padStart(2, "0")}</h3><p>每块砖和卡片走 CSS 归一化三色常量（零内联变量），滚动从不重算，停下后只给鼠标手电刷一次矩形。</p><div class="bricks" style="margin-top:10px"><button class="gl-brick">砖 A</button><button class="gl-brick">砖 B</button></div>`;
     more.appendChild(card);
   }
   const scroller = document.getElementById("scroller");
@@ -294,28 +294,16 @@
     scroller.appendChild(b);
   }
 
-  // ---- 初始化：URL 里可带 ?bg=photo&photo=<图片URL>&time=9&light=lamp&idle=6&drifter=0 之类 ----
+  // ---- 初始化：URL 里可带 ?bg=photo&photo=<图片URL>&time=9&idle=6&drifter=0 之类 ----
   const q = new URLSearchParams(location.search);
   if (q.get("drifter") === "0") document.querySelector(".drifter").remove(); // 测基线用：一个常动的元素会逼整页 60fps 合成
-  // photo 模式的底片：没有真照片时，把场景渲染一帧当占位（真照片见 README §2）
-  let placeholderPhoto = null;
-  const photoUrl = () => {
-    if (q.get("photo")) return q.get("photo");
-    if (!placeholderPhoto) {
-      const p = document.createElement("canvas");
-      const sc = new Glacier.Scene(p, { sector: "cryo_blend" });
-      sc.setSun(Glacier.sun.computeSunState(16.5, 960, 600));
-      sc.renderOnce();
-      placeholderPhoto = p.toDataURL("image/jpeg", 0.85);
-    }
-    return placeholderPhoto;
-  };
+  // photo 模式的底片：母星那张（卡西尼拍的土星新月，灰阶，出处见 photos/README.md）；?photo=<URL> 换
+  const photoUrl = () => q.get("photo") || "photos/home.jpg";
   const initOptions = () => ({
     background: q.get("bg") || "none", // 舷窗默认是空的（DESIGN.md §4.2）：那颗球会掀了黑位地板；工程面板里能叫回来
     photo: photoUrl(),
     time: q.has("time") ? Number(q.get("time")) : (q.get("mode") || "realtime"),
     sector: q.get("sector") || "cryo_blend",
-    lightDirection: q.get("light") === "lamp" ? "lamp" : "fixed",
     idleDivider: Number(q.get("idle") || 3),
     onUpdate: () => render()
   });
@@ -323,7 +311,7 @@
   window.gl = gl; // 控制台里玩：gl.setHour(18)
 
   // ---- 计数 / 帧时统计（只是 demo 的仪表，库里没有这些） ----
-  // relights：引擎给砖写变量的轮数（relightNow）；measures：只量矩形不写的轮数（fixed 模式滚动停下给手电用）
+  // relights：扫描手电目标轮数（relightNow）；measures：纯读矩形给手电用的轮数（measureRects）
   const stats = { frames: 0, drawn: 0, ms: 0, since: performance.now(), relights: 0, measures: 0 };
   const instrument = () => {
     if (!gl.__wrapped) {
@@ -361,11 +349,11 @@
     const modeKey = gl.mode === "loop" ? (gl.clock?.loop && gl.clock.loop.span < 24 ? "sunset" : "timelapse") : gl.mode === "fixed" ? "manual" : gl.mode;
     mark("mode", modeKey); mark("background", gl.background); mark("sector", gl.options.sector);
     mark("ship", gl.scene ? gl.scene.shipState : "IDLE");
-    const first = document.querySelector(".hero .gl-brick");
+    const brickInfo = "locked 1,1,2,2 (142%×142% @ 0% 0% · #FFCE91 → #F0FCFF → #BB9AF7 · 0 inline vars)";
     $("readout").innerHTML =
       `lamp <b>${Math.round(s.sunX)}, ${Math.round(s.sunY)}</b> / ${s.W}×${s.H}   glow <b>${s.lampGlow.toFixed(2)}</b>   crest <b>${s.sunCrest}</b>   photo <b>${document.body.style.getPropertyValue("--agy-sun-photo")}</b> × <b>${document.body.style.getPropertyValue("--agy-sun-exposure")}</b>\n` +
-      `background <b>${gl.background}</b>${gl.reducedMotion ? "（系统减弱动态：scene 已退成 static）" : ""}   light <b>${gl.lightDirection}</b>   mode <b>${gl.mode}</b>   relights <b>${stats.relights}</b>   measures <b>${stats.measures}</b>\n` +
-      `brick[0] diag <b>${first.style.getPropertyValue("--ice-diag")}</b>  dark <b>${first.style.getPropertyValue("--ice-dark-x")} ${first.style.getPropertyValue("--ice-dark-y")}</b>  deg <b>${first.style.getPropertyValue("--ice-deg")}</b>`;
+      `background <b>${gl.background}</b>${gl.reducedMotion ? "（系统减弱动态：scene 已退成 static）" : ""}   mode <b>${gl.mode}</b>   relights <b>${stats.relights}</b>   measures <b>${stats.measures}</b>\n` +
+      `brick[0] <b>${brickInfo}</b>`;
   }
   hourInput.addEventListener("input", () => { gl.setHour(Number(hourInput.value)); $("hourLabel").textContent = fmt(Number(hourInput.value)); });
   document.addEventListener("click", (e) => {

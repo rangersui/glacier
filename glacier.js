@@ -4,15 +4,15 @@
  * 一盏灯，三个消费者，加一个把它们装到页面上的 init()：
  *   Glacier.sun          太阳模型：时间 → 位置（横跨整个视口的轨道）→ 四组光色；关键帧表 sampleTable / stateFromTable
  *   Glacier.Scene        背景：深空 + 星点 + 沙丘行星 + 日冕（960×600 画布）、解析山体阴影（480×320 画布）
- *   Glacier.Lamp         灯 overlay：柔光球 + 轨迹弧 + 刻度 + 当前时间
- *   Glacier.lightWidget  控件受光解算器：按光的方向给一个元素写刀锋向量 / 墙向量 / 光锥角（五个 --ice-* 变量）
+ *   Glacier.Lamp         灯 overlay：柔光球 + 三色光谱轨迹弧 + 刻度 + 当前时间（静态层不随时间重建）
  *   Glacier.applySunVars 把四组光色和字影浓度写到一个元素（通常是 body）上
- *   Glacier.init(options) 建画布、起太阳、画灯、给所有 .gl-brick / .gl-card 打光、鼠标手电，
- *                         返回句柄 { setHour, setMode, setLoop, setSunTable, setSector, setShip, setBackground, relight, stop, destroy, sun … }
+ *   Glacier.init(options) 建画布、起太阳、画灯、鼠标手电（控件材质走 CSS 焊死的 1,1,2,2 + 142%×142% @ 0% 0% 归一化三色常量，零内联 --ice-*），
+ *                         返回句柄 { setHour, setMode, setLoop, setSunTable, setSector, setShip, setBackground, setPhoto, relight, stop, destroy, sun … }
+ *   Glacier.preloadPhoto(url) 提前取图并解码，之后 setPhoto 零等待
  *   挂上总线即受光：root 里新出现的 .gl-* 节点自动纳入（observe），会动的节点加 data-gl-track 逐帧跟着被手电探测
  *
  * 性能守则同 DESIGN.md §13：画布只在灯动了才重画、渐变 / 贴图缓存、同值不写、读写分离、滚动中不读布局。
- * 默认的平行光（lightDirection: "fixed"）下砖的受光和位置无关，写一次永远对，滚动、对表都不碰砖。
+ * 砖与卡片走 CSS 常量，零内联 --ice-* 变量，滚动、对表都不碰砖；measureRects 只给鼠标手电读一轮矩形。
  *
  * 只有一个全局：window.Glacier（CommonJS 环境下同时 module.exports）。除了 init() 创建的画布，
  * 不碰宿主没要求的任何元素；destroy() 把画布、监听器、变量全部收回。
@@ -37,57 +37,6 @@
     return { x: W * (0.5 + 0.56 * u), y: H * (0.6 + 0.55 * u * u), u, isDay: false };
   };
 
-  const computeSunState = (hour, W, H) => {
-    const p = lampPointAt(hour, W, H);
-    const h = ((hour % 24) + 24) % 24;
-    const { u, isDay } = p;
-    let sunCrest, sunSheen, sunTint, sunCaustic, orbCore, orbCorona, orbRayColor;
-    if (isDay) {
-      if (h >= 15.8 || h <= 8.2) {
-        sunCrest = "rgba(255, 206, 145, 0.94)";
-        sunSheen = "rgba(255, 200, 140, 0.34)";
-        sunTint = "rgba(255, 145, 105, 0.42)";
-        sunCaustic = "rgba(55, 175, 255, 0.45)";
-        orbCore = "#FFFDF5";
-        orbCorona = h >= 15.8 ? "#FF9E44" : "#FF9EB5";
-        orbRayColor = h >= 15.8 ? "#FFD285" : "#FFC4D6";
-      } else {
-        sunCrest = "rgba(240, 252, 255, 0.95)";
-        sunSheen = "rgba(220, 245, 255, 0.34)";
-        sunTint = "rgba(110, 210, 255, 0.40)";
-        sunCaustic = "rgba(42, 195, 222, 0.42)";
-        orbCore = "#FFFFFF";
-        orbCorona = "#7DCFFF";
-        orbRayColor = "#E0F7FF";
-      }
-    } else {
-      sunCrest = "rgba(180, 232, 255, 0.88)";
-      sunSheen = "rgba(165, 215, 255, 0.26)";
-      sunTint = "rgba(187, 154, 247, 0.38)";
-      sunCaustic = "rgba(122, 162, 247, 0.34)";
-      orbCore = "#F0F8FF";
-      orbCorona = "#BB9AF7";
-      orbRayColor = "#C4B5FD";
-    }
-    const horizon = Math.max(0, Math.min(1, (H * 1.02 - p.y) / (H * 0.3)));
-    const lampGlow = (isDay ? 1 : 0.45) * horizon;
-    return {
-      h, u, isDay, hour,
-      W, H,
-      sunX: p.x, sunY: p.y,
-      orbScreenX: p.x, orbScreenY: p.y,
-      sunU: p.x / W, sunV: p.y / H,
-      lampGlow,
-      sunCrest, sunSheen, sunTint, sunCaustic, orbCore, orbCorona, orbRayColor
-    };
-  };
-  Glacier.sun = { lampPointAt, computeSunState };
-
-  // ---- 关键帧表："几点钟长什么样"是一张表，上面的公式只是默认那张 ----------------------
-  // 关键帧：{ hour, u, v, glow, isDay, sunCrest, sunSheen, sunTint, sunCaustic, orbCore, orbCorona, orbRayColor }
-  //   u / v  灯在视口里的归一化位置（0–1，可超出）；glow 灯的亮度 0–1；颜色是 rgba(...) 或 #hex。
-  //   少写的字段用公式在同一小时的值补齐，所以只写想改的就行。相邻两帧之间线性插值（颜色按通道插），
-  //   最后一帧到第一帧跨午夜接上。
   const COLOR_KEYS = ["sunCrest", "sunSheen", "sunTint", "sunCaustic", "orbCore", "orbCorona", "orbRayColor"];
   const parseColor = (c) => {
     if (typeof c !== "string") return null;
@@ -105,7 +54,15 @@
     return null;
   };
   const lerp = (a, b, t) => a + (b - a) * t;
+  const smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  // 连续昼夜权重（0 夜 → 1 昼）：在 04:24–05:36 与 18:24–19:36 平滑过渡，避免 05:00 / 19:00 跨界时抛物线与光色一帧跳变
+  const dayBlendAt = (hour) => {
+    const h = ((hour % 24) + 24) % 24;
+    return smoothstep(4.4, 5.6, h) * (1 - smoothstep(18.4, 19.6, h));
+  };
   const lerpColor = (a, b, t) => {
+    if (t <= 0) return a;
+    if (t >= 1) return b;
     const A = parseColor(a), B = parseColor(b);
     if (!A || !B) return t < 0.5 ? a : b;
     const v = A.map((x, i) => lerp(x, B[i], t));
@@ -114,6 +71,62 @@
     }
     return `rgba(${Math.round(v[0])}, ${Math.round(v[1])}, ${Math.round(v[2])}, ${+v[3].toFixed(3)})`;
   };
+  const lerpPalette = (A, B, t) => {
+    if (t <= 0) return A;
+    if (t >= 1) return B;
+    const out = {};
+    for (const k of COLOR_KEYS) out[k] = lerpColor(A[k], B[k], t);
+    return out;
+  };
+  const PAL_NIGHT = {
+    sunCrest: "rgba(180, 232, 255, 0.88)", sunSheen: "rgba(165, 215, 255, 0.26)",
+    sunTint: "rgba(187, 154, 247, 0.38)", sunCaustic: "rgba(122, 162, 247, 0.34)",
+    orbCore: "#F0F8FF", orbCorona: "#BB9AF7", orbRayColor: "#C4B5FD"
+  };
+  const PAL_DAWN = {
+    sunCrest: "rgba(255, 206, 145, 0.94)", sunSheen: "rgba(255, 200, 140, 0.34)",
+    sunTint: "rgba(255, 145, 105, 0.42)", sunCaustic: "rgba(55, 175, 255, 0.45)",
+    orbCore: "#FFFDF5", orbCorona: "#FF9EB5", orbRayColor: "#FFC4D6"
+  };
+  const PAL_NOON = {
+    sunCrest: "rgba(240, 252, 255, 0.95)", sunSheen: "rgba(220, 245, 255, 0.34)",
+    sunTint: "rgba(110, 210, 255, 0.40)", sunCaustic: "rgba(42, 195, 222, 0.42)",
+    orbCore: "#FFFFFF", orbCorona: "#7DCFFF", orbRayColor: "#E0F7FF"
+  };
+  const PAL_DUSK = {
+    sunCrest: "rgba(255, 206, 145, 0.94)", sunSheen: "rgba(255, 200, 140, 0.34)",
+    sunTint: "rgba(255, 145, 105, 0.42)", sunCaustic: "rgba(55, 175, 255, 0.45)",
+    orbCore: "#FFFDF5", orbCorona: "#FF9E44", orbRayColor: "#FFD285"
+  };
+
+  const computeSunState = (hour, W, H) => {
+    const p = lampPointAt(hour, W, H);
+    const h = ((hour % 24) + 24) % 24;
+    const { u, isDay } = p;
+    let pal;
+    if (h < 6.6) pal = lerpPalette(PAL_NIGHT, PAL_DAWN, smoothstep(4.4, 5.6, h));
+    else if (h < 12) pal = lerpPalette(PAL_DAWN, PAL_NOON, smoothstep(7.6, 8.8, h));
+    else if (h < 17.4) pal = lerpPalette(PAL_NOON, PAL_DUSK, smoothstep(15.2, 16.4, h));
+    else pal = lerpPalette(PAL_DUSK, PAL_NIGHT, smoothstep(18.4, 19.6, h));
+    const horizon = Math.max(0, Math.min(1, (H * 1.02 - p.y) / (H * 0.3)));
+    const lampGlow = (0.45 + 0.55 * dayBlendAt(h)) * horizon;
+    return {
+      h, u, isDay, hour,
+      W, H,
+      sunX: p.x, sunY: p.y,
+      orbScreenX: p.x, orbScreenY: p.y,
+      sunU: p.x / W, sunV: p.y / H,
+      lampGlow,
+      ...pal
+    };
+  };
+  Glacier.sun = { lampPointAt, computeSunState };
+
+  // ---- 关键帧表："几点钟长什么样"是一张表，上面的公式只是默认那张 ----------------------
+  // 关键帧：{ hour, u, v, glow, isDay, sunCrest, sunSheen, sunTint, sunCaustic, orbCore, orbCorona, orbRayColor }
+  //   u / v  灯在视口里的归一化位置（0–1，可超出）；glow 灯的亮度 0–1；颜色是 rgba(...) 或 #hex。
+  //   少写的字段用公式在同一小时的值补齐，所以只写想改的就行。相邻两帧之间线性插值（颜色按通道插），
+  //   最后一帧到第一帧跨午夜接上。
   // 公式在某个小时的一帧（归一化，和视口尺寸无关）
   const frameFromModel = (hour) => {
     const st = computeSunState(hour, 1000, 1000);
@@ -462,18 +475,27 @@
     constructor(canvas) { this.canvas = canvas; this.lastKey = ""; this.staticKey = ""; this.staticLayer = null; this.glowCache = new Map(); this.prevRect = null; }
     /** 默认路径：内置公式。init() 有表时传表的采样器进来（hour → { x, y, isDay }） */
     static formulaPath(W, H) { return (h) => lampPointAt(h, W, H); }
-    // 静态层：轨迹（按表每 PATH_STEP 小时采一个点，0 → 24 闭合）+ loop 段加亮 + 整点刻度。
-    // 表换了、区间换了、昼夜换了、尺寸换了才重建。
+    // 静态层：轨迹（按表每 PATH_STEP 小时采一个点，0 → 24 闭合）+ 子区间 loop 段加亮 + 整点刻度。
+    // 色散锁死为横跨视口的 Windhawk 黄金光谱（左琥珀 #FFCE91 → 中冰白 #F0FCFF → 右暮光紫 #BB9AF7），
+    // 因此静态层与当前时刻完全无关——只有表换了、子区间换了、视口尺寸换了才重建，时间走动时零重建、零跳变。
     buildStatic(W, H, dpr, state, path, pathKey, loop) {
-      // 颜色量化进 key（每通道 24 一档）：关键帧表插值出来的 crest 每一步都在变，按原字符串算会每次都整层重建
-      const crest = toRgb(state.sunCrest);
-      const key = `${W}x${H}@${dpr}:${state.isDay}:${crest.map((c) => Math.round(c / 24)).join()}:${pathKey}:${loop ? `${loop.from}+${loop.span}` : ""}`;
+      const subLoop = loop && loop.span < 24 ? loop : null; // 整天循环（timelapse，span=24）不画局部加亮段
+      const key = `${W}x${H}@${dpr}:${pathKey}:${subLoop ? `${subLoop.from}+${subLoop.span}` : ""}`;
       if (this.staticLayer && this.staticKey === key) return this.staticLayer;
       this.staticKey = key;
       const off = document.createElement("canvas"); off.width = Math.round(W * dpr); off.height = Math.round(H * dpr);
       const ctx = off.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const visible = (p) => p.y <= H + 40;
-      // 轨迹：同一昼夜的连续点连成一条折线；白天实线、夜里虚线；和当前昼夜相反的那段淡
+      const spectrumGrad = (a0, a1, a2) => {
+        const g = ctx.createLinearGradient(0, 0, W, 0);
+        g.addColorStop(0, `rgba(255, 206, 145, ${a0})`);
+        g.addColorStop(0.5, `rgba(240, 252, 255, ${a1})`);
+        g.addColorStop(1, `rgba(187, 154, 247, ${a2})`);
+        return g;
+      };
+      const dayGrad = spectrumGrad(0.22, 0.25, 0.22);
+      const nightGrad = spectrumGrad(0.13, 0.15, 0.13);
+      // 轨迹：同一昼夜的连续点连成一条折线；白天实线、夜里虚线
       const pts = [];
       for (let h = 0; h <= 24 + 1e-9; h += PATH_STEP) pts.push(path(h));
       const strokeRun = (run) => {
@@ -482,7 +504,7 @@
         ctx.beginPath(); ctx.moveTo(run[0].x, run[0].y);
         for (let i = 1; i < run.length; i++) ctx.lineTo(run[i].x, run[i].y);
         ctx.setLineDash(day ? [] : [3, 7]); ctx.lineWidth = 1;
-        ctx.strokeStyle = rgba(crest, day === !!state.isDay ? (day ? 0.22 : 0.18) : (day ? 0.08 : 0.07));
+        ctx.strokeStyle = day ? dayGrad : nightGrad;
         ctx.stroke();
       };
       let run = [];
@@ -493,28 +515,33 @@
       }
       strokeRun(run);
       ctx.setLineDash([]);
-      // loop 段加亮：from → from+span，实线 1.5px
-      if (loop) {
+      // 区间 loop 段加亮（仅 span < 24 的子区间，如母星 16→19）：from → from+span
+      if (subLoop) {
         ctx.beginPath(); let started = false;
-        for (let t = 0; t <= loop.span + 1e-9; t += PATH_STEP / 2) {
-          const p = path((loop.from + t) % 24);
+        for (let t = 0; t <= subLoop.span + 1e-9; t += PATH_STEP / 2) {
+          const p = path((subLoop.from + t) % 24);
           if (!visible(p)) { started = false; continue; }
           if (!started) { ctx.moveTo(p.x, p.y); started = true; } else ctx.lineTo(p.x, p.y);
         }
-        ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(crest, 0.55); ctx.stroke();
+        ctx.lineWidth = 1.35; ctx.strokeStyle = spectrumGrad(0.46, 0.5, 0.46); ctx.stroke();
       }
-      // 整点刻度：沿路径放，法线取相邻点；每 6 小时一根长的
+      // 整点刻度：沿路径放，法线取相邻点；每 6 小时一根长的，分两批一次 stroke
       ctx.lineWidth = 1;
-      for (let h = 0; h < 24; h++) {
-        const p = path(h);
-        if (p.y > H + 10 || p.y < -10) continue;
-        const q = path(h + 0.05);
-        const tx = q.x - p.x, ty = q.y - p.y, tl = Math.hypot(tx, ty) || 1;
-        const nx = -ty / tl, ny = tx / tl;
-        const major = h % 6 === 0, len = major ? 7 : 3.5;
-        const alpha = (major ? 0.32 : 0.18) * (!!p.isDay === !!state.isDay ? 1 : 0.35);
-        ctx.beginPath(); ctx.moveTo(p.x - nx * len, p.y - ny * len); ctx.lineTo(p.x + nx * len, p.y + ny * len);
-        ctx.strokeStyle = rgba(crest, alpha); ctx.stroke();
+      for (const isMajor of [true, false]) {
+        ctx.beginPath();
+        const len = isMajor ? 7 : 3.5;
+        for (let h = 0; h < 24; h++) {
+          if ((h % 6 === 0) !== isMajor) continue;
+          const p = path(h);
+          if (p.y > H + 10 || p.y < -10) continue;
+          const q = path(h + 0.05);
+          const tx = q.x - p.x, ty = q.y - p.y, tl = Math.hypot(tx, ty) || 1;
+          const nx = -ty / tl, ny = tx / tl;
+          ctx.moveTo(p.x - nx * len, p.y - ny * len);
+          ctx.lineTo(p.x + nx * len, p.y + ny * len);
+        }
+        ctx.strokeStyle = isMajor ? spectrumGrad(0.32, 0.36, 0.32) : spectrumGrad(0.16, 0.18, 0.16);
+        ctx.stroke();
       }
       this.staticLayer = off;
       return off;
@@ -582,47 +609,18 @@
       ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(core, 0.55 * glow + 0.15); ctx.stroke();
       const normH = ((hour % 24) + 24) % 24;
       const hh = String(Math.floor(normH)).padStart(2, "0"), mm = String(Math.floor((normH % 1) * 60)).padStart(2, "0");
-      ctx.font = '600 10px ui-monospace, "Cascadia Code", Consolas, monospace'; ctx.textBaseline = "middle"; ctx.textAlign = nx >= 0 ? "left" : "right";
+      ctx.font = '600 10px ui-monospace, "Cascadia Code", Consolas, monospace'; ctx.textBaseline = "middle"; ctx.textAlign = "center";
       ctx.fillStyle = rgba(core, 0.5 * glow + 0.15);
-      ctx.fillText(`${state.isDay ? "☀" : "☾"} ${hh}:${mm}`, x + nx * 24, textY);
+      ctx.fillText(`${state.isDay ? "☀" : "☾"} ${hh}:${mm}`, x + nx * 42, textY);
       return true;
     }
   }
   Glacier.Lamp = Lamp;
 
   // ==========================================================================
-  // 4. 控件受光解算器
+  // 4. 太阳光色广播
   // ==========================================================================
-  // 把"光从哪来"变成三样东西写在元素上（CSS 只读这五个变量）：
-  //   刀锋向量 --ice-sx / --ice-sy     迎光边的 inset 高光，指向光
-  //   墙向量   --ice-dark-x / -dark-y  背光边的 inset 内倒角，背向光
-  //   光锥角   --ice-deg               反光带渐变的角度，从迎光角扫到背光角
-  // light 两种写法：
-  //   { x, y }   点光：灯在和 rect 同一坐标系里的位置。方向 = 元素中心 − 灯，软符号 lx / hypot(lx, 48) 让灯穿过
-  //              元素中心线时在 ±48px 内平滑换边。结果和元素位置有关，位置变了要重算
-  //   { dx, dy } 平行光：单位方向（光 → 元素），等价于灯在无穷远。和位置、尺寸都无关：同一个方向下任何元素
-  //              写出来的都一样，写一次永远对，rect 可以不给
-  const CREST_LEN = 2.4; // 刀锋最长 2.4px（CSS 再 round 到 1px 格）
-  const WALL_LEN = 4.5;  // 墙 4.5px（CSS 取一半）
-  const lightDirectionAt = (rect, light) => {
-    if (light.dx !== undefined) return [light.dx, light.dy];
-    const lx = rect.left + rect.width / 2 - light.x, ly = rect.top + rect.height / 2 - light.y;
-    return [lx / Math.hypot(lx, 48), ly / Math.hypot(ly, 48)];
-  };
-  Glacier.lightWidget = (el, rect, light) => {
-    const [sx, sy] = lightDirectionAt(rect, light);
-    const deg = Math.round(((((Math.atan2(sx, -sy) * 180) / Math.PI) % 360) + 360) % 360);
-    const st = el.style;
-    const set = (k, val) => { if (st.getPropertyValue(k) !== val) st.setProperty(k, val); };
-    set("--ice-sx", `${(sx * CREST_LEN).toFixed(2)}px`); set("--ice-sy", `${(sy * CREST_LEN).toFixed(2)}px`);
-    set("--ice-dark-x", `${(-sx * WALL_LEN).toFixed(2)}px`); set("--ice-dark-y", `${(-sy * WALL_LEN).toFixed(2)}px`);
-    set("--ice-deg", `${deg}deg`);
-  };
-  /** 平行光的默认方向：光从左上来、影子往右下（台灯规则，0.8px : 1.6px），归一化 */
-  const FIXED_LIGHT = (() => { const n = Math.hypot(0.45, 0.89); return Object.freeze({ dx: 0.45 / n, dy: 0.89 / n }); })();
-  Glacier.FIXED_LIGHT = FIXED_LIGHT;
-
-  // 把四组光色和字影浓度写到一个元素（通常是 body）上，同值不写
+  // 把四组光色、字影浓度、照片底色与曝光度写到一个元素（通常是 body）上，同值不写
   Glacier.applySunVars = (el, state) => {
     const st = el.style;
     const set = (k, val) => { if (val && st.getPropertyValue(k) !== val) st.setProperty(k, val); };
@@ -635,7 +633,11 @@
   };
   const photoColor = (crest, tint) => {
     const A = parseColor(crest) || [255, 206, 145, 1], B = parseColor(tint) || A;
-    return `rgb(${Math.round((A[0] + B[0]) / 2)}, ${Math.round((A[1] + B[1]) / 2)}, ${Math.round((A[2] + B[2]) / 2)})`;
+    const raw = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, (A[2] + B[2]) / 2];
+    // crest 带大量高光白（如夜里 min=184），直接当底片染色会把星云染成灰白；拉开色度把白底压到 35%、主通道拉满 255
+    const lo = Math.min(...raw), hi = Math.max(...raw), span = hi - lo || 1, floor = lo * 0.35;
+    const [r, g, b] = raw.map((v) => Math.round(floor + ((v - lo) / span) * (255 - floor)));
+    return `rgb(${r}, ${g}, ${b})`;
   };
 
   // ==========================================================================
@@ -643,7 +645,7 @@
   // ==========================================================================
   // 选项（全部可省）：
   //   background   "scene" 跑动画 | "static" 只画一帧（灯动了再画一帧）| "none" 不建背景画布，只有灯 + 冰砖
-  //                | "photo" 照片当背景：零画布，两层 div（底片 + 跟太阳走的纯色 color 混合层）
+  //                | "photo" 照片当背景：零画布，单节点 div.gl-layer-photo（::before 底片 + ::after 染色）
   //   photo        照片 URL（background: "photo" 用）；photoDesaturate 底片先 grayscale（默认 true）
   //   time         "现在几点"的时钟：
   //                  "realtime"  跟真实时间（每 realtimeInterval 对一次表）
@@ -655,18 +657,14 @@
   //   sector       cryo_blend | cryo_pure | red_giant | pulsar
   //   idleDivider  空闲时每 N 帧画 1 帧（IDE 里 3，常驻壁纸 6）
   //   lampOverlay  是否画灯 overlay（轨迹按 sunTable / 公式采样画，loop 区间加亮，游标 + 时间）
-  //   lightDirection "fixed" 平行光：控件受光永远从左上来（台灯规则，灯只管色温和浓淡）。一块砖写一次永远对，
-  //                          滚动、对表都不碰砖；observe 负责新节点（默认）
-  //                  "lamp"  点光：跟着灯的方位转。灯动了、尺寸变了、滚动停下 settleDelay 毫秒后重量一轮
-  //   torch        鼠标手电（Win10 Reveal）：待机态的砖平时不画边，鼠标 torchRadius 像素内的砖按远近显出 1px 边缘；
-  //                颜色用太阳当时的 crest，不另起光源色；已点亮的砖不参与；键盘焦点等价于手电停在那一格
+  //   torch        鼠标手电（Win10 Reveal）：待机态的砖平时无玻璃无边，鼠标 torchRadius 像素内的砖按远近显出 1,1,2,2 三色边缘；
+  //                已点亮的砖不参与；键盘焦点等价于手电停在那一格
   //   torchRadius  手电半径（像素，默认 160）；torchSelector 哪些元素受手电（默认 .gl-brick）
-  //   observe      监视 root 里的节点增删：新塞进来的 .gl-* 节点自动纳入打光（挂上总线即受光，不用注册）
-  //   trackSelector 会自己动的节点（漂移、拖拽、动画）：带这个选择器的元素逐帧重新量矩形、（lamp 模式下）重新受光、
-  //                 重新被手电探测；默认 [data-gl-track]。不动的元素别加，省着算
+  //   observe      监视 root 里的节点增删：新塞进来的 .gl-brick 节点自动纳入手电探测（挂上总线即受光，不用注册）
+  //   trackSelector 会自己动的节点（漂移、拖拽、动画）：带这个选择器的元素逐帧重新量矩形、重新被手电探测；
+  //                 默认 [data-gl-track]。不动的元素别加，省着算
   //   dim          场景压暗 0–1（默认 0.3）：玻璃压在高对比的行星上会"假"，面板后面的背景要安静
   //   root         画布插到哪、冰砖在哪找（默认 document.body）；光色变量也写在它上面
-  //   selector     要打光的元素
   //   respectReducedMotion  系统开了「减弱动态效果」时 scene 自动退成 static
   //   onUpdate(state)       每次太阳状态更新后的回调
   const DEFAULTS = {
@@ -678,7 +676,6 @@
     lampOverlay: true,
     photo: null,
     photoDesaturate: true,
-    lightDirection: "fixed",
     torch: true,
     torchRadius: 160,
     torchSelector: ".gl-brick",
@@ -686,7 +683,6 @@
     trackSelector: "[data-gl-track]",
     dim: 0.3,
     root: null,
-    selector: ".gl-brick, .gl-nav, .gl-card",
     settleDelay: 160,
     realtimeInterval: 28000,
     timelapseInterval: 80,
@@ -696,23 +692,37 @@
   };
   Glacier.DEFAULTS = DEFAULTS;
 
-  const VIEW_MARGIN = 160; // lamp 模式：视口外扩这么多像素以内的元素才打光
   const SUN_VARS = ["--agy-sun-crest", "--agy-sun-sheen", "--agy-sun-tint", "--agy-sun-caustic", "--agy-sun-ta", "--agy-sun-photo", "--agy-sun-exposure"];
   const BACKGROUNDS = ["scene", "static", "none", "photo"];
-  const WIDGET_VARS = ["--ice-sx", "--ice-sy", "--ice-dark-x", "--ice-dark-y", "--ice-deg", "--ice-diag"];
-  // 盒子对角线的角度（CSS 角：0 朝上、顺时针）。环和填充的渐变沿它从迎光角走到背光角：宽砖近乎横着走，
-  // 顶边只在左端亮，往右淡出，不是一条油漆线（Windhawk 任务栏 XAML 的 0,0→1,1 画刷就是这个行为）。只在平行光下写
-  const diagOf = (r) => `${Math.round((Math.atan2(r.width, -r.height) * 180) / Math.PI)}deg`;
   const TORCH_VARS = ["--torch-x", "--torch-y", "--torch-a"];
   const INSTANCE_KEY = "__glacierInstance";
-  const { lightWidget, applySunVars } = Glacier;
+  const { applySunVars } = Glacier;
 
   const nowHour = () => { const d = new Date(); return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600; };
   const prefersReducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // 预取 + 解码一张底片：decode() 在主线程外做，解码完才插进页面，淡入时不会卡那几十毫秒。
+  // 兜底：decode() 失败、或者（某些嵌入式 WebView 里）永远不回来，就在 onload 后放行；最多等 1.5s。同一个 URL 只做一次，引用攥着不让缓存丢
+  const photoCache = new Map();
+  const preloadPhoto = (url) => {
+    if (!url) return Promise.resolve();
+    if (!photoCache.has(url)) {
+      const img = new Image();
+      const done = new Promise((resolve) => {
+        const ok = () => resolve(img);
+        img.onload = () => setTimeout(ok, 30);
+        img.onerror = ok;
+        setTimeout(ok, 1500);
+        img.src = url;
+        if (img.decode) img.decode().then(ok, () => {});
+      });
+      photoCache.set(url, done);
+    }
+    return photoCache.get(url);
+  };
+  Glacier.preloadPhoto = preloadPhoto;
   const makeCanvas = (cls) => { const c = document.createElement("canvas"); c.className = `gl-layer ${cls}`; return c; };
   const rectOf = (b) => ({ left: b.left, top: b.top, right: b.right, bottom: b.bottom, width: b.width, height: b.height });
   const sameRect = (a, b) => a && Math.abs(a.left - b.left) < 0.5 && Math.abs(a.top - b.top) < 0.5 && Math.abs(a.width - b.width) < 0.5 && Math.abs(a.height - b.height) < 0.5;
-  const offscreen = (r, W, H) => r.bottom < -VIEW_MARGIN || r.top > H + VIEW_MARGIN || r.right < -VIEW_MARGIN || r.left > W + VIEW_MARGIN;
   const viewport = () => [window.innerWidth || 1280, window.innerHeight || 800];
 
   class Instance {
@@ -720,10 +730,11 @@
       this.options = { ...DEFAULTS, ...options };
       const o = this.options;
       this.root = o.root || document.body;
-      this.lampMode = o.lightDirection === "lamp";
       this.root.style.setProperty("--gl-dim", String(Math.max(0, Math.min(1, Number(o.dim) || 0))));
       this.root.style.setProperty("--torch-r", `${Math.max(0, Number(o.torchRadius) || 0)}px`);
       this.scrollers = new Set();
+      this.photoFading = []; // setPhoto 正在淡出的旧底片，unmount 时一起收
+      this.shownPhoto = null; // 当前挂着的底片 URL（photo 模式）
       this.torched = new Set(); this.torchEls = []; this.torchPos = null; this.torchFocus = null; this.torchRaf = 0;
       this.tracked = []; this.trackRaf = 0; this.observer = null; this.observeTimer = 0;
       this.clock = { mode: "manual", hour: 12 };
@@ -734,9 +745,8 @@
       this.scene = null;
       this.lamp = null;
       this.canvases = { planet: null, lamp: null };
-      this.photoLayers = [];  // photo 模式的两层 div
+      this.photoLayers = [];  // photo 模式的单层 div
       this.tableVersion = 0;  // 换表就加一：灯的静态层按它判断要不要重画
-      this.lit = new Set();   // 打过光的元素（destroy 时清变量）
       this.scrolling = false;
       this.settleTimer = 0;
       this.rafId = 0;
@@ -761,13 +771,8 @@
       this.background = mode;
       const o = this.options;
       if (mode === "photo") {
-        // 照片：零画布。底片铺满视口（可先 grayscale），上面一层纯色用 color 混合，颜色 / 曝光由 root 上的 --agy-sun-photo / --agy-sun-exposure 驱动
-        const photo = document.createElement("div");
-        photo.className = "gl-layer gl-layer-photo" + (o.photoDesaturate !== false ? " gl-photo-gray" : "");
-        if (o.photo) photo.style.backgroundImage = `url("${String(o.photo).replace(/"/g, "%22")}")`;
-        const tint = document.createElement("div");
-        tint.className = "gl-layer gl-layer-tint";
-        this.photoLayers = [photo, tint];
+        // 照片：零画布、单层 div（::before 灰阶底片 + ::after multiply 太阳染色，外层 isolation + screen 叠上黑位地板）
+        this.photoLayers = [this.makePhotoLayer(o.photo)];
       } else if (mode !== "none") {
         const planet = this.canvases.planet = makeCanvas("gl-layer-planet");
         this.scene = new Scene(planet, { sector: o.sector, idleDivider: o.idleDivider });
@@ -776,7 +781,15 @@
       }
       this.placeLayers();
     }
-    // 层的顺序（从下到上）：照片、色调、行星、灯。都插在 root 最前面
+    makePhotoLayer(url) {
+      const photo = document.createElement("div");
+      photo.className = "gl-layer gl-layer-photo" + (this.options.photoDesaturate !== false ? " gl-photo-gray" : "");
+      if (url) photo.style.backgroundImage = `url("${String(url).replace(/"/g, "%22")}")`;
+      photo.__glPhotoUrl = url || null;
+      this.shownPhoto = url || null;
+      return photo;
+    }
+    // 层的顺序（从下到上）：照片、行星、灯。都插在 root 最前面
     placeLayers() {
       const order = [...this.photoLayers, this.canvases.planet, this.canvases.lamp].filter(Boolean);
       for (const el of order.reverse()) this.root.prepend(el);
@@ -784,8 +797,9 @@
     unmountBackground() {
       if (this.scene) { this.scene.stop(); this.scene = null; }
       this.canvases.planet?.remove(); this.canvases.planet = null;
-      for (const el of this.photoLayers) el.remove();
-      this.photoLayers = [];
+      for (const el of this.photoLayers) { clearTimeout(el.__glFadeTimer); el.remove(); }
+      for (const el of this.photoFading) { clearTimeout(el.__glFadeTimer); el.remove(); }
+      this.photoLayers = []; this.photoFading = []; this.shownPhoto = null;
       this.background = "none";
     }
 
@@ -794,7 +808,10 @@
     //   realtime  跟真实时间     fixed  定住一帧     loop  区间来回     external  宿主推
     setTimeOption(t) {
       if (typeof t === "number" && Number.isFinite(t)) { this.clock.mode = "fixed"; this.clock.hour = ((t % 24) + 24) % 24; }
-      else if (t === "timelapse") this.setLoopSpec({ from: 0, to: 24, duration: (24 / this.options.timelapseStep) * this.options.timelapseInterval, bounce: false }, false);
+      else if (t === "timelapse") {
+        const cur = Number.isFinite(this.clock.hour) ? this.clock.hour : 0;
+        this.setLoopSpec({ from: cur, to: cur, duration: (24 / this.options.timelapseStep) * this.options.timelapseInterval, bounce: false }, false);
+      }
       else if (t && typeof t === "object" && t.loop) this.setLoopSpec(t.loop, false);
       else if (t === "external") { this.clock.mode = "external"; if (!Number.isFinite(this.clock.hour)) this.clock.hour = nowHour(); }
       else if (t === "fixed" || t === "manual") { this.clock.mode = "fixed"; if (!Number.isFinite(this.clock.hour)) this.clock.hour = nowHour(); }
@@ -833,8 +850,8 @@
     }
     stopClock() { if (this.clockTimer) { clearInterval(this.clockTimer); this.clockTimer = 0; } }
 
-    // ---- 太阳状态：算一次、发给三个消费者 ----------------------------------------
-    // 平行光模式下砖不听太阳（方向是常量，颜色在 root 上），所以这里只碰画布和 root；点光模式才重打砖。
+    // ---- 太阳状态：算一次、发给背景、灯和 root --------------------------------
+    // 砖和卡片的材质直接走 CSS 常数，所以这里只碰画布和 root。
     update() {
       if (this.destroyed) return;
       const [W, H] = viewport();
@@ -847,7 +864,6 @@
       }
       if (this.lamp && !document.hidden) this.lamp.draw(this.state, hour, W, H, this.lampOpts(W, H));
       applySunVars(this.root, this.state);
-      if (this.lampMode) this.scheduleRelight();
       this.options.onUpdate?.(this.state);
     }
 
@@ -857,71 +873,31 @@
       const path = table
         ? (h) => { const s = stateFromTable(table, h, W, H); return { x: s.sunX, y: s.sunY, isDay: s.isDay }; }
         : Lamp.formulaPath(W, H);
-      const L = this.clock.mode === "loop" ? this.clock.loop : null;
+      const L = this.clock.mode === "loop" && this.clock.loop?.span < 24 ? this.clock.loop : null;
       return { path, pathKey: table ? `table${this.tableVersion}` : "formula", loop: L ? { from: L.from, span: L.span } : null };
     }
 
-    // ---- 冰砖打光 ------------------------------------------------------------
+    // ---- 手电目标扫描与矩形测量 -----------------------------------------------
+    // 控件的 1,1,2,2 环与浅玻璃内胆直接焊死在 glacier.css 里，零内联变量写入；
+    // 这里只找受手电探测的元素并读一轮矩形（滚动中不量，停下再量）
     scheduleRelight() {
       if (this.rafId || this.destroyed) return;
       this.rafId = requestAnimationFrame(() => {
         this.rafId = 0;
-        if (this.scrolling && this.lampMode) return; // 滚动中不读布局：停下后那一轮会做
         this.relightNow();
       });
     }
-    light() { return this.lampMode ? { x: this.state.sunX, y: this.state.sunY } : FIXED_LIGHT; }
-    litKey(light, r) { return this.lampMode ? `${Math.round(light.x)}:${Math.round(light.y)}@${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)}x${Math.round(r.height)}` : "fixed"; }
     relightNow() {
-      if (this.destroyed || !this.state) return;
+      if (this.destroyed) return;
       const o = this.options;
-      const els = Array.from(this.root.querySelectorAll(o.selector));
-      this.torchEls = els.filter((el) => el.matches(o.torchSelector)); // torch 关着也要这份：环的对角线角度靠它量
-      this.tracked = o.trackSelector ? els.filter((el) => el.matches(o.trackSelector)) : [];
-      if (this.tracked.length) this.startTracking();
-      if (this.lampMode) this.relightLamp(els);
-      else this.relightFixed(els);
-    }
-    // 平行光：不读布局。没打过的元素写一次就永远对。矩形只给手电用，滚动中不量，停下再量
-    relightFixed(els) {
-      for (const el of els) {
-        if (el.__glLit === "fixed") continue;
-        el.__glLit = "fixed";
-        lightWidget(el, null, FIXED_LIGHT);
-        this.lit.add(el);
-      }
+      this.torchEls = o.torch ? Array.from(this.root.querySelectorAll(o.torchSelector)) : [];
+      this.tracked = (o.torch && o.trackSelector) ? this.torchEls.filter((el) => el.matches(o.trackSelector)) : [];
       if (this.torchEls.length && !this.scrolling) this.measureRects();
+      if (this.tracked.length) this.startTracking();
     }
-    // 点光：一轮 getBoundingClientRect（只打视口外扩 160px 以内的），再一轮写；灯和矩形都没变的跳过
-    relightLamp(els) {
-      const [W, H] = viewport();
-      const light = this.light();
-      const measured = [];
-      for (const el of els) {
-        const b = el.getBoundingClientRect();
-        if (b.width === 0 || b.height === 0) continue;
-        const r = rectOf(b);
-        el.__glRect = r;
-        if (!offscreen(r, W, H)) measured.push([el, r]);
-      }
-      for (const [el, r] of measured) {
-        const k = this.litKey(light, r);
-        if (el.__glLit === k) continue;
-        el.__glLit = k;
-        lightWidget(el, r, light);
-        this.lit.add(el);
-      }
-      this.syncScrollers();
-    }
-    // 砖在哪、多大：一轮读（手电用矩形），然后只写一个变量（环的对角线角度，同值不写）
+    // 砖在哪、多大：纯读一轮矩形给手电用，零 DOM 样式写入
     measureRects() {
       for (const el of this.torchEls) if (el.isConnected) el.__glRect = rectOf(el.getBoundingClientRect());
-      if (!this.lampMode) { // 写阶段：对角线角度，同值不写
-        for (const el of this.torchEls) {
-          const r = el.__glRect; if (!r || !el.isConnected) continue;
-          const v = diagOf(r); if (el.style.getPropertyValue("--ice-diag") !== v) el.style.setProperty("--ice-diag", v);
-        }
-      }
       this.syncScrollers();
     }
     // 矩形刚量完，每个滚动容器的基线就是此刻的 scrollTop；砖的归属缓存也作废（可能有新砖）
@@ -934,41 +910,31 @@
     }
     // ---- 会动的节点：逐帧跟踪 --------------------------------------------------
     // 只对 trackSelector 命中的元素做：每帧量一次矩形（这是本库唯一的逐帧布局读取，所以只给会动的东西用），
-    // 挪了半个像素以上就让手电重新探测；点光模式下还重新受光（平行光下位置变了光不变）。一个都没有时循环自动停。
+    // 挪了半个像素以上就让手电重新探测。一个都没有时循环自动停。
     startTracking() {
       if (this.trackRaf || this.destroyed) return;
       this.trackRaf = requestAnimationFrame(() => this.trackFrame());
     }
     trackFrame() {
       this.trackRaf = 0;
-      if (this.destroyed || !this.state) return;
+      if (this.destroyed) return;
       this.tracked = this.tracked.filter((el) => el.isConnected);
       if (!this.tracked.length) return;
-      const moved = [];
-      for (const el of this.tracked) { // 读阶段
+      let moved = false;
+      for (const el of this.tracked) {
         const b = el.getBoundingClientRect();
         if (sameRect(el.__glRect, b)) continue;
-        moved.push([el, rectOf(b)]);
+        el.__glRect = rectOf(b);
+        moved = true;
       }
-      if (moved.length) { // 写阶段
-        const [W, H] = viewport();
-        const light = this.light();
-        for (const [el, r] of moved) {
-          el.__glRect = r;
-          if (!this.lampMode || offscreen(r, W, H)) continue;
-          el.__glLit = this.litKey(light, r);
-          lightWidget(el, r, light);
-          this.lit.add(el);
-        }
-        if (this.torchPos || this.torchFocus) this.applyTorch();
-      }
+      if (moved && (this.torchPos || this.torchFocus)) this.applyTorch();
       this.trackRaf = requestAnimationFrame(() => this.trackFrame());
     }
     // ---- 节点增删：挂上总线即受光 ----------------------------------------------
-    // 只看增删的节点本身是不是（或装着）受光元素，不在整棵树里查；命中就隔 120ms 重量一轮。
+    // 只看增删的节点本身是不是（或装着）手电目标元素，不在整棵树里查；命中就隔 120ms 重量一轮。
     observeRoot() {
-      const o = this.options;
-      const hits = (nodes) => { for (const n of nodes) { if (n.nodeType !== 1) continue; if (n.matches(o.selector) || (n.firstElementChild && n.querySelector(o.selector))) return true; } return false; };
+      const sel = this.options.torchSelector;
+      const hits = (nodes) => { for (const n of nodes) { if (n.nodeType !== 1) continue; if (n.matches(sel) || (n.firstElementChild && n.querySelector(sel))) return true; } return false; };
       this.observer = new MutationObserver((records) => {
         for (const m of records) {
           if (hits(m.addedNodes) || hits(m.removedNodes)) { this.scheduleObservedRelight(); return; }
@@ -980,11 +946,9 @@
       clearTimeout(this.observeTimer);
       this.observeTimer = setTimeout(() => { this.observeTimer = 0; this.scheduleRelight(); }, 120);
     }
-    // ---- 滚动：期间什么都不做，停下 settleDelay 后 lamp 模式重打一轮光；fixed 模式只给手电刷新矩形 ----
+    // ---- 滚动：期间不读布局，只平移缓存矩形让手电跟着砖走；停下 settleDelay 后再真量一轮纠偏 ----
     onScroll(sc) {
       this.scrolling = true;
-      // 滚动中不读布局，但手电要跟着砖走：把这个容器里砖的缓存矩形按滚动位移平移（读一次 scrollTop，不触发重排），
-      // 然后让手电按新位置重新探测。停下后再真量一轮纠偏。
       if (sc && this.torchEls.length) {
         const prev = sc.__glScrollPos;
         const now = { x: sc.scrollLeft, y: sc.scrollTop };
@@ -1006,8 +970,7 @@
       this.settleTimer = setTimeout(() => {
         this.settleTimer = 0;
         this.scrolling = false;
-        if (this.lampMode) this.relightNow();
-        else if (this.torchEls.length) this.measureRects();
+        if (this.torchEls.length) this.measureRects();
         if (this.torchPos || this.torchFocus) this.scheduleTorch();
       }, this.options.settleDelay);
     }
@@ -1015,8 +978,8 @@
     // ---- 监听器 --------------------------------------------------------------
     bind() {
       const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); this.listeners.push([target, type, fn, opts]); };
-      on(window, "resize", () => { this.update(); if (!this.lampMode) this.scheduleRelight(); }); // 平行光：砖不变，只刷新手电矩形
-      if (this.lampMode || this.options.torch) {
+      on(window, "resize", () => { this.update(); this.scheduleRelight(); });
+      if (this.options.torch) {
         // 整页滚动器先登记：首轮量矩形时就记下基线，第一下滚轮的位移不会丢
         const page = document.scrollingElement || document.documentElement;
         this.scrollers.add(page);
@@ -1033,9 +996,7 @@
           }
           this.onScroll(sc);
         }, { capture: true, passive: true });
-      }
-      if (this.options.observe) this.observeRoot();
-      if (this.options.torch) {
+        if (this.options.observe) this.observeRoot();
         const sel = this.options.torchSelector;
         on(document, "pointermove", (e) => { this.torchPos = { x: e.clientX, y: e.clientY }; this.scheduleTorch(); }, { passive: true });
         on(document, "pointerleave", () => { this.torchPos = null; this.scheduleTorch(); });
@@ -1101,7 +1062,6 @@
     get sun() { return this.state; }
     get hour() { return this.currentHour(); }
     get mode() { return this.clock.mode; }
-    get lightDirection() { return this.lampMode ? "lamp" : "fixed"; }
     /** 定在某个小时（fixed）；external 模式下也用它推时间（保持 external） */
     setHour(h) {
       this.clock.hour = ((Number(h) % 24) + 24) % 24;
@@ -1132,13 +1092,50 @@
       this.update();
       return this.background;
     }
-    /** 重新找一遍元素、补一遍光（宿主自己改了布局且没开 observe 时调）。下一帧做 */
+    /** 换底片。photo 模式下先把图解码完（不在主线程上卡那几十毫秒），再把新底片压在旧底片上淡入（CSS 过渡）；
+     *  其它模式只记下，下次切到 photo 用。一个航点一张底片。宿主可以提前 Glacier.preloadPhoto(url) 让跃迁零等待 */
+    setPhoto(url) {
+      const target = url || null;
+      this.options.photo = target;
+      if (this.background !== "photo" || this.destroyed) return target;
+      if (target === this.shownPhoto) return target; // 已经是当前底片：不动
+      preloadPhoto(target).then(() => {
+        if (this.destroyed || this.background !== "photo" || this.options.photo !== target || target === this.shownPhoto) return;
+        const old = this.photoLayers[0];
+        // 高频来回切（A → B → A）时，若 A 还在 photoFading 里淡出，直接原地救回（screen 混合满足交换律，不搬动 DOM 节点就不会打断 CSS 过渡）
+        let next = this.photoFading.find((el) => el.__glPhotoUrl === target);
+        if (next) {
+          clearTimeout(next.__glFadeTimer);
+          this.photoFading = this.photoFading.filter((el) => el !== next);
+          this.shownPhoto = target;
+          next.style.opacity = "";
+        } else {
+          next = this.makePhotoLayer(target);
+          next.style.opacity = "0";
+          if (old) old.after(next); else this.root.prepend(next);
+          void getComputedStyle(next).opacity; // 立即提交 0 初值，同一微任务内直接切回 CSS 目标值，零定时器竞态
+          next.style.opacity = "";
+        }
+        this.photoLayers = [next];
+        if (old && old !== next) {
+          clearTimeout(old.__glFadeTimer);
+          if (!this.photoFading.includes(old)) this.photoFading.push(old);
+          old.style.opacity = "0";
+          old.__glFadeTimer = setTimeout(() => {
+            old.remove();
+            this.photoFading = this.photoFading.filter((el) => el !== old);
+          }, 750);
+        }
+      });
+      return target;
+    }
+    /** 重新扫描手电目标并量一轮矩形（宿主自己改了布局且没开 observe 时调）。下一帧做 */
     relight() { this.scheduleRelight(); }
     /** 暂停：背景循环和时钟停，DOM 留着 */
     stop() { this.stopped = true; this.stopClock(); this.scene?.stop(); return this; }
     /** 从 stop() 恢复 */
     start() { this.stopped = false; if (this.background === "scene") this.scene?.start(); this.startClock(); this.update(); return this; }
-    /** 全部收回：画布、监听器、定时器、root 和冰砖上的变量 */
+    /** 全部收回：画布、监听器、定时器、root 和冰砖上的手电变量 */
     destroy() {
       if (this.destroyed) return;
       this.destroyed = true;
@@ -1148,11 +1145,7 @@
       this.canvases.lamp?.remove(); this.canvases.lamp = null; this.lamp = null;
       const rs = this.root.style;
       for (const k of [...SUN_VARS, "--torch-r", "--gl-dim"]) rs.removeProperty(k);
-      for (const el of this.lit) {
-        for (const k of WIDGET_VARS) el.style.removeProperty(k);
-        delete el.__glRect; delete el.__glLit;
-      }
-      this.lit.clear();
+      for (const el of this.torchEls) delete el.__glRect;
       for (const el of this.torched) for (const k of TORCH_VARS) el.style.removeProperty(k);
       this.torched.clear(); this.torchEls = [];
       if (this.root[INSTANCE_KEY] === this) delete this.root[INSTANCE_KEY];
@@ -1162,8 +1155,8 @@
 
   /**
    * 装到页面上。同一个 root 上重复 init 会先 destroy 上一个（热重载 / 换选项都安全）。
-   * @returns {Instance} 句柄：setHour, setMode, setLoop, setSunTable, setSector, setShip, setBackground,
-   *                     relight, start, stop, destroy, sun, hour, mode, lightDirection, background, scene, lamp, options
+   * @returns {Instance} 句柄：setHour, setMode, setLoop, setSunTable, setSector, setShip, setBackground, setPhoto,
+   *                     relight, start, stop, destroy, sun, hour, mode, background, scene, lamp, options
    */
   Glacier.init = (options = {}) => {
     const root = options.root || document.body;

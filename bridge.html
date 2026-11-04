@@ -23,8 +23,8 @@
   }
   .mono { font: 600 11px/1 ui-monospace, "Cascadia Code", Consolas, monospace; letter-spacing: 2px; }
 
-  /* 顶：钟。太阳曲线是库画的 overlay，就在这条栏后面 */
-  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; }
+  /* 顶：钟 + 金星带顶栏（.gl-bar：左半地球影暗槽 + 右半金星带瑞利散射紫 + 1px GlacierCrestLine 光谱地平线） */
+  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; margin: -18px -26px 0; padding: 11px 26px 10px; }
   .brand { color: #7dcfff; margin-right: auto; }
   .clock { color: #e0f7ff; font-size: 13px; letter-spacing: 1px; min-width: 64px; text-align: right; }
   .knob { display: flex; align-items: center; gap: 10px; }
@@ -35,6 +35,7 @@
   /* 中：舷窗。什么都不盖，只有底部一句话 */
   .window { position: relative; }
   .lore { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; color: rgba(196, 208, 245, 0.42); font-size: 12.5px; letter-spacing: 0.3px; }
+  .lore i { display: block; font-style: normal; font-size: 10.5px; letter-spacing: 0.5px; color: rgba(196, 208, 245, 0.28); margin-top: 6px; }
   .lore b { display: block; color: rgba(224, 247, 255, 0.7); font: 600 11px/1 ui-monospace, "Cascadia Code", Consolas, monospace; letter-spacing: 2px; margin-bottom: 8px; }
 
   /* 左：航点光栅（去哪）。亮着的那条就是现在在的地方 */
@@ -60,7 +61,7 @@
 <body class="gl-stage">
 <div class="bridge">
 
-  <header class="top">
+  <header class="top gl-bar">
     <span class="mono brand">GLACIER · 舰桥</span>
     <div class="knob">
       <label class="mono">时钟</label>
@@ -97,17 +98,23 @@
 <script src="glacier.js"></script>
 <script>
   // ---- 航点：一个地方 = 一颗星 = 星区 + 它自己的钟 + 一句话。第一个是母星：打开页面落在这 ----
+  // 底片都是 NASA 图库的灰阶负片（出处见 photos/README.md），通过 --gl-photo-level: 0.48 + 135° 三色空间色散提供 ~28% 可折射底光
   const PLACES = [
     { id: "home", name: "母星 · 冰星黄昏", meta: "16:00–19:00 来回", sector: "cryo_blend",
       clock: { loop: { from: 16, to: 19, duration: 24000, bounce: true } },
+      photo: "photos/home.jpg", credit: "Cassini · 土星新月与侧视环 · NASA/JPL/SSI",
       lore: "第三季风期将至，高空大气折射率偏高，今日晚霞预计持续四个标准时。" },
     { id: "station", name: "轨道站 · 纯冰", meta: "跟实时", sector: "cryo_pure", clock: "realtime",
+      photo: "photos/station.jpg", credit: "Cassini · 土星 C 环与 B 环 · NASA/JPL/SSI",
       lore: "站内时间与母港同步。舷窗外的冰环每九十分钟完成一次自转。" },
     { id: "giant", name: "红巨星 · 日冕边缘", meta: "17:36 定格", sector: "red_giant", clock: 17.6,
+      photo: "photos/giant.jpg", credit: "SDO · 东边缘日珥喷发 2012-04-16 · NASA/GSFC",
       lore: "引擎逆着自转做同步巡航，太阳悬在天际线上三度。只要不发话，这片黄昏能停一个世纪。" },
     { id: "pulsar", name: "脉冲星 · 高频昼夜", meta: "一天 24 秒", sector: "pulsar", clock: "timelapse",
+      photo: "photos/pulsar.jpg", credit: "Hubble · 蟹状星云 · NASA/ESA/JPL/ASU",
       lore: "近轨行星，昼夜更替极快。此地作息带着工业节拍，没人按「天」过日子。" },
     { id: "deep", name: "深空 · 夜航", meta: "01:30 定格", sector: "cryo_blend", clock: 1.5,
+      photo: "photos/deep.jpg", credit: "Hubble · 极深场 XDF · NASA/ESA/GSFC",
       lore: "无星区。灯调到最低，只保留航点光栅和一行坐标。" }
   ];
 
@@ -138,20 +145,26 @@
     b.textContent = d;
     cal.appendChild(b);
   }
+  cal.addEventListener("click", (e) => {
+    const b = e.target.closest(".gl-brick"); if (!b) return;
+    cal.querySelectorAll(".gl-brick.on").forEach((x) => x.classList.remove("on"));
+    b.classList.add("on");
+  });
 
-  // ---- 引擎：落在母星上。舷窗默认是空的：深空基底 + 灯的轨道线，没有球 ----
-  // 那颗橙蓝径向渐变的行星是自发光的小太阳，会把黑位地板掀了、把 1px 刀锋淹了（Gemini 的话：从黑曜石圣殿滑向天气预报 App）。
-  // 要天体就 ?bg=photo&photo=<URL>：灰阶负片 + 太阳色调，颜色 100% 顺从 sunTable；?bg=scene 把球叫回来看对比。
+  // ---- 引擎：落在母星上。舷窗是母星的底片：--gl-photo-level: 0.48 + 135° 空间三色色散，为毛玻璃提供可折射底光 ----
+  // 那颗橙蓝径向渐变的行星是自发光的小太阳，会把黑位地板掀了、把 1px 刀锋淹了，所以不画；
+  // ?bg=none 看纯黑 + 轨道线，?bg=scene 把球叫回来看对比，?photo=<URL> 换自己的底片。
   const q = new URLSearchParams(location.search);
   var gl = Glacier.init({ // var：onUpdate 在 init 返回前就会被调一次
-    background: q.get("bg") || "none",
-    photo: q.get("photo"),
+    background: q.get("bg") || "photo",
+    photo: q.get("photo") || PLACES[0].photo,
     sector: PLACES[0].sector,
     time: PLACES[0].clock,
     idleDivider: 6,
     onUpdate: () => render()
   });
   window.gl = gl;
+  for (const p of PLACES) Glacier.preloadPhoto(p.photo); // 五张底片开场就解码好，跃迁零等待
 
   // ---- 两个旋钮 ----
   let current = PLACES[0], clockSel = "place"; // clockSel: "place" | "realtime" | "timelapse" | "manual"
@@ -160,20 +173,40 @@
     else if (c && c.loop) gl.setLoop(c.loop);
     else gl.setMode(c);
   };
-  const jump = (p) => { // 去哪：星区 + 这个航点自己的钟 + 一句话。过渡由库里的颜色过渡兜底，不另加动画
+  // 航点的钟一开始指向几点：定格就是那个数，区间来回从 from 起，实时是现在，延时直接从当前时刻原地起跑（不倒带回 0:00）
+  const clockStartHour = (c) => typeof c === "number" ? c : c && c.loop ? c.loop.from : c === "timelapse" ? (gl.sun ? gl.sun.h : 12) : gl.sun ? (new Date().getHours() + new Date().getMinutes() / 60) : 12;
+  // 时钟不许跳：从当前时刻沿最短方向滑到航点的起始时刻（800ms，先快后慢），到了再把钟交给航点自己的模式
+  let tweenId = 0;
+  const tweenClock = (toHour, done) => {
+    const my = ++tweenId, from = gl.sun ? gl.sun.h : toHour;
+    let delta = ((toHour - from) % 24 + 24) % 24; if (delta > 12) delta -= 24; // 最短方向（先归到 0–24，超过半天就往回走）
+    if (Math.abs(delta) < 0.01) { done(); return; } // 已经在那了，别空跑 800ms
+    const t0 = performance.now(), ms = 800;
+    const step = (now) => {
+      if (my !== tweenId || gl.destroyed) return;
+      const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3);
+      gl.setHour(from + delta * e);
+      if (k < 1) requestAnimationFrame(step); else done();
+    };
+    requestAnimationFrame(step);
+  };
+  const jump = (p) => { // 去哪：星区 + 底片 + 钟 + 一句话，四样一起走，没有一样是跳的
+    if (!p || (p === current && clockSel === "place")) return;
     current = p; clockSel = "place";
     gl.setSector(p.sector);
-    applyClock(p.clock);
+    if (!q.get("photo")) gl.setPhoto(p.photo); // 底片跟航点走（URL 指定了自己的底片就不换）；库里单节点交叉淡化
+    tweenClock(clockStartHour(p.clock), () => { if (current === p && clockSel === "place") applyClock(p.clock); });
     render();
   };
   louver.addEventListener("click", (e) => { const b = e.target.closest(".gl-brick"); if (b) jump(PLACES.find((p) => p.id === b.dataset.id)); });
   $("clockMode").addEventListener("click", (e) => { // 多快
-    const b = e.target.closest(".gl-brick"); if (!b) return;
-    clockSel = b.dataset.v;
-    if (clockSel === "place") applyClock(current.clock); else gl.setMode(clockSel);
+    const b = e.target.closest(".gl-brick"); if (!b || b.dataset.v === clockSel) return;
+    const sel = clockSel = b.dataset.v;
+    const target = sel === "place" ? current.clock : sel;
+    tweenClock(clockStartHour(target), () => { if (clockSel === sel) applyClock(target); });
     render();
   });
-  $("hour").addEventListener("input", () => { clockSel = "manual"; gl.setHour(Number($("hour").value)); render(); });
+  $("hour").addEventListener("input", () => { clockSel = "manual"; tweenId++; gl.setHour(Number($("hour").value)); render(); });
 
   // ---- 告警行：平时没有。A 模拟一条，Esc 清掉；点一条就是"看过了"。真宿主在这接心跳 / 任务状态 ----
   const ann = $("annunciator"); let alerts = 0;
@@ -194,7 +227,7 @@
     if (document.activeElement !== $("hour")) $("hour").value = s.h.toFixed(2);
     louver.querySelectorAll(".gl-brick").forEach((b) => b.classList.toggle("on", b.dataset.id === current.id));
     $("clockMode").querySelectorAll(".gl-brick").forEach((b) => b.classList.toggle("on", b.dataset.v === clockSel));
-    $("lore").innerHTML = `<b>${current.name}</b>${current.lore}`;
+    $("lore").innerHTML = `<b>${current.name}</b>${current.lore}<i>底片 · ${current.credit}</i>`;
   }
   render();
 </script>

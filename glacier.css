@@ -1,14 +1,13 @@
 /* ==========================================================================
    Glacier（星舰冰川）设计语言 · 独立样式库  glacier.css
    和 glacier.js 配套。只有和宿主无关的部分：
-     1. 令牌（强调色、动效曲线 / 时长、基底色）
-     2. 冰砖光学变量的 @property 注册（不继承，解算器逐元素写）
-     3. 背景画布层 .gl-layer（init() 创建的画布用）
-     4. 冰砖 .gl-brick / .gl-nav、卡片 .gl-card 的受光规则
+     1. 令牌与焊死的 Windhawk 光学常量（金→冰白→暮光紫同屏色散，不随时间退化成单色）
+     2. 鼠标手电变量的 @property 注册（--torch-x / --torch-y / --torch-a）
+     3. 背景画布层 .gl-layer（init() 创建的画布 / 底片层）
+     4. 冰砖 .gl-brick / .gl-nav、卡片 .gl-card、金星带顶栏 .gl-bar 的受光规则
      4b. 阵列 .gl-louver（一维光栅）/ .gl-lattice（二维晶格）：传感器的摆放
      5. 尊重系统「减弱动态效果」
-   没有 !important，没有任何宿主选择器；类名都以 gl- 开头，变量以 --agy- / --ice- / --torch- 开头
-   （那是设计语言自己的命名空间）。公式和 DESIGN.md §4 一致。
+   没有 !important，没有任何宿主选择器；类名都以 gl- 开头。
    ========================================================================== */
 
 :root {
@@ -18,6 +17,31 @@
   --agy-accent-cyan: #2ac3de;
   --agy-accent-purple: #bb9af7;
   --agy-card-alpha: 0.82;
+  /* 底片曝光基准：既保持暗座舱的克制，又留足 ~30% 透射率供毛玻璃与冰砖折射（Windhawk GlacierGlass 透射率 28%） */
+  --gl-photo-level: 0.48;
+
+  /* 焊死的 Windows 11 磁贴（Word 磁贴）/ 任务栏黄金光学常量：
+     1. 严禁往按钮肚子里灌实心蓝油漆：点亮态肚子保持 80%+ 深邃黑曜石透明感（rgba(18, 22, 32, 0.78)），
+        让背后的天体底片与星轨透出来，只在左上角给 10% 香槟暖金微光、左下角给 16% 皇家钴蓝呼吸微光；
+     2. 唯一的一道 1px 光学刀锋（padding: 1px，in oklch 线性插值消灭 sRGB 灰泥区）：
+        左上香槟暖金 #FFD89B → 冰晶白 #E6F4FF → 暮光紫 rgba(160,140,240,.25) → 62% 处彻底 transparent 归零，
+        右边与底边绝不漏紫白斑马线，右下沉降槽只用零模糊的 inset -1.5px -1.5px 0px #06080E。 */
+  --gl-crest-line: linear-gradient(
+    90deg in oklch,
+    rgba(255, 216, 155, 0.72) 0%,
+    rgba(230, 244, 255, 0.88) 50%,
+    rgba(187, 154, 247, 0.72) 100%
+  );
+  --gl-edge: radial-gradient(
+    100% 100% at 0% 0% in oklch,
+    #FFD89B 0%,
+    #E6F4FF 36%,
+    rgba(160, 140, 240, 0.25) 64%,
+    transparent 88%
+  );
+  --gl-brick-fill:
+    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.10) 0%, transparent 55%),
+    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.16) 0%, transparent 65%);
 
   /* 动效令牌（Apple 式：ease-out、短、只动 transform / opacity） */
   --agy-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -36,8 +60,8 @@
 }
 
 /* --------------------------------------------------------------------------
-   背景层：Glacier.init() 创建的几层（照片 → 色调 → 行星 → 山体阴影 → 灯），铺满视口、不吃事件。
-   z-index: -1 让它们压在宿主正文下面、基底色上面；山体和灯用 screen 混合，所以只会提亮。
+   背景层：Glacier.init() 创建的几层（照片 → 行星 → 灯），铺满视口、不吃事件。
+   z-index: -1 让它们压在宿主正文下面、基底色上面；底片和灯用 screen 混合，所以只会提亮。
    -------------------------------------------------------------------------- */
 .gl-layer {
   position: fixed;
@@ -50,44 +74,84 @@
 /* 场景压暗：init({ dim }) 写 --gl-dim；行星层按它降透明度并降饱和，玻璃压在上面才像玻璃 */
 .gl-layer-planet { opacity: calc(0.92 * (1 - var(--gl-dim, 0.3))); filter: saturate(0.8); }
 .gl-layer-lamp { mix-blend-mode: screen; }
-/* 照片背景（background: "photo"）：底片铺满视口，可先 grayscale；上面一层纯色用 color 混合，
-   色相跟太阳走（--agy-sun-photo），曝光跟灯的亮度走（--agy-sun-exposure，夜里暗一些），dim 照旧压暗。
-   不对照片用 hue-rotate：那会把照片里所有颜色一起转。 */
+/* 照片背景（background: "photo"）：一张图就是一个独立合成单元（.gl-layer-photo，isolation: isolate + screen 混合）。
+   ::before 画高反差灰阶底片（太空底是纯黑 #000），::after 用 multiply 做空间色散染色（向阳侧暖金 → 航点主色 → 背阳侧金星带暮光紫）；
+   染完后再以 screen 混合、按 --gl-photo-level（0.48 亚克力透光平衡，既保持暗座舱克制又留足 ~28% 可折射底光）× --agy-sun-exposure × (1 - --gl-dim) 叠上黑位地板：
+   纯黑区域在 multiply 与 screen 下恒为 0（绝不污染 #13141c 黑位地板，无需 mask-image），淡入淡出改外层 opacity 时
+   每一帧都是满色度的成品图，物理上不可能在中途泛白或残留鬼影。 */
 .gl-layer-photo {
+  background-size: 0;
+  background-repeat: no-repeat;
+  isolation: isolate;
+  mix-blend-mode: screen;
+  opacity: calc(var(--gl-photo-level, 0.48) * var(--agy-sun-exposure, 1) * (1 - var(--gl-dim, 0.3)));
+  transition: opacity 700ms var(--agy-ease-out, ease-out);
+}
+.gl-layer-photo::before,
+.gl-layer-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.gl-layer-photo::before {
+  background-image: inherit;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  opacity: calc(var(--agy-sun-exposure, 1) * (1 - var(--gl-dim, 0.3)));
+  filter: contrast(1.25) brightness(0.82);
 }
-.gl-layer-photo.gl-photo-gray { filter: grayscale(1); }
-.gl-layer-tint {
-  background-color: var(--agy-sun-photo, #c8e4ff);
-  mix-blend-mode: color;
+.gl-layer-photo.gl-photo-gray::before { filter: grayscale(1) contrast(1.25) brightness(0.82); }
+.gl-layer-photo::after {
+  background-color: var(--agy-sun-photo, rgb(95, 175, 255));
+  background-image: linear-gradient(
+    135deg,
+    rgba(255, 196, 130, 0.72) 0%,
+    transparent 48%,
+    rgba(175, 135, 250, 0.72) 100%
+  );
+  mix-blend-mode: multiply;
+  transition: background-color 700ms var(--agy-ease-out, ease-out);
 }
 
-/* 冰砖光学变量（解算器写的五个）注册为「不继承」：它们写在砖 / 卡片本身上，可继承的话每写一次
-   子树都要重算样式。syntax "*" 不给 initial-value：没设置时 var() 的回退值照常生效。
-   约定：这些变量只在被写的那个元素上用，不在伪元素 / 子元素里读。 */
-@property --ice-sx { syntax: "*"; inherits: false; }
-@property --ice-sy { syntax: "*"; inherits: false; }
-@property --ice-dark-x { syntax: "*"; inherits: false; }
-@property --ice-dark-y { syntax: "*"; inherits: false; }
-@property --ice-deg { syntax: "*"; inherits: false; }
-@property --ice-diag { syntax: "*"; inherits: false; } /* 盒子对角线的角度（平行光下由 measureRects 写），环和填充沿它走 */
 /* 鼠标手电的变量要让 ::before 读到，所以 inherits: true；有类型，--torch-a 才能过渡 */
 @property --torch-x { syntax: "<length>"; inherits: true; initial-value: -9999px; }
 @property --torch-y { syntax: "<length>"; inherits: true; initial-value: -9999px; }
 @property --torch-a { syntax: "<number>"; inherits: true; initial-value: 0; }
 
 /* ==========================================================================
-   冰砖（.gl-brick）：一块比面板亮的玻璃片，不是一块比面板暗的板砖。
-   配方是逐像素量 Windhawk 任务栏那块"最好看的砖"（brave.png，DESIGN.md §4.3）抄回来的：
-   1. 填充：透明底 + 一道沿盒子对角线的浅玻璃渐变，到处都比面板亮（迎光角 +15% 冰白 → 背光角一点蓝），没有黑底
-   2. 环：一圈 1px 的渐变环（::before，padding + mask 异或），沿同一条对角线：迎光角香槟 → 冰白 → 深海蓝 → 近黑。
-      一条对角线从角到角，所以宽砖的顶边只在左端亮、往右淡出，不是一条油漆线
-   3. 墙：背光侧 1px 实心深海蓝内倒角（inset --ice-dark-x/y），和环的暗端叠成 2px 的厚度；零外投影，连接触影都没有
-   4. 选中不贴指示器：环 62% → 100% 的亮度跃迁 + 字通电（正文暖白、读数电光青）。任务栏那根底部青药丸是
-      "程序在后台跑着"的意思，我们没这个语义，不抄
+   金星带顶栏 / 分割栏（.gl-bar）：复刻 Windhawk 资源管理器命令栏的「左半深邃暗槽（地球影）+
+   右半金星带瑞利散射紫微雾 + 底部 1px 光谱地平线（香槟金 → 冰晶白 → 暮光紫）」。
+   ========================================================================== */
+.gl-bar {
+  position: relative;
+  background: linear-gradient(
+    90deg in oklch,
+    rgba(8, 12, 24, 0.52) 0%,
+    rgba(10, 14, 28, 0.44) 48%,
+    rgba(187, 154, 247, 0.055) 78%,
+    rgba(187, 154, 247, 0.095) 100%
+  );
+}
+.gl-bar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--gl-crest-line);
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   冰砖（.gl-brick）：对齐 Windows 11 开始菜单磁贴（Word 磁贴）与任务栏的通透黑曜石光学结构。
+   1. 静止态：干净均匀的极暗烟熏磨砂底（rgba(18, 22, 32, 0.42)，暗槽内全透明），无边框、无杂斑；
+   2. 点亮态肚子保持 80%+ 深邃黑曜石透明感（rgba(18, 22, 32, 0.78)），绝不涂实心蓝油漆：
+      只留左上 10% 香槟金微光与左下 16% 皇家钴蓝呼吸微光，背后的底片与星轨清晰穿透；
+   3. 唯一的一道 1px 光学刀锋（::before padding: 1px）：135deg in oklch 从左上 #FFD89B 香槟金 →
+      #E6F4FF 冰晶白 → 62% 彻底 transparent 归零，右边与底边绝不出现双层紫白断层；
+   4. 右下沉降暗槽：砍掉发虚的外阴影，只用 box-shadow: inset -1.5px -1.5px 0px #06080E；
+   5. 干净无黑阴影的锐利文字（color: #F0F6FF; text-shadow: none）。
    ========================================================================== */
 .gl-brick {
   position: relative;
@@ -97,37 +161,29 @@
   gap: 8px;
   padding: 9px 12px;
   border: none;
-  border-radius: var(--glacier-radius, 6px); /* 小圆角 = 锋利；大圆角是玩具感 */
-  color: #c4d0f5;
+  border-radius: var(--glacier-radius, 6px);
+  color: rgba(196, 208, 245, 0.76);
   font: 500 13px/1.3 "Segoe UI", system-ui, sans-serif;
   text-align: left;
   cursor: pointer;
   user-select: none;
-  /* 规矩 1 + 补丁：静止态是"不反光的哑光底片"——比面板亮 3%，零边、零渐变、零投影，只负责"这是个能点的东西"。
-     砖（刀锋 + 墙 + 玻璃盖板）只在悬停 / fresh / .on / 按下时出现 */
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(18, 22, 32, 0.42);
   background-image: none;
-  box-shadow: none;
-  /* 不过渡 box-shadow：阴影由 --ice-* 驱动，加过渡会每次重写都重启 */
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.025);
   transition: transform var(--agy-dur-base) var(--agy-ease-spring), border-radius var(--agy-dur-slow) var(--agy-ease-out);
 }
 
-/* 顶层导航按钮：同一套，颜色更亮、圆角更小 */
+/* 顶层导航按钮：同一套，颜色更亮、圆角 5px */
 .gl-brick.gl-nav {
   color: #dbe6ff;
   border-radius: 5px;
-  background-color: rgba(255, 255, 255, 0.03);
 }
 
-/* 环（::before）：所有砖都有这一圈 1px 的位置，静止态归手电（下面），点亮态归太阳（这里）。
-   padding + 两层 mask 异或只留外圈 1px，圆角跟着砖走；z-index -1 压在文字下、砖自己的背景上 */
+/* 唯一的一道 1px 光学刀锋（::before）：严格锁死 1px 物理宽度，62% 处彻底透明归零 */
 .gl-brick::before {
   content: "";
-  --ice-diag: inherit; /* 两个角度都注册为 inherits:false，伪元素要显式拿一份，否则环永远 135deg 而填充跟着对角线走，两者拧巴 */
-  --ice-deg: inherit;
   position: absolute;
   inset: 0;
-  z-index: -1;
   border-radius: inherit;
   padding: 1px;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -137,80 +193,75 @@
   pointer-events: none;
 }
 
-/* 极寒凝结态 / 选中（.on）/ 悬停：浅玻璃填充 + 对角线渐变环 + 1px 深海蓝墙。
-   量出来的值（2× 截图换算到 1×）：填充迎光角比面板亮 22 级、中间 12、背光角 8，没有一处比面板暗；
-   环的亮端 1px，暗端连墙 2px；环顶边从香槟（左）→ 灰白（中）→ 蓝灰（右）；没有外投影 */
+/* 彻底重写激活态/选中态/悬停态砖块 —— 严禁实心蓝油漆与多层套娃边框 */
+.gl-brick.is-active,
 .gl-brick.gl-fresh,
 .gl-brick.on,
 .gl-brick:hover {
   opacity: 1;
-  color: #f4f8ff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
-  background-color: transparent;
-  background-image: linear-gradient(
-    var(--ice-diag, var(--ice-deg, 135deg)),
-    rgba(240, 252, 255, 0.15) 0%,
-    rgba(140, 208, 255, 0.08) 40%,
-    rgba(80, 130, 210, 0.14) 100%
-  );
+  color: #F0F6FF;
+  text-shadow: none;
+  border: none;
+  background:
+    var(--gl-brick-fill),
+    rgba(18, 22, 32, 0.78);
+  backdrop-filter: blur(16px) saturate(160%);
   box-shadow:
-    inset round(calc(var(--ice-dark-x, -4.5px) * 0.25), 1px) round(calc(var(--ice-dark-y, -4.5px) * 0.25), 1px) 0px 0px rgba(5, 10, 24, 0.9);
+    inset -1.5px -1.5px 0px #06080E,
+    inset 0 1px 0 0 rgba(255, 220, 170, 0.12);
 }
+.gl-brick:hover:not(.on):not(.gl-fresh):not(.is-active):not(.gl-alert) {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.07) 0%, transparent 55%),
+    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.11) 0%, transparent 65%),
+    rgba(18, 22, 32, 0.64);
+}
+.gl-brick.is-active::before,
 .gl-brick.gl-fresh::before,
 .gl-brick.on::before,
 .gl-brick:hover::before {
-  background: linear-gradient(
-    var(--ice-diag, var(--ice-deg, 135deg)),
-    var(--agy-sun-crest, rgba(255, 206, 145, 0.94)) 0%,
-    rgba(240, 252, 255, 0.3) 26%,
-    rgba(8, 20, 40, 0.44) 55%,
-    rgba(5, 10, 24, 0.94) 100%
-  );
+  background: var(--gl-edge);
   opacity: 1;
 }
-/* 悬停比选中淡一档（任务栏：Hover 用 EdgeSoft，Active 用 Edge）*/
-.gl-brick:hover:not(.on):not(.gl-fresh):not(.gl-alert)::before {
-  opacity: 0.62;
+/* 悬停比选中淡一档 */
+.gl-brick:hover:not(.on):not(.gl-fresh):not(.is-active):not(.gl-alert)::before {
+  opacity: 0.68;
 }
-/* 选中（.on）不贴任何指示器：任务栏那根底部青药丸的意思是"这个程序在后台跑着"，我们没有这个语义，
-   贴上去就是贴纸（Gemini：红巨星.exe 已最小化到任务栏）。选中只靠两件本来就在的东西说话：
-   环从悬停的 62% 跃迁到 100%，字自己通电——正文暖白，读数（small）亮成电光青。青只给"你在这"，但它是字，不是贴纸 */
 .gl-brick small {
-  color: rgba(196, 208, 245, 0.5); /* 读数：待机烟熏灰 */
+  color: rgba(196, 208, 245, 0.5);
   font-variant-numeric: tabular-nums;
 }
-.gl-brick.on {
-  color: #fff6e0;
+.gl-brick.on,
+.gl-brick.is-active {
+  color: #F0F6FF;
 }
-.gl-brick.on small {
-  color: rgba(37, 244, 238, 0.85); /* 通电：电光青 */
+.gl-brick.on small,
+.gl-brick.is-active small {
+  color: rgba(37, 244, 238, 0.9);
 }
 
-/* 告警 / 要你看（.gl-alert）：红巨星频段。配方是 Windhawk 任务栏"请求注意"态吸过来的——
-   半透明勃艮第酒红底 + 底部一根绯红短灯芯。规矩（DESIGN.md §4）：红只给"要你看"的状态，
-   后台任务要确认、报错、未读；装饰不许用。它是亮砖（刀锋 + 墙 + 接触影），不是平的。 */
+/* 告警 / 要你看（.gl-alert）：红巨星频段。同样保持黑曜石通透底 + 左上绯红微光 + 1px 单层切边 + 底部绯红短灯芯 */
 .gl-brick.gl-alert {
   opacity: 1;
-  color: #ffe4ea;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
-  background-color: rgba(96, 22, 44, 0.62);
-  background-image: linear-gradient(
-    var(--ice-diag, var(--ice-deg, 135deg)),
-    rgba(255, 150, 160, 0.16) 0%,
-    rgba(214, 64, 96, 0.14) 36%,
-    rgba(72, 12, 34, 0.3) 64%,
-    rgba(20, 2, 10, 0.6) 100%
-  );
+  color: #ffe8ee;
+  text-shadow: none;
+  border: none;
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255, 140, 160, 0.16) 0%, transparent 55%),
+    radial-gradient(120% 120% at 0% 100%, rgba(220, 38, 80, 0.20) 0%, transparent 65%),
+    rgba(26, 14, 22, 0.80);
+  backdrop-filter: blur(16px) saturate(160%);
   box-shadow:
-    inset round(calc(var(--ice-dark-x, -4.5px) * 0.25), 1px) round(calc(var(--ice-dark-y, -4.5px) * 0.25), 1px) 0px 0px rgba(14, 2, 8, 0.96);
+    inset -1.5px -1.5px 0px #080408,
+    inset 0 1px 0 0 rgba(255, 180, 190, 0.14);
 }
 .gl-brick.gl-alert::before {
-  background: linear-gradient(
-    var(--ice-diag, var(--ice-deg, 135deg)),
-    rgba(255, 170, 165, 0.9) 0%,
-    rgba(255, 200, 205, 0.4) 26%,
-    rgba(72, 12, 34, 0.5) 55%,
-    rgba(20, 2, 10, 0.94) 100%
+  background: radial-gradient(
+    100% 100% at 0% 0% in oklch,
+    #FFB4B0 0%,
+    #FFD6DC 36%,
+    rgba(210, 60, 105, 0.32) 64%,
+    transparent 88%
   );
   opacity: 1;
 }
@@ -228,33 +279,37 @@
   pointer-events: none;
 }
 .gl-brick.gl-alert:hover {
-  background-color: rgba(118, 28, 54, 0.7);
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255, 150, 170, 0.22) 0%, transparent 55%),
+    radial-gradient(120% 120% at 0% 100%, rgba(235, 45, 90, 0.26) 0%, transparent 65%),
+    rgba(32, 16, 26, 0.84);
 }
 
-/* 鼠标手电（Win10 Reveal 的做法）：待机态的砖自己不画边，鼠标 --torch-r 像素内，1px 边缘按离鼠标的远近显形，
-   相邻的砖也被余光照到一小截。颜色用太阳当时的 crest（不另起光源色）；已点亮的砖（悬停 / fresh / on / alert）
-   不参与——它们归太阳管。环形用 padding + 两层 mask 异或做，圆角跟着砖走。 */
-.gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert)::before {
+/* 鼠标手电（Win10 Reveal）：待机态的砖平时是均匀的烟熏磨砂块，只有鼠标 --torch-r 像素内，
+   外圈 1px 切边按离鼠标的远近柔和浮现（香槟暖金 → 冰晶白），鼠标移开即隐去。 */
+.gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.is-active):not(.gl-alert)::before {
   background: radial-gradient(
     var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y),
-    var(--agy-sun-crest, rgba(255, 206, 145, 0.9)) 0%,
-    rgba(122, 162, 247, 0.38) 45%,
-    transparent 72%
+    rgba(255, 216, 155, 0.72) 0%,
+    rgba(230, 244, 255, 0.36) 32%,
+    transparent 66%
   );
   opacity: var(--torch-a);
   transition: opacity 160ms var(--agy-ease-out, ease-out);
 }
 
-/* 共享暗槽（.gl-track）：同一组的几个小开关装进一条下沉的轨道里——比面板暗 3%，不带金边。
-   槽里的砖静止态不再要自己的底片（槽就是形状），只有 .on / 悬停的那颗在槽里亮起 */
+/* 共享暗槽（.gl-track）：同一组的几个小开关装进一条下沉的轨道里（复刻 Windhawk 资源管理器命令栏暗槽 #24050A18）。
+   槽里的砖静止态完全透明（槽就是形状），选中 / 悬停的那颗在槽里亮成立体玻璃键帽。 */
 .gl-track {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 2px;
   padding: 2px;
   border-radius: 7px;
-  background: rgba(0, 2, 8, 0.26);
-  box-shadow: inset 0 1px 0 rgba(0, 2, 8, 0.45);
+  background: rgba(5, 10, 24, 0.52);
+  box-shadow:
+    inset 0 1px 1px rgba(0, 2, 8, 0.7),
+    0 1px 0 rgba(187, 154, 247, 0.08);
 }
 .gl-track > .gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert) {
   background-color: transparent;
@@ -317,9 +372,9 @@
 .gl-brick:active {
   transform: translateY(1px);
   background-image: linear-gradient(
-    var(--ice-diag, var(--ice-deg, 135deg)),
-    rgba(240, 252, 255, 0.03) 0%,
-    rgba(5, 10, 24, 0.5) 100%
+    135deg,
+    rgba(240, 252, 255, 0.04) 0%,
+    rgba(5, 10, 24, 0.55) 100%
   );
   transition-duration: 0.04s;
 }
@@ -328,7 +383,7 @@
 }
 
 /* ==========================================================================
-   卡片（.gl-card）：消息气泡 / 输入框那种大块冰板，带毛玻璃
+   卡片（.gl-card）：消息气泡 / 输入框那种大块冰板，带毛玻璃与 1,1,2,2 归一化金→冰白→暮光紫渐变环
    ========================================================================== */
 .gl-card {
   position: relative;
@@ -337,16 +392,14 @@
   padding: 14px 16px;
   color: #e6edff;
   font: 400 13px/1.55 "Segoe UI", system-ui, sans-serif;
-  background-color: rgba(16, 20, 36, var(--agy-card-alpha, 0.82));
-  background-image: linear-gradient(
-    var(--ice-deg, 135deg),
-    color-mix(in srgb, var(--agy-sun-crest, rgba(255, 206, 145, 0.94)) 15%, transparent) 0%,
-    rgba(120, 205, 255, 0.14) 36%,
-    rgba(18, 34, 68, 0.24) 64%,
-    rgba(2, 5, 15, 0.55) 100%
-  );
-  backdrop-filter: blur(16px) saturate(0.9) brightness(0.85);
-  box-shadow: 0px 1px 0px 0px rgba(0, 2, 8, 0.5);
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.08) 0%, transparent 50%),
+    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.10) 0%, transparent 60%),
+    rgba(16, 20, 30, var(--agy-card-alpha, 0.78));
+  backdrop-filter: blur(18px) saturate(150%);
+  box-shadow:
+    inset -1.5px -1.5px 0px #06080E,
+    inset 0 1px 0 0 rgba(255, 220, 170, 0.10);
 }
 
 /* 图标色温：彩色 emoji / 位图图标压成冷银灰，别在黑金冰蓝里蹦出一块卡通色 */
@@ -376,24 +429,15 @@
   pointer-events: none;
 }
 
-/* 卡片的边：一圈连续的 1px 渐变环，不是两条线。迎光角琥珀 → 冰白 → 淡蓝 → 透明 → 背光角近黑，
-   和 Windhawk 任务栏那块砖的 BorderBrush 同一个思路；光从哪来由 --ice-deg 决定。环用 padding + mask 异或做，
-   圆角跟着卡片走。（之前贴在两条边上的刀锋线在大卡片上像画上去的 L 形描边，废了。） */
+/* 卡片的边：同样是 1px 单层切边（左上香槟金 → 冰白 → 62% 彻底透明归零），右下沉降由卡片自身的 inset -1.5px #06080E 完成 */
 .gl-card::after {
   content: "";
-  --ice-deg: inherit; /* --ice-deg 注册的是 inherits:false，伪元素默认拿不到，这里单独继承一份（子树不受影响） */
   position: absolute;
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(
-    var(--ice-deg, 135deg),
-    var(--agy-sun-crest, rgba(255, 206, 145, 0.9)) 0%,
-    rgba(240, 252, 255, 0.42) 20%,
-    rgba(122, 162, 247, 0.16) 45%,
-    rgba(5, 10, 24, 0) 68%,
-    rgba(5, 10, 24, 0.9) 100%
-  );
+  background: var(--gl-edge);
+  opacity: 0.85;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
