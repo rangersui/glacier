@@ -1,7 +1,7 @@
 # Glacier · 1px 门缝光学设计语言与独立浏览器库
 
 > **第一性原理（完整规格见同目录 `DESIGN.md`）**：**把拟物化的「打光」拿来，其余全丢**——抽掉这道光，底下就是极简深色主题；加上这道光，就是把微软 **Fluent Design（Reveal 手电寻边 + 凹凸键帽反馈）推到 `1px` 极致** 的操作界面。
-> **唯一的视觉锚点（黑暗卧室里的 `1px` 门缝之光）**：不用普通 `sRGB` 渐变（冷暖插值会发灰变脏），全线强制用 **`in oklch` 感知均匀插值** 跑出 **金星带瑞利散射（香槟暖金 `#FFD89B` → 冰晶白 `#E6F4FF` → 暮光紫 `#BB9AF7` + 右下 `#06080E` 深海黑暗槽）**。
+> **唯一的视觉锚点（黑暗卧室里的 `1px` 门缝之光）**：全线采用 **`in oklab` 感知均匀直角坐标插值**（走直线穿过色盘，既保持感知明度均匀，又避免 `in oklch` 极坐标从 78° 金转到 241° 冰白时绕出薄荷绿伪色），跑出纯净的 **金星带瑞利散射（香槟暖金 `#FFD89B` → 冰晶白 `#E6F4FF` → 暮光紫 `#BB9AF7` + 右下 `#06080E` 深海黑暗槽）**。
 > **光的双重分工**：**视觉天然性**（所有激活/凹凸控件的固有结构光永远焊死在左上角 `0% 0%`，凸起亮左上刃、凹槽压左上暗崖亮底唇） × **动态氛围感**（鼠标手电与太阳轨道游标沿待机控件的 `1px` 门缝游走探路）；背后的天体底片则永远锁死 **100% 纯黑白银盐灰阶**，零色相串味。
 
 ```
@@ -135,13 +135,13 @@ glacier/
 
 ## 5. CSS 约定
 
-- 令牌在 `:root`：`--gl-bg`、`--gl-fg`、`--gl-accent-cyan`、`--gl-card-alpha`，动效 `--gl-ease-out / spring`、`--gl-dur-base / slow`，底片透射基准 `--gl-photo-level: 0.55`，三轨字体栈 `--gl-font-mono`（等宽遥测轨：`JetBrains Mono` / `Cascadia Code`）、`--gl-font-display`（标题/叙事轨：西文 `Newsreader` 细衬线 + 中文 `Noto Sans SC` 400 冷峻细黑体，彻底剔除 `SimSun` 宋体回退）、`--gl-font-sans`（高内白无衬线正文轨：`Inter` + `Noto Sans SC`），以及焊死的磁贴光学常量 `--gl-crest-line`（水平 90° `in oklch`：香槟暖金 → 冰晶白 → 金星带暮光紫）、`--gl-edge`（`100% 100% at 0% 0% in oklch` 归一化 1px 单层刀锋，88% 处彻底透明归零）、`--gl-brick-fill`（左上 10% 香槟金微光 + 左下 16% 皇家钴蓝呼吸微光）。
+- 令牌在 `:root`：`--gl-bg`、`--gl-fg`、`--gl-accent-cyan`、`--gl-card-alpha`，动效 `--gl-ease-out / spring`、`--gl-dur-base / slow`，底片透射基准 `--gl-photo-level: 0.55`，三轨字体栈 `--gl-font-mono`（等宽遥测轨：`JetBrains Mono` / `Cascadia Code`）、`--gl-font-display`（标题/叙事轨：西文 `Newsreader` 细衬线 + 中文 `Noto Sans SC` 400 冷峻细黑体，彻底剔除 `SimSun` 宋体回退）、`--gl-font-sans`（高内白无衬线正文轨：`Inter` + `Noto Sans SC`），以及焊死的磁贴光学常量 `--gl-crest-line`（水平 90° `in oklab`：香槟暖金 → 冰晶白 → 金星带暮光紫）、`--gl-edge`（`100% 100% at 0% 0% in oklab` 归一化 1px 单层刀锋，88% 处彻底透明归零）、`--gl-brick-fill`（左上 10% 香槟金微光 + 左下 16% 皇家钴蓝呼吸微光）。
 - 字体加载：`demo.html` 和 `bridge.html` 顶部带 Google Fonts 的 `<link>`（加载 `Inter` 400/500、`JetBrains Mono` 400/600、`Newsreader` 400、`Noto Sans SC` 300/400/500），离线环境下回退到本地 `Cascadia Code` + `Noto Sans SC` / `HarmonyOS Sans SC` / `Microsoft YaHei UI`，绝不掉回 Windows `SimSun` 老宋体。`.gl-stage` 带 `-webkit-font-smoothing: antialiased`。
 - `--torch-*`（鼠标手电，`::before`）和 `--sun-*`（太阳手电，`::after`）都用 `@property` 注册成继承且有类型，伪元素才能读到、`-a` 才能过渡。两支手电同一配方：1px 外圈、同一色谱、同一衰减；太阳那支半径 `--sun-r`（root 上，= torchRadius × 1.5）、亮度跟 glow、释放 800ms。不再有任何 `--ice-*` 内联变量（见 `DESIGN.md` §4.3–4.4）。
 - `.gl-bar`：金星带顶栏 / 分割栏（复刻 Windhawk 命令栏：左半地球影暗槽 + 右半金星带瑞利散射紫微雾 + 底部 1px `--gl-crest-line` 光谱地平线）。
 - **未选中保持烟熏磨砂，点亮态严格对齐 Windows 11 开始菜单磁贴（Word 磁贴）的通透黑曜石结构**（`DESIGN.md` §4.3–4.4）：
   - **静止态**：均匀的烟熏磨砂暗底（`rgba(18, 22, 32, 0.42)`，`.gl-track` 暗槽内完全透明 `transparent`），无边框、无杂斑；静止态 `::before` 仅在鼠标手电靠近时按距离浮现 1px 切边。
-  - **点亮态（`.on` / `.gl-fresh` / `:hover`）**：严禁往肚子里灌实心蓝油漆——底色保持 80%+ 深邃黑曜石透明感（`rgba(18, 22, 32, 0.78)` + `backdrop-filter: blur(16px) saturate(160%)`），只叠左上 10% 香槟暖金与左下 16% 皇家钴蓝两团呼吸微光（`--gl-brick-fill`），让背后的土星环底片与星轨清晰穿透；`::before` 严格锁死 `padding: 1px` 物理宽度，用 `radial-gradient(100% 100% at 0% 0% in oklch, #FFD89B 0%, #E6F4FF 36%, rgba(160,140,240,.25) 64%, transparent 88%)` 在右上角与左下角（100%）前彻底透明归零，绝不在右边或底边漏出紫白斑马线；右下沉降只用零模糊的 `box-shadow: inset -1.5px -1.5px 0px #06080E`，文字 `#F0F6FF` 干净锐利无黑阴影。
+  - **点亮态（`.on` / `.gl-fresh` / `:hover`）**：严禁往肚子里灌实心蓝油漆——底色保持 80%+ 深邃黑曜石透明感（`rgba(18, 22, 32, 0.78)` + `backdrop-filter: blur(16px) saturate(160%)`），只叠左上 10% 香槟暖金与左下 16% 皇家钴蓝两团呼吸微光（`--gl-brick-fill`），让背后的土星环底片与星轨清晰穿透；`::before` 严格锁死 `padding: 1px` 物理宽度，用 `radial-gradient(100% 100% at 0% 0% in oklab, #FFD89B 0%, #E6F4FF 36%, rgba(160,140,240,.25) 64%, transparent 88%)` 在右上角与左下角（100%）前彻底透明归零，绝不在右边或底边漏出紫白斑马线；右下沉降只用零模糊的 `box-shadow: inset -1.5px -1.5px 0px #06080E`，文字 `#F0F6FF` 干净锐利无黑阴影。
 - `.on` 不贴指示器：环从悬停的 72% 到 100%，正文暖白，砖里的 `<small>` 读数亮成电光青。红灯芯（`.gl-alert` 的 `::after`）只给"要你看"。
 - `.gl-fresh` = 极寒凝结态（和选中同一套），`.on` = 选中，`.gl-pop-in` = 面板进场动画，`.gl-track` = 一组小开关共用的下沉暗槽，`.gl-icon` = 把彩色图标压成冷银灰。
 - `.gl-alert`：告警 / 要你看的砖（红巨星频段）——勃艮第酒红毛玻璃底 + 底部绯红短灯芯，用于后台任务待确认、报错、未读。红只给这类状态，装饰不许用。

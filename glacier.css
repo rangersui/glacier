@@ -2,7 +2,7 @@
    Glacier · 1px 门缝光学设计语言  glacier.css
    和 glacier.js 配套。核心原则（见同目录 DESIGN.md）：
      1. 只取拟物化的「光」，丢掉拟物化的一切其它（皮革、厚倒角、浮夸外投影）；抽掉这道光，底下就是极简深色主题
-     2. 黑暗卧室里的 1px 门缝之光（in oklch 感知均匀插值 + 金星带瑞利散射：香槟暖金 #FFD89B → 冰晶白 #E6F4FF → 暮光紫 #BB9AF7）
+     2. 黑暗卧室里的 1px 门缝之光（in oklab 感知均匀直角坐标插值 + 金星带瑞利散射：香槟暖金 #FFD89B → 冰晶白 #E6F4FF → 暮光紫 #BB9AF7，走直线不绕出薄荷绿）
      3. 视觉天然性（激活/凹凸控件永远锁死左上角 0% 0% 固有结构打光） × 动态氛围感（鼠标手电与太阳手电沿 1px 待机门缝游走探路，将微软 Fluent 操作反馈推至 1px 极限）
      4. 新增任何控件永远以光为主导：凸起走左上亮刃 + 右下暗槽，下沉走左上暗崖 + 底部迎光细唇
    没有 !important，没有任何宿主选择器；类名与令牌统一以 gl- / --gl- 开头。
@@ -19,17 +19,17 @@
   /* 焊死的 Windows 11 磁贴（Word 磁贴）/ 任务栏黄金光学常量：
      1. 严禁往按钮肚子里灌实心蓝油漆：点亮态肚子保持 80%+ 深邃黑曜石透明感（rgba(18, 22, 32, 0.78)），
         让背后的天体底片与星轨透出来，只在左上角给 10% 香槟暖金微光、左下角给 16% 皇家钴蓝呼吸微光；
-     2. 唯一的一道 1px 光学刀锋（padding: 1px，in oklch 线性插值消灭 sRGB 灰泥区）：
+     2. 唯一的一道 1px 光学刀锋（padding: 1px，in oklab 感知均匀直线插值，不绕色相环、不泛薄荷绿）：
         左上香槟暖金 #FFD89B → 36% 冰晶白 #E6F4FF → 64% 暮光紫 rgba(160,140,240,.25) → 88% 处彻底 transparent 归零，
         右边与底边绝不漏紫白斑马线，右下沉降槽只用零模糊的 inset -1.5px -1.5px 0px #06080E。 */
   --gl-crest-line: linear-gradient(
-    90deg in oklch,
+    90deg in oklab,
     rgba(255, 216, 155, 0.72) 0%,
     rgba(230, 244, 255, 0.88) 50%,
     rgba(187, 154, 247, 0.72) 100%
   );
   --gl-edge: radial-gradient(
-    100% 100% at 0% 0% in oklch,
+    100% 100% at 0% 0% in oklab,
     #FFD89B 0%,
     #E6F4FF 36%,
     rgba(160, 140, 240, 0.25) 64%,
@@ -115,7 +115,7 @@
 .gl-stage ::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: linear-gradient(
-    180deg in oklch,
+    180deg in oklab,
     rgba(255, 216, 155, 0.38) 0%,
     rgba(230, 244, 255, 0.46) 45%,
     rgba(187, 154, 247, 0.34) 100%
@@ -126,7 +126,7 @@
 .gl-stage::-webkit-scrollbar-thumb:horizontal,
 .gl-stage ::-webkit-scrollbar-thumb:horizontal {
   background: linear-gradient(
-    90deg in oklch,
+    90deg in oklab,
     rgba(255, 216, 155, 0.38) 0%,
     rgba(230, 244, 255, 0.46) 45%,
     rgba(187, 154, 247, 0.34) 100%
@@ -136,7 +136,7 @@
 .gl-stage::-webkit-scrollbar-thumb:hover,
 .gl-stage ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(
-    180deg in oklch,
+    180deg in oklab,
     rgba(255, 216, 155, 0.72) 0%,
     rgba(230, 244, 255, 0.84) 45%,
     rgba(187, 154, 247, 0.64) 100%
@@ -146,7 +146,7 @@
 .gl-stage::-webkit-scrollbar-thumb:horizontal:hover,
 .gl-stage ::-webkit-scrollbar-thumb:horizontal:hover {
   background: linear-gradient(
-    90deg in oklch,
+    90deg in oklab,
     rgba(255, 216, 155, 0.72) 0%,
     rgba(230, 244, 255, 0.84) 45%,
     rgba(187, 154, 247, 0.64) 100%
@@ -156,7 +156,7 @@
 .gl-stage::-webkit-scrollbar-thumb:active,
 .gl-stage ::-webkit-scrollbar-thumb:active {
   background: linear-gradient(
-    180deg in oklch,
+    180deg in oklab,
     #FFD89B 0%,
     #E6F4FF 45%,
     rgba(187, 154, 247, 0.88) 100%
@@ -166,7 +166,7 @@
 .gl-stage::-webkit-scrollbar-thumb:horizontal:active,
 .gl-stage ::-webkit-scrollbar-thumb:horizontal:active {
   background: linear-gradient(
-    90deg in oklch,
+    90deg in oklab,
     #FFD89B 0%,
     #E6F4FF 45%,
     rgba(187, 154, 247, 0.88) 100%
@@ -248,7 +248,7 @@
 .gl-bar {
   position: relative;
   background: linear-gradient(
-    90deg in oklch,
+    90deg in oklab,
     rgba(8, 12, 24, 0.52) 0%,
     rgba(10, 14, 28, 0.44) 48%,
     rgba(187, 154, 247, 0.055) 78%,
@@ -271,7 +271,7 @@
    1. 静止态：干净均匀的极暗烟熏磨砂底（rgba(18, 22, 32, 0.42)，暗槽内全透明），无边框、无杂斑；
    2. 点亮态肚子保持 80%+ 深邃黑曜石透明感（rgba(18, 22, 32, 0.78)），绝不涂实心蓝油漆：
       只留左上 10% 香槟金微光与左下 16% 皇家钴蓝呼吸微光，背后的底片与星轨清晰穿透；
-   3. 唯一的一道 1px 光学刀锋（::before padding: 1px）：135deg in oklch 从左上 #FFD89B 香槟金 →
+   3. 唯一的一道 1px 光学刀锋（::before padding: 1px）：135deg in oklab 从左上 #FFD89B 香槟金 →
       #E6F4FF 冰晶白 → 62% 彻底 transparent 归零，右边与底边绝不出现双层紫白断层；
    4. 右下沉降暗槽：砍掉发虚的外阴影，只用 box-shadow: inset -1.5px -1.5px 0px #06080E；
    5. 干净无黑阴影的锐利文字（color: #F0F6FF; text-shadow: none）。
@@ -377,7 +377,7 @@
 }
 .gl-brick.gl-alert::before {
   background: radial-gradient(
-    100% 100% at 0% 0% in oklch,
+    100% 100% at 0% 0% in oklab,
     #FFB4B0 0%,
     #FFD6DC 36%,
     rgba(210, 60, 105, 0.32) 64%,
@@ -406,10 +406,10 @@
 }
 
 /* 鼠标手电（Fluent Reveal 推至 1px 门缝极限）：待机态的砖平时是均匀的烟熏磨砂块，只有鼠标 --torch-r 像素内，
-   外圈 1px 门缝按离鼠标的远近浮现 in oklch 金星带瑞利散射（香槟暖金 → 冰晶白 → 暮光紫），鼠标移开即隐去。 */
+   外圈 1px 门缝按离鼠标的远近浮现 in oklab 金星带瑞利散射（香槟暖金 → 冰晶白 → 暮光紫），鼠标移开即隐去。 */
 .gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert)::before {
   background: radial-gradient(
-    var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklch,
+    var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklab,
     rgba(255, 216, 155, 0.76) 0%,
     rgba(230, 244, 255, 0.44) 30%,
     rgba(187, 154, 247, 0.22) 54%,
@@ -418,7 +418,7 @@
   opacity: var(--torch-a);
   transition: opacity 160ms var(--gl-ease-out, ease-out);
 }
-/* 太阳手电：轨道游标是第二支手电，同一配方（1px 外圈、in oklch 金星带三色散射、同一衰减形状），只是更大（--sun-r）、更暗（--sun-a 跟 glow）、
+/* 太阳手电：轨道游标是第二支手电，同一配方（1px 外圈、in oklab 金星带三色散射、同一衰减形状），只是更大（--sun-r）、更暗（--sun-a 跟 glow）、
    更慢（800ms 释放，像荧光粉的余晖）。走 ::after，和鼠标那支互不打断；告警砖不参与（它的 ::after 是红灯芯）。
    只照不动：不改任何状态，不派任何事件，钟不许停（DESIGN.md §3 探针五律） */
 .gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert)::after {
@@ -429,7 +429,7 @@
   border-radius: inherit;
   padding: 1px;
   background: radial-gradient(
-    var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklch,
+    var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklab,
     rgba(255, 216, 155, 0.72) 0%,
     rgba(230, 244, 255, 0.40) 32%,
     rgba(187, 154, 247, 0.20) 56%,
@@ -655,7 +655,7 @@
   height: 1px;
   margin: 2em 0;
   background: linear-gradient(
-    90deg in oklch,
+    90deg in oklab,
     rgba(255, 216, 155, 0.45) 0%,
     rgba(240, 252, 255, 0.25) 45%,
     rgba(187, 154, 247, 0.35) 85%,
@@ -698,7 +698,7 @@
   padding-left: 1.25em;
   margin: 1.4em 0;
   border-left: 1px solid transparent;
-  border-image: linear-gradient(180deg in oklch, #FFD89B 0%, #F0FCFF 50%, #BB9AF7 100%) 1;
+  border-image: linear-gradient(180deg in oklab, #FFD89B 0%, #F0FCFF 50%, #BB9AF7 100%) 1;
 }
 
 /* ==========================================================================
@@ -725,21 +725,21 @@
   border-radius: 3px;
   background:
     radial-gradient(
-      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklch,
+      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklab,
       rgba(255, 216, 155, calc(0.76 * var(--torch-a))) 0%,
       rgba(230, 244, 255, calc(0.42 * var(--torch-a))) 30%,
       rgba(187, 154, 247, calc(0.22 * var(--torch-a))) 54%,
       transparent 74%
     ) 0 100% / 100% 1px no-repeat,
     radial-gradient(
-      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklch,
+      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklab,
       rgba(255, 216, 155, calc(0.60 * var(--sun-a))) 0%,
       rgba(230, 244, 255, calc(0.32 * var(--sun-a))) 32%,
       rgba(187, 154, 247, calc(0.18 * var(--sun-a))) 56%,
       transparent 76%
     ) 0 100% / 100% 1px no-repeat,
     linear-gradient(
-      90deg in oklch,
+      90deg in oklab,
       rgba(255, 216, 155, 0.22) 0%,
       rgba(230, 244, 255, 0.26) 50%,
       rgba(187, 154, 247, 0.22) 100%
@@ -823,14 +823,14 @@
     linear-gradient(#060911, #060911) padding-box,
     linear-gradient(180deg, #03050B 0%, #03050B calc(100% - 6px), rgba(3, 5, 11, 0.45) calc(100% - 2px), transparent 100%) border-box,
     radial-gradient(
-      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklch,
+      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklab,
       rgba(255, 216, 155, calc(0.76 * var(--torch-a))) 0%,
       rgba(230, 244, 255, calc(0.42 * var(--torch-a))) 30%,
       rgba(187, 154, 247, calc(0.22 * var(--torch-a))) 54%,
       transparent 74%
     ) border-box,
     radial-gradient(
-      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklch,
+      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklab,
       rgba(255, 216, 155, calc(0.60 * var(--sun-a))) 0%,
       rgba(230, 244, 255, calc(0.32 * var(--sun-a))) 32%,
       rgba(187, 154, 247, calc(0.18 * var(--sun-a))) 56%,
@@ -915,7 +915,7 @@ textarea.gl-input {
     linear-gradient(#070A13, #070A13) padding-box,
     linear-gradient(180deg, #03050B 0%, #03050B calc(100% - 6px), rgba(3, 5, 11, 0.45) calc(100% - 2px), transparent 100%) border-box,
     linear-gradient(
-      90deg in oklch,
+      90deg in oklab,
       rgba(255, 216, 155, 0.42) 0%,
       rgba(230, 244, 255, 0.52) 50%,
       rgba(187, 154, 247, 0.42) 100%
@@ -966,14 +966,14 @@ textarea.gl-input {
     --sun-a 800ms var(--gl-ease-out, ease-out);
   background:
     radial-gradient(
-      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklch,
+      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklab,
       rgba(255, 216, 155, calc(0.70 * var(--torch-a))) 0%,
       rgba(230, 244, 255, calc(0.38 * var(--torch-a))) 30%,
       rgba(187, 154, 247, calc(0.20 * var(--torch-a))) 54%,
       transparent 74%
     ) 0 100% / 100% 1px no-repeat,
     radial-gradient(
-      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklch,
+      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklab,
       rgba(255, 216, 155, calc(0.56 * var(--sun-a))) 0%,
       rgba(230, 244, 255, calc(0.30 * var(--sun-a))) 32%,
       rgba(187, 154, 247, calc(0.16 * var(--sun-a))) 56%,

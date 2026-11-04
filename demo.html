@@ -69,8 +69,8 @@
   </nav>
 
   <header class="hero">
-    <h1><small>GLACIER // 1PX OKLCH FLUENT OPTICS</small>黑曜石的底，冰的刃</h1>
-    <p class="lead gl-prose"><strong>把拟物化的打光拿来，其余全丢。</strong>左上角焊死固有结构光，双路手电游走探路；全系统只靠 <code>1px</code> 门缝里的 <code>in oklch</code> <mark>金星带瑞利散射</mark> 活着。搭好的暗座舱在 <a href="bridge.html">bridge.html</a>。</p>
+    <h1><small>GLACIER // 1PX OKLAB FLUENT OPTICS</small>黑曜石的底，冰的刃</h1>
+    <p class="lead gl-prose"><strong>把拟物化的打光拿来，其余全丢。</strong>左上角焊死固有结构光，双路手电游走探路；全系统只靠 <code>1px</code> 门缝里的 <code>in oklab</code> <mark>金星带瑞利散射</mark> 活着。搭好的暗座舱在 <a href="bridge.html">bridge.html</a>。</p>
     <div class="bricks">
       <button class="gl-brick gl-fresh">当前会话</button>
       <button class="gl-brick">星舰冰川</button>
@@ -390,7 +390,7 @@
     // 按钮的 data-v 和时钟模式对不上一一对应：loop 要分"延时（整天）"和"落日（区间）"，fixed 对应"手动"
     const modeKey = gl.mode === "loop" ? (gl.clock?.loop && gl.clock.loop.span < 24 ? "sunset" : "timelapse") : gl.mode === "fixed" ? "manual" : gl.mode;
     mark("mode", modeKey); mark("background", gl.background); mark("orbit", orbitSel);
-    const brickInfo = "locked 1px ring (100%×100% @ 0% 0% in oklch · #FFD89B → #E6F4FF → 暮光紫 → transparent 88% · inset -1.5px #06080E · 0 inline vars)";
+    const brickInfo = "locked 1px ring (100%×100% @ 0% 0% in oklab · #FFD89B → #E6F4FF → 暮光紫 → transparent 88% · inset -1.5px #06080E · 0 inline vars)";
     $("readout").innerHTML =
       `lamp <b>${Math.round(s.sunX)}, ${Math.round(s.sunY)}</b> / ${s.W}×${s.H}   glow <b>${s.lampGlow.toFixed(2)}</b>   photo mask <b>${document.body.style.getPropertyValue("--gl-sun-x")} ${document.body.style.getPropertyValue("--gl-sun-y")}</b> × <b>${document.body.style.getPropertyValue("--gl-sun-exposure")}</b>\n` +
       `background <b>${gl.background}</b>   mode <b>${gl.mode}</b>   relights <b>${stats.relights}</b>   measures <b>${stats.measures}</b>\n` +
