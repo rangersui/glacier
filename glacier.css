@@ -38,13 +38,14 @@
     rgba(187, 154, 247, 0.25) 64%,
     transparent 88%
   );
-  --gl-brick-fill:
-    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.10) 0%, transparent 55%),
-    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.16) 0%, transparent 65%);
+  /* --gl-brick-fill 不能放在这里：它乘的 var(--gl-fill) 要在砖自己身上代入（--gl-fill 不继承），
+     放 :root 会在根上就把 0 烧死进去。配方声明在下面 .gl-brick 规则里。 */
 
-  /* 动效令牌（Apple 式：ease-out、短、只动 transform / opacity） */
+  /* 动效令牌：灯丝通电与断电余晖的不对称物理（亮得快 --gl-dur-on: 120ms，灭得慢 --gl-dur-off: 240ms；太阳释放单独保留 800ms） */
   --gl-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --gl-ease-spring: cubic-bezier(0.22, 1.18, 0.36, 1);
+  --gl-dur-on: 120ms;
+  --gl-dur-off: 240ms;
   --gl-dur-base: 240ms;
   --gl-dur-slow: 320ms;
 
@@ -243,9 +244,9 @@
 @property --sun-x { syntax: "<length>"; inherits: true; initial-value: -9999px; }
 @property --sun-y { syntax: "<length>"; inherits: true; initial-value: -9999px; }
 @property --sun-a { syntax: "<number>"; inherits: true; initial-value: 0; }
-/* 暗槽状态过渡标量：共用同一套 background 层列表，只改标量以实现平滑插值
-   --gl-lip：聚焦底刃从左端迎光处往右漫开的宽度（rest/hover 0% → focus 100%）
-   --gl-fill：槽肚呼吸微光强度（rest 0 → hover/focus 1） */
+/* 冰砖状态过渡标量：共用同一套 background 层列表，只改标量以实现「亮得快（--gl-dur-on）、灭得慢（--gl-dur-off）」的不对称余晖
+   --gl-lip：暗槽/表格选中行底刃从左端迎光处往右漫开的宽度（0% → 100%）
+   --gl-fill：冰砖/暗槽/表格行肚子呼吸微光强度（rest 0 → hover 0.7/1 → on/focus 1） */
 @property --gl-lip { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
 @property --gl-fill { syntax: "<number>"; inherits: false; initial-value: 0; }
 
@@ -366,13 +367,23 @@
   cursor: pointer;
   user-select: none;
   background-color: rgba(18, 22, 32, 0.42);
-  background-image: none;
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.025);
+  /* 肚子两团呼吸微光常驻，强度乘 --gl-fill（rest 0 → hover 0.7 → on 1）；声明在砖上而不是 :root，理由见令牌区注释 */
+  --gl-brick-fill:
+    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, calc(0.10 * var(--gl-fill))) 0%, transparent 55%),
+    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, calc(0.16 * var(--gl-fill))) 0%, transparent 65%);
+  background-image: var(--gl-brick-fill);
+  box-shadow:
+    inset -1.5px -1.5px 0px rgba(6, 8, 14, 0),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.025);
   transition:
     transform var(--gl-dur-base) var(--gl-ease-spring),
     border-radius var(--gl-dur-slow) var(--gl-ease-out),
-    --torch-a 160ms var(--gl-ease-out, ease-out),
-    --sun-a 800ms var(--gl-ease-out, ease-out);
+    --gl-fill var(--gl-dur-off) var(--gl-ease-out),
+    background-color var(--gl-dur-off) var(--gl-ease-out),
+    color var(--gl-dur-off) var(--gl-ease-out),
+    box-shadow var(--gl-dur-off) var(--gl-ease-out),
+    --torch-a var(--gl-dur-off) var(--gl-ease-out),
+    --sun-a 800ms var(--gl-ease-out);
 }
 
 /* 顶层导航按钮：同一套，颜色更亮、圆角 5px */
@@ -395,27 +406,34 @@
   pointer-events: none;
 }
 
-/* 彻底重写激活态/选中态/悬停态砖块 —— 严禁实心蓝油漆与多层套娃边框 */
+/* 激活态/选中态/悬停态砖块 —— 共用常驻 var(--gl-brick-fill)，只改 --gl-fill 与 background-color；
+   点亮走 --gl-dur-on（120ms），失焦或选中切走时退回 .gl-brick 的 --gl-dur-off（240ms 余晖） */
 .gl-brick.gl-fresh,
 .gl-brick.on,
 .gl-brick:hover {
+  --gl-fill: 1;
   opacity: 1;
   color: #F0F6FF;
   text-shadow: none;
   border: none;
-  background:
-    var(--gl-brick-fill),
-    rgba(18, 22, 32, 0.78);
+  background-color: rgba(18, 22, 32, 0.78);
   backdrop-filter: blur(16px) saturate(160%);
   box-shadow:
     inset -1.5px -1.5px 0px #06080E,
     inset 0 1px 0 0 rgba(255, 220, 170, 0.12);
+  transition:
+    transform var(--gl-dur-base) var(--gl-ease-spring),
+    border-radius var(--gl-dur-slow) var(--gl-ease-out),
+    --gl-fill var(--gl-dur-on) var(--gl-ease-out),
+    background-color var(--gl-dur-on) var(--gl-ease-out),
+    color var(--gl-dur-on) var(--gl-ease-out),
+    box-shadow var(--gl-dur-on) var(--gl-ease-out),
+    --torch-a var(--gl-dur-off) var(--gl-ease-out),
+    --sun-a 800ms var(--gl-ease-out);
 }
 .gl-brick:hover:not(.on):not(.gl-fresh):not(.gl-alert) {
-  background:
-    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.07) 0%, transparent 55%),
-    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.11) 0%, transparent 65%),
-    rgba(18, 22, 32, 0.64);
+  --gl-fill: 0.7;
+  background-color: rgba(18, 22, 32, 0.64);
 }
 .gl-brick.gl-fresh::before,
 .gl-brick.on::before,
@@ -431,12 +449,14 @@
   font-family: var(--gl-font-mono);
   color: rgba(196, 208, 245, 0.5);
   font-variant-numeric: tabular-nums;
+  transition: color var(--gl-dur-off) var(--gl-ease-out);
 }
 .gl-brick.on {
   color: #F0F6FF;
 }
 .gl-brick.on small {
   color: rgba(37, 244, 238, 0.9);
+  transition-duration: var(--gl-dur-on);
 }
 
 /* 告警 / 要你看（.gl-alert）：红巨星频段。同样保持黑曜石通透底 + 左上绯红微光 + 1px 单层切边 + 底部绯红短灯芯 */
@@ -780,8 +800,8 @@
   cursor: pointer;
   outline: none;
   transition:
-    --torch-a 160ms var(--gl-ease-out, ease-out),
-    --sun-a 800ms var(--gl-ease-out, ease-out);
+    --torch-a var(--gl-dur-off) var(--gl-ease-out),
+    --sun-a 800ms var(--gl-ease-out);
 }
 .gl-slider::-webkit-slider-runnable-track {
   height: 6px;
@@ -892,12 +912,12 @@
     inset 0 2px 5px rgba(0, 2, 8, 0.88);
   outline: none;
   transition:
-    --torch-a 160ms var(--gl-ease-out, ease-out),
-    --sun-a 800ms var(--gl-ease-out, ease-out),
-    --gl-lip 220ms var(--gl-ease-out, ease-out),
-    --gl-fill 160ms var(--gl-ease-out, ease-out),
-    color 160ms var(--gl-ease-out, ease-out),
-    box-shadow var(--gl-dur-base) var(--gl-ease-out);
+    --torch-a var(--gl-dur-off) var(--gl-ease-out),
+    --sun-a 800ms var(--gl-ease-out),
+    --gl-lip var(--gl-dur-base) var(--gl-ease-out),
+    --gl-fill var(--gl-dur-off) var(--gl-ease-out),
+    color var(--gl-dur-off) var(--gl-ease-out),
+    box-shadow var(--gl-dur-off) var(--gl-ease-out);
 }
 /* 遥测等宽输入框（如航点坐标 / 时间戳读数）：走等宽仪表字，待机暗青灰 #7A90A8，聚焦提亮为冰晶白 #DCE8FF */
 .gl-input.gl-mono {
@@ -926,11 +946,12 @@ textarea.gl-input {
 .gl-input > .gl-icon,
 .gl-input > svg {
   color: rgba(142, 155, 174, 0.48);
-  transition: color 160ms var(--gl-ease-out, ease-out);
+  transition: color var(--gl-dur-off) var(--gl-ease-out);
 }
 .gl-input:focus-within > .gl-icon,
 .gl-input:focus-within > svg {
   color: #7DCFFF;
+  transition-duration: var(--gl-dur-on);
 }
 /* 组合命令栏模式：外层 div.gl-input 负责暗槽与焦环，内部裸 input/textarea 自动透明撑满 */
 .gl-input > input,
@@ -957,11 +978,18 @@ textarea.gl-input {
     inset -1px -1px 0 #04060C,
     inset 1px 1px 0 rgba(240, 252, 255, 0.12);
 }
-/* 悬停（:hover）不碰底刃、不碰手电：仅将槽肚微光（--gl-fill: 0 → 1）在 160ms 内淡入，文字提亮一档；
-   聚焦（:focus / :focus-within）才是意图：全宽底刃（--gl-lip: 0% → 100%）从左端迎光处向右侧在 220ms 内漫开，手电继续保留在层列表中 */
+/* 悬停（:hover）不碰底刃、不碰手电：仅将槽肚微光（--gl-fill: 0 → 1）在 --gl-dur-on（120ms）内淡入，文字提亮一档；
+   聚焦（:focus / :focus-within）才是意图：全宽底刃（--gl-lip: 0% → 100%）是空间扫过，用 --gl-dur-base（240ms）从左端迎光处向右侧漫开 */
 .gl-input:hover {
   --gl-fill: 1;
   color: #A6B6CC;
+  transition:
+    --torch-a var(--gl-dur-off) var(--gl-ease-out),
+    --sun-a 800ms var(--gl-ease-out),
+    --gl-lip var(--gl-dur-base) var(--gl-ease-out),
+    --gl-fill var(--gl-dur-on) var(--gl-ease-out),
+    color var(--gl-dur-on) var(--gl-ease-out),
+    box-shadow var(--gl-dur-off) var(--gl-ease-out);
 }
 .gl-input:focus,
 .gl-input:focus-within {
@@ -972,14 +1000,21 @@ textarea.gl-input {
     inset 1.5px 1.5px 0 #03050B,
     inset 0 2px 6px rgba(0, 2, 8, 0.92),
     0 1px 8px -2px rgba(255, 216, 155, 0.16);
+  transition:
+    --torch-a var(--gl-dur-off) var(--gl-ease-out),
+    --sun-a 800ms var(--gl-ease-out),
+    --gl-lip var(--gl-dur-base) var(--gl-ease-out),
+    --gl-fill var(--gl-dur-on) var(--gl-ease-out),
+    color var(--gl-dur-on) var(--gl-ease-out),
+    box-shadow var(--gl-dur-on) var(--gl-ease-out);
 }
 
 /* ==========================================================================
    4f. 光学数据表（.gl-table）：
    不等宽多列遥测账本/报表（区别于等大方格的 .gl-lattice）。
    严禁画竖向铁丝网边框：表头走遥测等宽轨，底下压一道 1px 金星带光谱地平线（--gl-crest-line）；
-   每一行（tbody tr）挂在手电与太阳总线上——手电与太阳只擦亮行底那根 1px 水平细刃（0 100% / 100% 1px no-repeat），绝不往行肚子里打黄雾；
-   悬停时整行浮现香槟金 + 钴蓝呼吸底光与底部 1px 光谱线。
+   每一行（tbody tr）共用单一层列表（选中底刃 --gl-lip + 双路手电 + 行肚呼吸微光 --gl-fill）：
+   悬停（:hover）表示视线读到哪一行，只开行肚微光（--gl-fill: 1），手电照常跟手；底刃（--gl-lip: 100%）留给选中行（.on / .gl-fresh）。
    ========================================================================== */
 .gl-table {
   width: 100%;
@@ -1001,11 +1036,20 @@ textarea.gl-input {
 }
 .gl-table tbody tr {
   transition:
-    --torch-a 160ms var(--gl-ease-out, ease-out),
-    --sun-a 800ms var(--gl-ease-out, ease-out);
+    --torch-a var(--gl-dur-off) var(--gl-ease-out),
+    --sun-a 800ms var(--gl-ease-out),
+    --gl-lip var(--gl-dur-base) var(--gl-ease-out),
+    --gl-fill var(--gl-dur-off) var(--gl-ease-out);
   background:
+    var(--gl-crest-line) 0 100% / var(--gl-lip) 1px no-repeat,
     var(--gl-torch-ring) 0 100% / 100% 1px no-repeat,
-    var(--gl-sun-ring) 0 100% / 100% 1px no-repeat;
+    var(--gl-sun-ring) 0 100% / 100% 1px no-repeat,
+    radial-gradient(
+      85% 90% at 35% 100% in oklab,
+      rgba(255, 216, 155, calc(0.05 * var(--gl-fill))) 0%,
+      rgba(45, 110, 255, calc(0.07 * var(--gl-fill))) 55%,
+      transparent 100%
+    );
 }
 /* 行间 1px 分隔线单独一条规则（末行没有），手电渐变只在上面写一次 */
 .gl-table tbody tr:not(:last-child) td {
@@ -1014,7 +1058,7 @@ textarea.gl-input {
 .gl-table td {
   padding: 10px 14px;
   color: #8E9BAE;
-  transition: color 140ms var(--gl-ease-out);
+  transition: color var(--gl-dur-off) var(--gl-ease-out);
 }
 .gl-table th.num,
 .gl-table td.num {
@@ -1026,14 +1070,32 @@ textarea.gl-input {
   color: #B8C7E0;
 }
 .gl-table tbody tr:hover {
-  background:
-    var(--gl-crest-line) 0 100% / 100% 1px no-repeat,
-    radial-gradient(85% 90% at 35% 100% in oklab, rgba(255, 216, 155, 0.05) 0%, rgba(45, 110, 255, 0.07) 55%, transparent 100%);
+  --gl-fill: 1;
+  transition:
+    --torch-a var(--gl-dur-off) var(--gl-ease-out),
+    --sun-a 800ms var(--gl-ease-out),
+    --gl-lip var(--gl-dur-base) var(--gl-ease-out),
+    --gl-fill var(--gl-dur-on) var(--gl-ease-out);
 }
-.gl-table tbody tr:hover td {
+.gl-table tbody tr.on,
+.gl-table tbody tr.gl-fresh {
+  --gl-lip: 100%;
+  --gl-fill: 1;
+  transition:
+    --torch-a var(--gl-dur-off) var(--gl-ease-out),
+    --sun-a 800ms var(--gl-ease-out),
+    --gl-lip var(--gl-dur-base) var(--gl-ease-out),
+    --gl-fill var(--gl-dur-on) var(--gl-ease-out);
+}
+.gl-table tbody tr:hover td,
+.gl-table tbody tr.on td,
+.gl-table tbody tr.gl-fresh td {
   color: #DCE8FF;
+  transition-duration: var(--gl-dur-on);
 }
-.gl-table tbody tr:hover td.num {
+.gl-table tbody tr:hover td.num,
+.gl-table tbody tr.on td.num,
+.gl-table tbody tr.gl-fresh td.num {
   color: #64E8E5;
 }
 
@@ -1087,7 +1149,9 @@ textarea.gl-input {
 }
 .gl-popover > .gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert) {
   background-color: transparent;
-  box-shadow: none;
+  box-shadow:
+    inset -1.5px -1.5px 0px rgba(6, 8, 14, 0),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0);
 }
 .gl-popover hr {
   border: 0;
@@ -1103,11 +1167,15 @@ textarea.gl-input {
 @media (prefers-reduced-motion: reduce) {
   .gl-brick,
   .gl-brick::before,
+  .gl-brick small,
   .gl-card,
   .gl-pop-in,
   .gl-input,
+  .gl-input > .gl-icon,
+  .gl-input > svg,
   .gl-slider,
-  .gl-table tbody tr {
+  .gl-table tbody tr,
+  .gl-table td {
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
     transition-duration: 0.01ms;

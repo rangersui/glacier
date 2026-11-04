@@ -180,27 +180,31 @@
    - 键盘 `:focus-visible` 焦点补光精准落在游标键帽处（`7 + ratio × (width − 14)`），不卡在滑块正中；纯鼠标点击或拖拽后移开指针不留残光。
 2. **暗槽输入框与命令栏（`.gl-input`）**：
    - **凹凸反相**：冰砖向外凸（左上亮刃、右下暗槽），输入框向内沉（Inset Trench：左上被舱壁遮挡压 `inset 1.5px 1.5px 0 #03050B` 硬暗崖，槽肚锁死 `#060911` 深渊黑，绝不在左上角糊灰白雾）。
-   - **圆角贴合底刃与单列表标量过渡**：利用 `1px solid transparent` 的天然圆角 `border-box`，上半圈至距底 `6px` 处用 `#03050B` 封死，让底部 `1px` 迎光底刃顺着左右下角的 `6px` 圆角弧度自然向上弯折包入并渐隐，绝不平直戳出圆角；`<textarea>` 强制 `resize: none` 消灭原生右下双斜杠。Rest / Hover / Focus 严禁写三套不同的 `background` 层列表（否则浏览器无法插值、瞬间跳变），统一共用同一份层列表（双路手电永远留在列表内），靠 `@property` 标量驱动：`--gl-fill`（`<number>`，`0 → 1`，`160ms`）控制槽肚呼吸微光，`:hover` 只点亮 `--gl-fill: 1` 并把文字抬一档（`#A6B6CC`），底刃与手电绝不动；`--gl-lip`（`<percentage>`，`0% → 100%`，`220ms`）控制 `--gl-crest-line` 在 `0 100%` 处从左端迎光处向右漫开的 `background-size` 宽度，只有 `:focus / :focus-within` 才触发 `--gl-lip: 100%` 把全宽底刃咬住，鼠标移开后手电正常熄灭而底刃留存。
+   - **圆角贴合底刃与单列表标量过渡**：利用 `1px solid transparent` 的天然圆角 `border-box`，上半圈至距底 `6px` 处用 `#03050B` 封死，让底部 `1px` 迎光底刃顺着左右下角的 `6px` 圆角弧度自然向上弯折包入并渐隐，绝不平直戳出圆角；`<textarea>` 强制 `resize: none` 消灭原生右下双斜杠。Rest / Hover / Focus 严禁写三套不同的 `background` 层列表（否则浏览器无法插值、瞬间跳变），统一共用同一份层列表（双路手电永远留在列表内），靠 `@property` 标量驱动：`--gl-fill`（`<number>`，`0 → 1`）控制槽肚呼吸微光，`:hover` 只点亮 `--gl-fill: 1` 并把文字抬一档（`#A6B6CC`），底刃与手电绝不动；`--gl-lip`（`<percentage>`，`0% → 100%`）控制 `--gl-crest-line` 在 `0 100%` 处从左端迎光处向右漫开的 `background-size` 宽度，只有 `:focus / :focus-within` 才触发 `--gl-lip: 100%` 把全宽底刃咬住，鼠标移开后手电正常熄灭而底刃留存。
    - **文字明度阶跃**：未聚焦待机态文字压在 `#8E9BAE` 冷石板银灰（等宽变体 `.gl-input.gl-mono` 压在 `#7A90A8`，前缀图标 `.gl-icon` 同频压暗），`:hover` 抬至 `#A6B6CC`，只有真正聚焦（`:focus` / `:focus-within`）时才提亮到 `#DCE8FF` 冰晶白（图标提亮为 `#7DCFFF`），打字光标锁死 `#FFD89B` 香槟暖金。
 3. **光学数据表（`.gl-table`）**：
    - 严禁竖向铁丝网边框。表头 `th` 走 `--gl-font-mono` 等宽遥测轨（`#7DCFFF` + `letter-spacing: 0.12em`），底下压一道 `1px --gl-crest-line` 光谱地平线；数值列（`.num`）右对齐并锁死 `tabular-nums`。
-   - 每一行（`tbody tr`）挂在手电与太阳总线上，径向光只投射在行底那根 `1px` 水平细刃（`0 100% / 100% 1px no-repeat`）上；非末行单元格带静态微暗底线（`tbody tr:not(:last-child) td`），悬停时整行浮现微光与底部 `1px` 光谱线，数值列提亮为 `#64E8E5` 电光青。
+   - 每一行（`tbody tr`）同样共用一份固定 `background` 层列表（选中底刃 `--gl-lip` + 双路手电 + 行肚呼吸微光 `--gl-fill`）：悬停（`:hover`）表示视线读到哪一行，只点亮行肚微光（`--gl-fill: 1`）并提亮文字与 `.num`（`#64E8E5` 电光青），手电照常跟手；全宽底刃（`--gl-lip: 100%`）留给真正选中的行（`tr.on / tr.gl-fresh`）。
 4. **瞬态浮层（`.gl-popover`）与棱镜滚动条**：
    - `.gl-popover` 采用高密度黑曜石底（`rgba(12, 15, 24, 0.92)` + `blur(22px)`）与满血 `1px --gl-edge` 外环；内部菜单项直接复用 `.gl-brick`（待机背景透明但照常受手电与太阳探照，悬停/选中起立体键帽）。
    - `.gl-stage` 作用域内接管滚动条（竖向 `6px` 宽 `180deg`、横向 `6px` 高 `90deg` 香槟金 → 冰晶白 → 暮光紫棱镜游丝）。
 
-## 5. 动效令牌
+## 5. 动效令牌与「亮得快、灭得慢」不对称余晖
 
 | 令牌 | 值 | 用在 |
 |---|---|---|
-| `--gl-ease-out` | `cubic-bezier(0.22, 1, 0.36, 1)` | 颜色、透明度、手电衰减、常规过渡 |
+| `--gl-ease-out` | `cubic-bezier(0.22, 1, 0.36, 1)` | 颜色、透明度、手电衰减、光学标量过渡 |
 | `--gl-ease-spring` | `cubic-bezier(0.22, 1.18, 0.36, 1)` | 弹出、按压、展开（轻微弹簧过冲） |
-| `--gl-dur-base` | `240ms` | 常规交互过渡 |
+| `--gl-dur-on` | `120ms` | **通电点亮**（进入 `:hover` / `.on` / `.gl-fresh` / `:focus-within`）：灯丝通电快速响应 |
+| `--gl-dur-off` | `240ms` | **断电余晖**（离开 `:hover`、选中从 A 砖切到 B 砖后旧砖冷却、失焦收拢、鼠标手电释放） |
+| `--gl-dur-base` | `240ms` | 空间几何运动（`transform`、底刃从左往右漫开 `--gl-lip`） |
 | `--gl-dur-slow` | `320ms` | 圆角与慢速过渡 |
 
 规则：
 
-- 只过渡 `transform`、`opacity`、颜色与 `@property` 注册的光学标量（`--torch-a` / `--sun-a` / `--gl-lip` / `--gl-fill`）。
+- **何时需要动画**：物理模型里连续、但 DOM 状态离散，且**不是用户的手在直接操纵**的地方（如冰砖悬停与选中切换余晖、输入框聚焦底刃漫开、表格行悬停微光）才用 `--gl-dur-on`（`120ms` 进）/ `--gl-dur-off`（`240ms` 出，太阳手电单独保留 `800ms` 余晖）。
+- **何时严禁加动画（保持干脆硬切）**：手在直接动的东西必须 `1:1` 跟手——`:active` 按压（`40ms` 下沉）、滑块拖拽与键盘步进、弹层退场、告警砖静止（不呼吸不脉冲）。
+- **实现机制**：严禁在不同状态间整套替换 `background` 简写；冰砖（`.gl-brick`）、暗槽（`.gl-input`）与表格行（`.gl-table tbody tr`）全部采用「**单一常驻层列表 + `@property` 登记标量（`--gl-fill` / `--gl-lip` / `--torch-a` / `--sun-a`）**」驱动。
 - 尊重系统"减弱动态效果"（`@media (prefers-reduced-motion: reduce)`）：所有动画与过渡瞬时完成（`0.01ms`）。
 
 ## 6. 性能守则与剃刀记录
