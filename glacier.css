@@ -1,15 +1,11 @@
 /* ==========================================================================
-   Glacier（星舰冰川）设计语言 · 独立样式库  glacier.css
-   和 glacier.js 配套。只有和宿主无关的部分：
-     1. 令牌与焊死的 Windhawk 光学常量（金→冰白→暮光紫同屏色散，不随时间退化成单色）
-     2. 鼠标手电变量的 @property 注册（--torch-x / --torch-y / --torch-a）
-     3. 背景画布层 .gl-layer（init() 创建的画布 / 底片层）
-     4. 冰砖 .gl-brick / .gl-nav、卡片 .gl-card、金星带顶栏 .gl-bar 的受光规则
-     4b. 阵列 .gl-louver（一维光栅）/ .gl-lattice（二维晶格）：传感器的摆放
-     4c. 长文排版 .gl-prose：三轨字体栈（等宽遥测 + 衬线标题/引用 + 无衬线冷灰正文）与信息熵高亮
-     4d. 刀锋滑块 .gl-slider、暗槽输入框 .gl-input、光学数据表 .gl-table、瞬态浮层 .gl-popover
-     5. 尊重系统「减弱动态效果」
-   没有 !important，没有任何宿主选择器；类名都以 gl- 开头。
+   Glacier · 1px 门缝光学设计语言  glacier.css
+   和 glacier.js 配套。核心原则（见同目录 DESIGN.md）：
+     1. 只取拟物化的「光」，丢掉拟物化的一切其它（皮革、厚倒角、浮夸外投影）；抽掉这道光，底下就是极简深色主题
+     2. 黑暗卧室里的 1px 门缝之光（in oklch 感知均匀插值 + 金星带瑞利散射：香槟暖金 #FFD89B → 冰晶白 #E6F4FF → 暮光紫 #BB9AF7）
+     3. 视觉天然性（激活/凹凸控件永远锁死左上角 0% 0% 固有结构打光） × 动态氛围感（鼠标手电与太阳手电沿 1px 待机门缝游走探路，将微软 Fluent 操作反馈推至 1px 极限）
+     4. 新增任何控件永远以光为主导：凸起走左上亮刃 + 右下暗槽，下沉走左上暗崖 + 底部迎光细唇
+   没有 !important，没有任何宿主选择器；类名与令牌统一以 gl- / --gl- 开头。
    ========================================================================== */
 
 :root {
@@ -409,19 +405,20 @@
     rgba(32, 16, 26, 0.84);
 }
 
-/* 鼠标手电（Win10 Reveal）：待机态的砖平时是均匀的烟熏磨砂块，只有鼠标 --torch-r 像素内，
-   外圈 1px 切边按离鼠标的远近柔和浮现（香槟暖金 → 冰晶白），鼠标移开即隐去。 */
+/* 鼠标手电（Fluent Reveal 推至 1px 门缝极限）：待机态的砖平时是均匀的烟熏磨砂块，只有鼠标 --torch-r 像素内，
+   外圈 1px 门缝按离鼠标的远近浮现 in oklch 金星带瑞利散射（香槟暖金 → 冰晶白 → 暮光紫），鼠标移开即隐去。 */
 .gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert)::before {
   background: radial-gradient(
-    var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y),
-    rgba(255, 216, 155, 0.72) 0%,
-    rgba(230, 244, 255, 0.36) 32%,
-    transparent 66%
+    var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklch,
+    rgba(255, 216, 155, 0.76) 0%,
+    rgba(230, 244, 255, 0.44) 30%,
+    rgba(187, 154, 247, 0.22) 54%,
+    transparent 74%
   );
   opacity: var(--torch-a);
   transition: opacity 160ms var(--gl-ease-out, ease-out);
 }
-/* 太阳手电：轨道游标是第二支手电，同一配方（1px 外圈、同一色谱、同一衰减形状），只是更大（--sun-r）、更暗（--sun-a 跟 glow）、
+/* 太阳手电：轨道游标是第二支手电，同一配方（1px 外圈、in oklch 金星带三色散射、同一衰减形状），只是更大（--sun-r）、更暗（--sun-a 跟 glow）、
    更慢（800ms 释放，像荧光粉的余晖）。走 ::after，和鼠标那支互不打断；告警砖不参与（它的 ::after 是红灯芯）。
    只照不动：不改任何状态，不派任何事件，钟不许停（DESIGN.md §3 探针五律） */
 .gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert)::after {
@@ -432,10 +429,11 @@
   border-radius: inherit;
   padding: 1px;
   background: radial-gradient(
-    var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y),
+    var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklch,
     rgba(255, 216, 155, 0.72) 0%,
-    rgba(230, 244, 255, 0.36) 32%,
-    transparent 66%
+    rgba(230, 244, 255, 0.40) 32%,
+    rgba(187, 154, 247, 0.20) 56%,
+    transparent 76%
   );
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
@@ -727,16 +725,18 @@
   border-radius: 3px;
   background:
     radial-gradient(
-      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y),
-      rgba(255, 216, 155, calc(0.75 * var(--torch-a))) 0%,
-      rgba(230, 244, 255, calc(0.38 * var(--torch-a))) 32%,
-      transparent 66%
+      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklch,
+      rgba(255, 216, 155, calc(0.76 * var(--torch-a))) 0%,
+      rgba(230, 244, 255, calc(0.42 * var(--torch-a))) 30%,
+      rgba(187, 154, 247, calc(0.22 * var(--torch-a))) 54%,
+      transparent 74%
     ) 0 100% / 100% 1px no-repeat,
     radial-gradient(
-      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y),
-      rgba(255, 216, 155, calc(0.58 * var(--sun-a))) 0%,
-      rgba(230, 244, 255, calc(0.30 * var(--sun-a))) 35%,
-      transparent 68%
+      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklch,
+      rgba(255, 216, 155, calc(0.60 * var(--sun-a))) 0%,
+      rgba(230, 244, 255, calc(0.32 * var(--sun-a))) 32%,
+      rgba(187, 154, 247, calc(0.18 * var(--sun-a))) 56%,
+      transparent 76%
     ) 0 100% / 100% 1px no-repeat,
     linear-gradient(
       90deg in oklch,
@@ -823,16 +823,18 @@
     linear-gradient(#060911, #060911) padding-box,
     linear-gradient(180deg, #03050B 0%, #03050B calc(100% - 6px), rgba(3, 5, 11, 0.45) calc(100% - 2px), transparent 100%) border-box,
     radial-gradient(
-      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y),
-      rgba(255, 216, 155, calc(0.75 * var(--torch-a))) 0%,
-      rgba(230, 244, 255, calc(0.38 * var(--torch-a))) 32%,
-      transparent 66%
+      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklch,
+      rgba(255, 216, 155, calc(0.76 * var(--torch-a))) 0%,
+      rgba(230, 244, 255, calc(0.42 * var(--torch-a))) 30%,
+      rgba(187, 154, 247, calc(0.22 * var(--torch-a))) 54%,
+      transparent 74%
     ) border-box,
     radial-gradient(
-      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y),
-      rgba(255, 216, 155, calc(0.58 * var(--sun-a))) 0%,
-      rgba(230, 244, 255, calc(0.30 * var(--sun-a))) 35%,
-      transparent 68%
+      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklch,
+      rgba(255, 216, 155, calc(0.60 * var(--sun-a))) 0%,
+      rgba(230, 244, 255, calc(0.32 * var(--sun-a))) 32%,
+      rgba(187, 154, 247, calc(0.18 * var(--sun-a))) 56%,
+      transparent 76%
     ) border-box,
     linear-gradient(rgba(196, 208, 245, 0.08), rgba(196, 208, 245, 0.08)) border-box,
     linear-gradient(#03050B, #03050B) border-box;
@@ -964,16 +966,18 @@ textarea.gl-input {
     --sun-a 800ms var(--gl-ease-out, ease-out);
   background:
     radial-gradient(
-      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y),
-      rgba(255, 216, 155, calc(0.68 * var(--torch-a))) 0%,
-      rgba(230, 244, 255, calc(0.34 * var(--torch-a))) 32%,
-      transparent 66%
+      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklch,
+      rgba(255, 216, 155, calc(0.70 * var(--torch-a))) 0%,
+      rgba(230, 244, 255, calc(0.38 * var(--torch-a))) 30%,
+      rgba(187, 154, 247, calc(0.20 * var(--torch-a))) 54%,
+      transparent 74%
     ) 0 100% / 100% 1px no-repeat,
     radial-gradient(
-      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y),
-      rgba(255, 216, 155, calc(0.55 * var(--sun-a))) 0%,
-      rgba(230, 244, 255, calc(0.28 * var(--sun-a))) 35%,
-      transparent 68%
+      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklch,
+      rgba(255, 216, 155, calc(0.56 * var(--sun-a))) 0%,
+      rgba(230, 244, 255, calc(0.30 * var(--sun-a))) 32%,
+      rgba(187, 154, 247, calc(0.16 * var(--sun-a))) 56%,
+      transparent 76%
     ) 0 100% / 100% 1px no-repeat;
 }
 /* 行间 1px 分隔线单独一条规则（末行没有），手电渐变只在上面写一次 */
