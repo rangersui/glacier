@@ -6,7 +6,7 @@
 <title>Glacier · 舰桥</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;600&family=Newsreader:opsz,wght@6..72,400&family=Noto+Sans+SC:wght@400;500&family=Noto+Serif+SC:wght@400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;600&family=Newsreader:opsz,wght@6..72,400&family=Noto+Sans+SC:wght@300;400;500&display=swap">
 <link rel="stylesheet" href="glacier.css">
 <style>
   /* 舰桥：暗座舱（DESIGN.md §4.2）。一切正常时面板是黑的，亮着的东西就是要你看的东西。
@@ -15,7 +15,7 @@
      设计语言的部分全在 glacier.css 里，这里只有排版。 */
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; overflow: hidden; }
-  body { font: 13px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  body { font: 13px/1.5 var(--gl-font-sans); }
   .bridge {
     height: 100vh;
     display: grid;
@@ -33,16 +33,16 @@
   .knob { display: flex; align-items: center; gap: 10px; }
   .knob label { color: rgba(196, 208, 245, 0.45); }
   .knob .gl-brick { padding: 5px 9px; font-size: 12px; }
-  input[type="range"] { width: 150px; height: 2px; accent-color: #ffd285; }
+  .knob .gl-slider { width: 150px; }
 
   /* 中：舷窗。什么都不盖，只有底部一句话（叙事衬线轨 + 遥测等宽标头） */
   .window { position: relative; }
-  .lore { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; font-family: var(--gl-font-serif); color: rgba(196, 208, 245, 0.48); font-size: 13px; letter-spacing: 0.4px; }
+  .lore { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; font-family: var(--gl-font-display); color: rgba(196, 208, 245, 0.48); font-size: 13px; letter-spacing: 0.4px; }
   .lore i { display: block; font-style: normal; font-family: var(--gl-font-mono); font-size: 10.5px; letter-spacing: 0.5px; color: rgba(196, 208, 245, 0.28); margin-top: 6px; }
   .lore b { display: block; color: rgba(224, 247, 255, 0.72); font: 600 11px/1 var(--gl-font-mono); letter-spacing: 2px; margin-bottom: 8px; }
 
   /* 左：航点光栅（去哪）。亮着的那条就是现在在的地方 */
-  .places h2, .cal h2 { margin: 0 0 10px; font: 600 10px/1 ui-monospace, "Cascadia Code", Consolas, monospace; letter-spacing: 3px; color: rgba(125, 207, 255, 0.6); }
+  .places h2, .cal h2 { margin: 0 0 10px; font: 600 10px/1 var(--gl-font-mono); letter-spacing: 3px; color: rgba(125, 207, 255, 0.6); }
   .places .gl-louver { --gl-louver-h: 40px; --gl-louver-gap: 10px; }
   .places .gl-brick small { font-size: 11px; } /* 颜色归库：待机烟熏灰，选中电光青 */
 
@@ -73,7 +73,7 @@
         <button class="gl-brick" data-v="realtime" title="跟真实时间">实时</button>
         <button class="gl-brick" data-v="timelapse" title="一天 24 秒">延时</button>
       </div>
-      <input type="range" id="hour" min="0" max="24" step="0.05" value="12" title="手动拨时间">
+      <input type="range" class="gl-slider" id="hour" min="0" max="24" step="0.05" value="12" title="手动拨时间">
     </div>
     <span class="mono clock" id="clock">—</span>
   </header>

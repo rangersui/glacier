@@ -5,9 +5,9 @@
 
 ```
 glacier/
-├── glacier.css   令牌与 Windhawk 三色光学常量、三轨字体栈、@property 注册、画布/底片层、.gl-brick / .gl-nav / .gl-card / .gl-bar / .gl-prose / .gl-alert / .gl-track 规则（无 !important、无宿主选择器）
+├── glacier.css   令牌与 Windhawk 三色光学常量、三轨字体栈、@property 注册、画布/底片层、.gl-brick / .gl-nav / .gl-card / .gl-bar / .gl-prose / .gl-slider / .gl-input / .gl-table / .gl-popover / .gl-alert / .gl-track 规则（无 !important、无宿主选择器）
 ├── glacier.js    Glacier.sun / Lamp / applySunVars，加 Glacier.init()
-├── demo.html     组件目录：每个组件一节（砖的五种状态、暗槽、卡片、光栅、晶格、图标、长文排版 .gl-prose、漂移节点、滚动容器）+ 工程面板（时间 / 时钟 / 背景 / 生命周期 / 读数）
+├── demo.html     组件目录：按展柜陈列全部 11 类光学原语 + 调光台与动态滚动压测
 ├── bridge.html   舰桥：用这套积木搭的暗座舱范例——三个问题（在哪 / 几点 / 有没有事）、两个旋钮（去哪 / 多快）、航点光栅 + 当月日历晶格 + 告警行（A 模拟、Esc 清）
 └── README.md     本文件
 ```
@@ -54,7 +54,7 @@ glacier/
 | `time` | `"realtime"` | 时钟（现在几点）：`"realtime"` 每 `realtimeInterval` 毫秒对一次表；数字 = 定住这个小时；`"timelapse"` 一天循环（从当前时刻起一圈 `timelapseDuration` 毫秒）；`{ loop: { from, to, duration, bounce } }` 区间来回；`"external"` 不自己走，宿主用 `setHour()` 推 |
 | `sunTable` | `null` | 关键帧表（几点钟长什么样，见第 3 节末）；`null` 用内置公式 |
 | `lampOverlay` | `true` | 是否画灯 overlay：轨迹按「几点钟灯在哪」那张表画成一根连续的 1px 光学游丝（有 `sunTable` 用周期性 Catmull-Rom 样条（表要等距：>=4 帧且相邻间隔之比 <=1.5，否则退回折线），没有用内置公式；240 段二次平滑样条 + 底层 4.5px 极淡折射晕染 + 表层「香槟暖金 → 冰晶白 → 金星带暮光紫」水平光谱，背阳段只压低明度，零刻度毛刺、零虚线锯齿），子区间 `loop` 模式（`span < 24`）把区间那段加亮，当前时刻是一枚柔和日冕包裹的 1.8px 炽白星点游标（不带刻度棍和画布浮字），运动时身后沿轨道拖出一段单笔连续三色渐隐光尾。静态层与时刻彻底无关（时间走动零重建，换表 / 换子区间 / 改尺寸才重建），游标只重画脏矩形 |
-| `torch` / `torchRadius` / `torchSelector` | `true` / `160` / `".gl-brick"` | 鼠标手电（Win10 Reveal）：待机态的砖平时无玻璃无边，鼠标半径内的砖按远近浮现三色径向光圈（琥珀 → 冰白 → 暮光紫），相邻的砖被余光照到一截；已点亮的砖不参与；键盘焦点等价于手电停在那一格。不读布局，只给半径内的砖写 `--torch-*` 变量 |
+| `torch` / `torchRadius` / `torchSelector` | `true` / `160` / `".gl-brick, .gl-input, .gl-slider, .gl-table tbody tr"` | 鼠标手电（Win10 Reveal）：待机态的砖、暗槽输入框、刀锋滑块与数据表行底平时无亮边，鼠标半径内按远近在 1px 切边/槽沿/行底细刃上浮现径向光圈（香槟金 → 冰晶白），已点亮的砖不参与；键盘焦点等价于手电停在那一格（滑块停在游标键帽处）。不读布局，只给半径内的目标写 `--torch-*` 变量 |
 | `sunTorch` | `true` | 太阳也是一支手电（要 `torch` 开着）：轨道游标经过的砖，1px 边被擦亮、800ms 暗回去。同一配方，半径 `torchRadius × 1.5`，亮度跟 `glow` 走；只照不动，不改状态 |
 | `observe` | `true` | 监视 `root` 里的节点增删：新塞进来的 `.gl-brick` 节点自动纳入鼠标手电探测，不用注册、不用调 `relight()` |
 | `trackSelector` | `"[data-gl-track]"` | 会自己动的节点（漂移、拖拽、动画）逐帧重新量矩形、被手电探测。这是本库唯一的逐帧布局读取，只给会动的东西加 |
@@ -132,8 +132,8 @@ glacier/
 
 ## 5. CSS 约定
 
-- 令牌在 `:root`：`--agy-bg`、`--agy-fg`、`--agy-accent-cyan`、`--agy-card-alpha`，动效 `--agy-ease-out / spring`、`--agy-dur-base / slow`，底片透射基准 `--gl-photo-level: 0.55`，三轨字体栈 `--gl-font-mono`（等宽遥测轨：`JetBrains Mono` / `Cascadia Code`）、`--gl-font-serif`（细衬线标题/叙事轨：`Newsreader` + `Noto Serif SC`）、`--gl-font-sans`（高内白无衬线正文轨：`Inter` + `Noto Sans SC`），以及焊死的磁贴光学常量 `--gl-crest-line`（水平 90° `in oklch`：香槟暖金 → 冰晶白 → 金星带暮光紫）、`--gl-edge`（`100% 100% at 0% 0% in oklch` 归一化 1px 单层刀锋，88% 处彻底透明归零）、`--gl-brick-fill`（左上 10% 香槟金微光 + 左下 16% 皇家钴蓝呼吸微光）。
-- 字体加载：`demo.html` 和 `bridge.html` 顶部带 Google Fonts 的 `<link>`（加载 `Inter` 400/500、`JetBrains Mono` 400/600、`Newsreader` 400、`Noto Sans SC` 400/500、`Noto Serif SC` 400），保证任何裸机打开都有完整的三轨字体与 500 字重；离线环境下本机装了 `Cascadia Code` + `Noto Sans SC` + `Noto Serif SC` 也能原地命中（若裸 Windows 既离线又没装 Noto，衬线轨会退回 `Georgia + SimSun` 宋体）。`.gl-stage` 带 `-webkit-font-smoothing: antialiased`（仅 macOS 生效，Windows 仍走系统 DirectWrite）。
+- 令牌在 `:root`：`--agy-bg`、`--agy-fg`、`--agy-accent-cyan`、`--agy-card-alpha`，动效 `--agy-ease-out / spring`、`--agy-dur-base / slow`，底片透射基准 `--gl-photo-level: 0.55`，三轨字体栈 `--gl-font-mono`（等宽遥测轨：`JetBrains Mono` / `Cascadia Code`）、`--gl-font-display`（标题/叙事轨：西文 `Newsreader` 细衬线 + 中文 `Noto Sans SC` 400 冷峻细黑体，彻底剔除 `SimSun` 宋体回退）、`--gl-font-sans`（高内白无衬线正文轨：`Inter` + `Noto Sans SC`），以及焊死的磁贴光学常量 `--gl-crest-line`（水平 90° `in oklch`：香槟暖金 → 冰晶白 → 金星带暮光紫）、`--gl-edge`（`100% 100% at 0% 0% in oklch` 归一化 1px 单层刀锋，88% 处彻底透明归零）、`--gl-brick-fill`（左上 10% 香槟金微光 + 左下 16% 皇家钴蓝呼吸微光）。
+- 字体加载：`demo.html` 和 `bridge.html` 顶部带 Google Fonts 的 `<link>`（加载 `Inter` 400/500、`JetBrains Mono` 400/600、`Newsreader` 400、`Noto Sans SC` 300/400/500），离线环境下回退到本地 `Cascadia Code` + `Noto Sans SC` / `HarmonyOS Sans SC` / `Microsoft YaHei UI`，绝不掉回 Windows `SimSun` 老宋体。`.gl-stage` 带 `-webkit-font-smoothing: antialiased`。
 - `--torch-*`（鼠标手电，`::before`）和 `--sun-*`（太阳手电，`::after`）都用 `@property` 注册成继承且有类型，伪元素才能读到、`-a` 才能过渡。两支手电同一配方：1px 外圈、同一色谱、同一衰减；太阳那支半径 `--sun-r`（root 上，= torchRadius × 1.5）、亮度跟 glow、释放 800ms。不再有任何 `--ice-*` 内联变量（见 `DESIGN.md` §4.3–4.4）。
 - `.gl-bar`：金星带顶栏 / 分割栏（复刻 Windhawk 命令栏：左半地球影暗槽 + 右半金星带瑞利散射紫微雾 + 底部 1px `--gl-crest-line` 光谱地平线）。
 - **未选中保持烟熏磨砂，点亮态严格对齐 Windows 11 开始菜单磁贴（Word 磁贴）的通透黑曜石结构**（`DESIGN.md` §4.3–4.4）：
@@ -145,7 +145,7 @@ glacier/
 - 卡片的边同样是一圈 1px 的 `--gl-edge` 渐变环（`::after`，85% 不透明：左上香槟暖金 → 冰晶白 → 暮光紫 → 88% 处归零）；厚度靠 `inset -1.5px` 的内暗槽，不在环里。
 - 圆角用 `--glacier-radius`（默认 6px）覆盖。
 - **阵列**（控件是光的传感器，排法决定光场看不看得见，DESIGN.md §4.1）：`.gl-louver` 一维光栅——等高长条竖排、长边朝光，`--gl-louver-gap`（缝，默认 10px）/ `--gl-louver-h`（条高，默认 38px），节距 40–50px 让 160px 的手电里装 3–4 条；`.gl-lattice` 二维晶格——等大方格、缝 ≤ 6px、圆角 2px，`--gl-lattice-cols / -cell / -gap`（默认 7 / 40px / 4px），相邻刀锋融成一道亮缝、交叉点起十字星；格里的 `.gl-lattice-label`（星期、坐标轴）和 `.gl-void`（空位）不是砖、不受光、只占格。
-- **长文排版与光学蚀刻（`.gl-prose`，`DESIGN.md` §4.5）**：不增加新容器积木，只需给装文章的 `.gl-card`（或 `<article>`）挂上 `.gl-prose`：正文段落压在 `#8E9BAE`（62% 冷石板银灰，行高 `1.8`、行宽 `66ch`），标题 `h1 / h2` 与引用 `blockquote` 用细衬线体 `--gl-font-serif`（`font-weight: 400`），高信息熵重点词 `strong` / `.gl-fresh` 提亮到 `#F4F8FF` 冰晶白、`mark` 提亮到 `#FFD89B` 香槟暖金细游丝，行内 `code` 做成微型暗槽 + `#64E8E5` 电光青等宽字，`hr` 与 `blockquote` 左刃同样复用 1px 三色光谱刀锋。
+- **长文排版与光学蚀刻（`.gl-prose`，`DESIGN.md` §4.5）**：不增加新容器积木，只需给装文章的 `.gl-card`（或 `<article>`）挂上 `.gl-prose`：正文段落压在 `#8E9BAE`（62% 冷石板银灰，行高 `1.8`、行宽 `66ch`），标题 `h1 / h2` 与引用 `blockquote` 用细衬线体 `--gl-font-display`（`font-weight: 400`），高信息熵重点词 `strong` / `.gl-fresh` 提亮到 `#F4F8FF` 冰晶白、`mark` 提亮到 `#FFD89B` 香槟暖金细游丝，行内 `code` 做成微型暗槽 + `#64E8E5` 电光青等宽字，`hr` 与 `blockquote` 左刃同样复用 1px 三色光谱刀锋。
 - 背景层类名：`.gl-layer` 公共（fixed 铺满、`z-index: -1`、不吃事件），`.gl-layer-lamp`（screen 混合）、`.gl-layer-photo`（单节点 `isolation: isolate` + `screen` 混合：`::before` 画 100% 纯黑白银盐底片，`::after` 画跟随 `--agy-sun-x / --agy-sun-y` 的径向暗房遮罩，外层 `opacity = photo-level × exposure × (1 − dim)`）。
 
 ## 6. 性能

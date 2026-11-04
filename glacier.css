@@ -7,6 +7,7 @@
      4. 冰砖 .gl-brick / .gl-nav、卡片 .gl-card、金星带顶栏 .gl-bar 的受光规则
      4b. 阵列 .gl-louver（一维光栅）/ .gl-lattice（二维晶格）：传感器的摆放
      4c. 长文排版 .gl-prose：三轨字体栈（等宽遥测 + 衬线标题/引用 + 无衬线冷灰正文）与信息熵高亮
+     4d. 刀锋滑块 .gl-slider、暗槽输入框 .gl-input、光学数据表 .gl-table、瞬态浮层 .gl-popover
      5. 尊重系统「减弱动态效果」
    没有 !important，没有任何宿主选择器；类名都以 gl- 开头。
    ========================================================================== */
@@ -53,9 +54,9 @@
      2. 叙事与标题轨（高反差人文衬线）：Newsreader + Noto Serif SC（思源宋体），负责长文大标题 H1/H2、引用块、舰桥底片注脚
      3. 正文阅读轨（高内白无衬线）：Inter + Noto Sans SC（思源黑体），负责长文段落与常规控件标签
      （demo.html 与 bridge.html 通过 Google Fonts 按需加载这组字体，离线则落到本地已装的 Cascadia Code / Noto 全家桶） */
-  --gl-font-mono: "JetBrains Mono", "Cascadia Code", "Geist Mono", "IBM Plex Mono", ui-monospace, Consolas, monospace;
-  --gl-font-serif: "Newsreader", "Noto Serif SC", "Source Han Serif SC", "Songti SC", Georgia, "SimSun", serif;
-  --gl-font-sans: "Inter", "Noto Sans SC", "HarmonyOS Sans SC", "MiSans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --gl-font-mono: "JetBrains Mono", "Cascadia Code", "Geist Mono", "IBM Plex Mono", Consolas, "Noto Sans SC", "Source Han Sans SC", "HarmonyOS Sans SC", "MiSans", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", monospace;
+  --gl-font-display: "Newsreader", "Noto Sans SC", "Source Han Sans SC", "HarmonyOS Sans SC", "MiSans", "PingFang SC", "Microsoft YaHei UI", "Segoe UI", sans-serif;
+  --gl-font-sans: "Inter", "Noto Sans SC", "Source Han Sans SC", "HarmonyOS Sans SC", "MiSans", "PingFang SC", "Segoe UI", "Microsoft YaHei UI", system-ui, -apple-system, sans-serif;
 }
 
 /* 可选：给 <body>（或别的容器）加 .gl-stage，就得到深空基底、默认前景色与暗座舱滚动条。
@@ -67,6 +68,28 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+/* 光学选区滤片（::selection，严格收在 .gl-stage 与 .gl-* 作用域内）：
+   严禁浏览器原生 100% 不透明死蓝胶布。
+   1. 舞台与长文默认选区：28% 深海钴蓝半透明光学滤片（透出底下星轨与毛玻璃暗纹）+ #F0FCFF 冰晶白 + 电光青漫反射微晕；
+   2. 暗槽输入框（含组合框内嵌 input）与行内代码选区：20% 香槟暖金琥珀胶片 + #FFD89B 暖金字，呼应金色打字光标与光谱底刃。 */
+.gl-stage::selection,
+.gl-stage ::selection,
+.gl-card::selection,
+.gl-card ::selection,
+.gl-prose::selection,
+.gl-prose ::selection {
+  background-color: rgba(45, 110, 255, 0.28);
+  color: #F0FCFF;
+  text-shadow: 0 0 8px rgba(100, 232, 229, 0.35);
+}
+.gl-input::selection,
+.gl-input ::selection,
+.gl-prose code::selection {
+  background-color: rgba(255, 216, 155, 0.20);
+  color: #FFD89B;
+  text-shadow: 0 0 6px rgba(255, 216, 155, 0.30);
 }
 
 /* 暗座舱滚动条（严格收在 .gl-stage 作用域内，视口那根靠 :root:has(> body.gl-stage) 补齐）：
@@ -585,7 +608,7 @@
    而是「刻在黑曜石表面被微光点亮的光学蚀刻（Laser Etching）」。
    不发明新容器积木，只需给装文章的 .gl-card（或 <article>）挂上 .gl-prose：
      1. 正文段落（p）：用 --gl-font-sans，压在 #8E9BAE（62% 冷石板银灰，绝不用刺眼纯白），行高 1.8、行宽 66ch；
-     2. 标题与引用（h1 / h2 / blockquote）：用 --gl-font-serif 细衬线体（font-weight: 400，严禁傻粗体），古典人文撞击深空重工；
+     2. 标题与引用（h1 / h2 / blockquote）：用 --gl-font-display（西文 Newsreader 细衬线、中文故意走细黑体，不掉回宋体；font-weight: 400，严禁傻粗体）；
      3. 信息熵梯度高亮（strong / mark）：重点词靠明度阶跃（#F4F8FF 冰晶白）或色温阶跃（#FFD89B 香槟暖金）从灰阶段落浮出；
      4. 行内遥测读数（code）：嵌在玻璃里的微型暗槽 + #64E8E5 电光青等宽字；
      5. 分割线（hr）与引用左刃（blockquote）：统一复用 1px 香槟金 → 冰晶白 → 暮光紫光学刀锋。
@@ -606,23 +629,24 @@
   color: inherit;
 }
 
-/* 标题轨：冷峻的细衬线体（font-weight: 400），靠字号、衬线刀锋与明度拉开层级 */
+/* 标题轨：现代冷峻的 400 细黑体（西文 Newsreader 衬线 + 中文无衬线细黑体，绝不掉回老宋体），
+   颜色锁死在带冷蓝底色的冰晶白 #DCE8FF（约 89% 明度），严禁 #FFFFFF 死白产生眩目光渗 */
 .gl-prose h1,
 .gl-prose h2 {
-  font-family: var(--gl-font-serif);
+  font-family: var(--gl-font-display);
   font-weight: 400;
-  color: #EDF4FF;
-  letter-spacing: 0.04em;
+  color: #DCE8FF;
+  letter-spacing: 0.03em;
   line-height: 1.35;
   margin: 1.6em 0 0.7em;
 }
 .gl-prose h1 { font-size: 1.65em; }
-.gl-prose h2 { font-size: 1.28em; }
+.gl-prose h2 { font-size: 1.28em; color: #D2E0FA; }
 .gl-prose h3 {
   font-family: var(--gl-font-sans);
   font-weight: 500;
   font-size: 1.05em;
-  color: #DCE6F7;
+  color: #C8D6F0;
   letter-spacing: 0.02em;
   margin: 1.4em 0 0.5em;
 }
@@ -671,12 +695,375 @@
 
 /* 引用块：左边不画粗俗的 4px 灰条，画一道 1px 垂直香槟金 → 冰晶白 → 暮光紫光学刀锋 */
 .gl-prose blockquote {
-  font-family: var(--gl-font-serif);
+  font-family: var(--gl-font-display);
   color: #B4C0D4;
   padding-left: 1.25em;
   margin: 1.4em 0;
   border-left: 1px solid transparent;
   border-image: linear-gradient(180deg in oklch, #FFD89B 0%, #F0FCFF 50%, #BB9AF7 100%) 1;
+}
+
+/* ==========================================================================
+   4d. 刀锋滑块（.gl-slider）：
+   滑块遵循「暗槽向内沉（左上暗崖 + 底部 1px 迎光唇），游标向外凸（左上 1px 亮刃 + 右下沉降槽）」的统一物理光源：
+   - 轨道（track）是下沉暗槽：左上压 #03050B 崖壁内阴影，内胆锁死深渊黑 #060911，仅槽底 1px 迎光细唇（0 100% / 100% 1px）接收手电（--torch-*）与太阳（--sun-*）探照；
+   - 游标键帽（thumb）是向外凸起的微型 .gl-brick.on：左上受光走 1px var(--gl-edge) 刀锋，右下压 inset -1.5px #06080E 沉降槽。
+   ========================================================================== */
+.gl-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+  transition:
+    --torch-a 160ms var(--agy-ease-out, ease-out),
+    --sun-a 800ms var(--agy-ease-out, ease-out);
+}
+.gl-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background:
+    radial-gradient(
+      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y),
+      rgba(255, 216, 155, calc(0.75 * var(--torch-a))) 0%,
+      rgba(230, 244, 255, calc(0.38 * var(--torch-a))) 32%,
+      transparent 66%
+    ) 0 100% / 100% 1px no-repeat,
+    radial-gradient(
+      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y),
+      rgba(255, 216, 155, calc(0.58 * var(--sun-a))) 0%,
+      rgba(230, 244, 255, calc(0.30 * var(--sun-a))) 35%,
+      transparent 68%
+    ) 0 100% / 100% 1px no-repeat,
+    linear-gradient(
+      90deg in oklch,
+      rgba(255, 216, 155, 0.22) 0%,
+      rgba(230, 244, 255, 0.26) 50%,
+      rgba(187, 154, 247, 0.22) 100%
+    ) 0 100% / 100% 1px no-repeat,
+    #060911;
+  box-shadow:
+    inset 1.5px 1.5px 0 #03050B,
+    inset 0 1px 2px rgba(0, 2, 8, 0.92);
+}
+.gl-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 20px;
+  margin-top: -7px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.10) 0%, transparent 55%) padding-box,
+    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.16) 0%, transparent 65%) padding-box,
+    linear-gradient(#121622, #121622) padding-box,
+    var(--gl-edge) border-box;
+  box-shadow:
+    inset -1.5px -1.5px 0 #06080E,
+    0 1px 0 0 rgba(0, 2, 8, 0.5);
+  transition: transform var(--agy-dur-base) var(--agy-ease-spring), box-shadow var(--agy-dur-base) var(--agy-ease-out);
+}
+.gl-slider:hover::-webkit-slider-thumb,
+.gl-slider:focus-visible::-webkit-slider-thumb {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.16) 0%, transparent 55%) padding-box,
+    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.22) 0%, transparent 65%) padding-box,
+    linear-gradient(#141926, #141926) padding-box,
+    var(--gl-edge) border-box;
+  box-shadow:
+    inset -1.5px -1.5px 0 #06080E,
+    inset 0 1px 0 rgba(255, 220, 170, 0.16),
+    0 1px 0 0 rgba(0, 2, 8, 0.5);
+}
+.gl-slider:active::-webkit-slider-thumb {
+  transform: translateY(1px);
+}
+.gl-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: #060911;
+  box-shadow: inset 1.5px 1.5px 0 #03050B, 0 1px 0 rgba(187, 154, 247, 0.14);
+}
+.gl-slider::-moz-range-thumb {
+  width: 14px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.10) 0%, transparent 55%) padding-box,
+    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.16) 0%, transparent 65%) padding-box,
+    linear-gradient(#121622, #121622) padding-box,
+    var(--gl-edge) border-box;
+  box-shadow: inset -1.5px -1.5px 0 #06080E, 0 1px 0 0 rgba(0, 2, 8, 0.5);
+}
+
+/* ==========================================================================
+   4e. 暗槽输入框与命令栏（.gl-input）：
+   严格遵循同一左上光源的凹凸反相物理与暗座舱明度纪律（严禁 #FFFFFF 纯死白）：
+   - 冰砖（.gl-brick）向外凸：左上迎光亮 1px 刀锋，右下背光落 #06080E 沉降槽；
+   - 输入框（.gl-input）向内沉（Inset Trench）：左上被舱壁遮挡压 #03050B 硬暗崖，槽肚子锁死深渊黑 #060911（零左上白雾）；
+   - 圆角贴合底刃：利用 1px transparent border 的天然圆角环，上半圈至距底 6px 处用 #03050B border-box 封死，
+     让底部 1px 光谱底刃顺着左右下角的 6px 圆角弧度自然向上弯折包入并渐隐，绝不平直戳出圆角；
+   - 文字明度阶跃：未聚焦待机态文字压在 #8E9BAE 冷石板银灰（前缀图标同频压暗），只有真正聚焦（:focus / :focus-within）时才提亮到 #DCE8FF 冰晶白。
+   ========================================================================== */
+.gl-input {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#060911, #060911) padding-box,
+    linear-gradient(180deg, #03050B 0%, #03050B calc(100% - 6px), rgba(3, 5, 11, 0.45) calc(100% - 2px), transparent 100%) border-box,
+    radial-gradient(
+      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y),
+      rgba(255, 216, 155, calc(0.75 * var(--torch-a))) 0%,
+      rgba(230, 244, 255, calc(0.38 * var(--torch-a))) 32%,
+      transparent 66%
+    ) border-box,
+    radial-gradient(
+      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y),
+      rgba(255, 216, 155, calc(0.58 * var(--sun-a))) 0%,
+      rgba(230, 244, 255, calc(0.30 * var(--sun-a))) 35%,
+      transparent 68%
+    ) border-box,
+    linear-gradient(rgba(196, 208, 245, 0.08), rgba(196, 208, 245, 0.08)) border-box,
+    linear-gradient(#03050B, #03050B) border-box;
+  color: #8E9BAE;
+  caret-color: #FFD89B;
+  font: 400 13px/1.45 var(--gl-font-sans);
+  box-shadow:
+    inset 1.5px 1.5px 0 #03050B,
+    inset 0 2px 5px rgba(0, 2, 8, 0.88);
+  outline: none;
+  transition:
+    --torch-a 160ms var(--agy-ease-out, ease-out),
+    --sun-a 800ms var(--agy-ease-out, ease-out),
+    color 160ms var(--agy-ease-out, ease-out),
+    box-shadow var(--agy-dur-base) var(--agy-ease-out);
+}
+/* 遥测等宽输入框（如航点坐标 / 时间戳读数）：走等宽仪表字，待机暗青灰 #7A90A8，聚焦提亮为冰晶白 #DCE8FF */
+.gl-input.gl-mono {
+  font-family: var(--gl-font-mono);
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: #7A90A8;
+}
+.gl-input .sep {
+  opacity: 0.35;
+  user-select: none;
+}
+textarea.gl-input {
+  display: block;
+  min-height: 84px;
+  resize: none;
+  line-height: 1.65;
+}
+.gl-input::placeholder,
+.gl-input > input::placeholder,
+.gl-input > textarea::placeholder {
+  color: rgba(142, 155, 174, 0.44);
+}
+/* 前缀图标（如搜索放大镜）：待机与占位符同频压在暗银灰，聚焦时才随底刃温和提亮，绝不飙成刺眼纯白 */
+.gl-input > .gl-icon,
+.gl-input > svg {
+  color: rgba(142, 155, 174, 0.48);
+  transition: color 160ms var(--agy-ease-out, ease-out);
+}
+.gl-input:focus-within > .gl-icon,
+.gl-input:focus-within > svg {
+  color: #7DCFFF;
+}
+/* 组合命令栏模式：外层 div.gl-input 负责暗槽与焦环，内部裸 input/textarea 自动透明撑满 */
+.gl-input > input,
+.gl-input > textarea {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  caret-color: inherit;
+  font: inherit;
+  outline: none;
+}
+.gl-input kbd {
+  font: 600 10px/1 var(--gl-font-mono);
+  letter-spacing: 0.06em;
+  color: #64E8E5;
+  background: rgba(8, 14, 26, 0.78);
+  padding: 3px 6px;
+  border-radius: 3px;
+  box-shadow:
+    inset -1px -1px 0 #04060C,
+    inset 1px 1px 0 rgba(240, 252, 255, 0.12);
+}
+.gl-input:hover:not(:focus):not(:focus-within) {
+  color: #A6B6CC;
+  background:
+    linear-gradient(#070A13, #070A13) padding-box,
+    linear-gradient(180deg, #03050B 0%, #03050B calc(100% - 6px), rgba(3, 5, 11, 0.45) calc(100% - 2px), transparent 100%) border-box,
+    linear-gradient(
+      90deg in oklch,
+      rgba(255, 216, 155, 0.42) 0%,
+      rgba(230, 244, 255, 0.52) 50%,
+      rgba(187, 154, 247, 0.42) 100%
+    ) border-box;
+}
+.gl-input:focus,
+.gl-input:focus-within {
+  color: #DCE8FF;
+  background:
+    radial-gradient(90% 60% at 35% 100%, rgba(255, 216, 155, 0.045) 0%, rgba(45, 110, 255, 0.055) 55%, transparent 100%) padding-box,
+    linear-gradient(#070A14, #070A14) padding-box,
+    linear-gradient(180deg, #03050B 0%, #03050B calc(100% - 6px), rgba(3, 5, 11, 0.35) calc(100% - 2px), transparent 100%) border-box,
+    var(--gl-crest-line) border-box;
+  box-shadow:
+    inset 1.5px 1.5px 0 #03050B,
+    inset 0 2px 6px rgba(0, 2, 8, 0.92),
+    0 1px 8px -2px rgba(255, 216, 155, 0.16);
+}
+
+/* ==========================================================================
+   4f. 光学数据表（.gl-table）：
+   不等宽多列遥测账本/报表（区别于等大方格的 .gl-lattice）。
+   严禁画竖向铁丝网边框：表头走遥测等宽轨，底下压一道 1px 金星带光谱地平线（--gl-crest-line）；
+   每一行（tbody tr）挂在手电与太阳总线上——手电与太阳只擦亮行底那根 1px 水平细刃（0 100% / 100% 1px no-repeat），绝不往行肚子里打黄雾；
+   悬停时整行浮现香槟金 + 钴蓝呼吸底光与底部 1px 光谱线。
+   ========================================================================== */
+.gl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 400 13px/1.5 var(--gl-font-sans);
+  color: #C4D0F5;
+  font-variant-numeric: tabular-nums;
+}
+.gl-table thead {
+  background: var(--gl-crest-line) 0 100% / 100% 1px no-repeat;
+}
+.gl-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font: 500 11.5px/1.2 var(--gl-font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7DCFFF;
+}
+.gl-table tbody tr {
+  transition:
+    --torch-a 160ms var(--agy-ease-out, ease-out),
+    --sun-a 800ms var(--agy-ease-out, ease-out);
+  background:
+    radial-gradient(
+      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y),
+      rgba(255, 216, 155, calc(0.68 * var(--torch-a))) 0%,
+      rgba(230, 244, 255, calc(0.34 * var(--torch-a))) 32%,
+      transparent 66%
+    ) 0 100% / 100% 1px no-repeat,
+    radial-gradient(
+      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y),
+      rgba(255, 216, 155, calc(0.55 * var(--sun-a))) 0%,
+      rgba(230, 244, 255, calc(0.28 * var(--sun-a))) 35%,
+      transparent 68%
+    ) 0 100% / 100% 1px no-repeat;
+}
+/* 行间 1px 分隔线单独一条规则（末行没有），手电渐变只在上面写一次 */
+.gl-table tbody tr:not(:last-child) td {
+  border-bottom: 1px solid rgba(196, 208, 245, 0.055);
+}
+.gl-table td {
+  padding: 10px 14px;
+  color: #8E9BAE;
+  transition: color 140ms var(--agy-ease-out);
+}
+.gl-table th.num,
+.gl-table td.num {
+  text-align: right;
+  font-family: var(--gl-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.gl-table td.num {
+  color: #B8C7E0;
+}
+.gl-table tbody tr:hover {
+  background:
+    var(--gl-crest-line) 0 100% / 100% 1px no-repeat,
+    radial-gradient(85% 90% at 35% 100%, rgba(255, 216, 155, 0.05) 0%, rgba(45, 110, 255, 0.07) 55%, transparent 100%);
+}
+.gl-table tbody tr:hover td {
+  color: #DCE8FF;
+}
+.gl-table tbody tr:hover td.num {
+  color: #64E8E5;
+}
+
+/* ==========================================================================
+   4g. 瞬态浮层与下拉菜单（.gl-popover）：
+   悬在面板之上的高密度黑曜石棱镜（Tooltip / 右键菜单 / Select 浮层）：
+   比 .gl-card 更深（0.92 不透明度 + 22px 强模糊 + 深空投影），外加 100% 满血 1px --gl-edge 刀锋；
+   内部装 .gl-brick 时，未悬停项背景全透明（像 .gl-track 一样不画多余灰块），悬停/选中那一项才浮成立体玻璃键帽。
+   ========================================================================== */
+.gl-popover {
+  position: relative;
+  z-index: 60;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+  padding: 5px;
+  border-radius: 8px;
+  color: #EDF4FF;
+  font: 400 13px/1.45 var(--gl-font-sans);
+  isolation: isolate;
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.11) 0%, transparent 50%),
+    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.14) 0%, transparent 60%),
+    rgba(12, 15, 24, 0.92);
+  backdrop-filter: blur(22px) saturate(170%);
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.62),
+    inset -1.5px -1.5px 0px #05070C,
+    inset 0 1px 0 0 rgba(255, 220, 170, 0.14);
+}
+.gl-popover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--gl-edge);
+  opacity: 1;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.gl-popover > .gl-brick {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 5px;
+  justify-content: space-between;
+}
+.gl-popover > .gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert) {
+  background-color: transparent;
+  box-shadow: none;
+}
+.gl-popover hr {
+  border: 0;
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--gl-crest-line);
+  opacity: 0.35;
 }
 
 /* ==========================================================================

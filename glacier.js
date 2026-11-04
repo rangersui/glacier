@@ -443,7 +443,7 @@
     torch: true,
     torchRadius: 160,
     sunTorch: true,
-    torchSelector: ".gl-brick",
+    torchSelector: ".gl-brick, .gl-input, .gl-slider, .gl-table tbody tr",
     observe: true,
     trackSelector: "[data-gl-track]",
     dim: 0.3,
@@ -750,10 +750,12 @@
         }, { capture: true, passive: true });
         if (this.options.observe) this.observeRoot();
         const sel = this.options.torchSelector;
+        on(document, "pointerdown", (e) => { this.torchPos = { x: e.clientX, y: e.clientY }; this.scheduleTorch(); }, { passive: true });
         on(document, "pointermove", (e) => { this.torchPos = { x: e.clientX, y: e.clientY }; this.scheduleTorch(); }, { passive: true });
         on(document, "pointerleave", () => { this.torchPos = null; this.scheduleTorch(); });
         on(this.root, "focusin", (e) => { const el = e.target?.closest?.(sel); this.torchFocus = el || null; this.scheduleTorch(); });
         on(this.root, "focusout", () => { this.torchFocus = null; this.scheduleTorch(); });
+        on(this.root, "input", (e) => { if (e.target?.matches?.(sel)) this.scheduleTorch(); }); // 滑块值变了，焦点补光跟到新游标位置
       }
       on(document, "visibilitychange", () => { if (!document.hidden) this.update(); }); // 回前台补一帧
     }
@@ -802,6 +804,16 @@
       if (st.getPropertyValue(vars[2]) !== alpha) st.setProperty(vars[2], alpha);
     }
     static release(prev, keep, vars) { for (const el of prev) if (!keep.has(el)) for (const k of vars) el.style.removeProperty(k); }
+    static focusPoint(el, r) {
+      if (el.type === "range") {
+        const min = el.min !== "" && Number.isFinite(Number(el.min)) ? Number(el.min) : 0;
+        const max = el.max !== "" && Number.isFinite(Number(el.max)) ? Number(el.max) : 100;
+        const val = Number(el.value);
+        const t = max > min && Number.isFinite(val) ? Math.max(0, Math.min(1, (val - min) / (max - min))) : 0.5;
+        return [7 + t * Math.max(0, r.width - 14), r.height / 2];
+      }
+      return [r.width / 2, r.height / 2];
+    }
     // 太阳手电：光源是轨道游标在视口里的位置，半径 1.5 倍，亮度跟 glow 走，夜里暗一点。
     // 只照不动：不加类、不改状态、不派事件。钟不许停，所以它永远在走
     applySunTorch() {
@@ -812,13 +824,19 @@
       Instance.release(this.sunTorched, keep, SUN_TORCH_VARS);
       this.sunTorched = keep;
     }
-    // 鼠标手电：光源是指针；键盘焦点等价于手电停在那一格的正中
+    // 鼠标手电：光源是指针。键盘焦点（:focus-visible，含容器里聚焦的输入框）且没被指针照到时，把光补在元素中心（滑块补在游标处）；
+    // 鼠标点出来的焦点不补光，免得指针走开后元素中间还挂着一团光。每轮当场判断，不缓存状态，键盘一动 :focus-visible 就回来
     applyTorch() {
       if (this.destroyed) return;
       const R = Math.max(0, Number(this.options.torchRadius) || 0);
       const p = this.torchPos, f = this.torchFocus;
       const keep = p ? this.lightBricks(p.x, p.y, R, TORCH_VARS, "1") : new Set();
-      if (f && f.__glRect && f.isConnected) { this.setLight(f, TORCH_VARS, f.__glRect.width / 2, f.__glRect.height / 2, "1"); keep.add(f); }
+      const keyboardFocus = (el) => { try { return el.matches(":focus-visible") || !!el.querySelector(":focus-visible"); } catch { return true; } };
+      if (f && !keep.has(f) && f.__glRect && f.isConnected && keyboardFocus(f)) {
+        const [fx, fy] = Instance.focusPoint(f, f.__glRect);
+        this.setLight(f, TORCH_VARS, fx, fy, "1");
+        keep.add(f);
+      }
       Instance.release(this.torched, keep, TORCH_VARS);
       this.torched = keep;
     }
