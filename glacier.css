@@ -58,14 +58,108 @@
   --gl-font-sans: "Inter", "Noto Sans SC", "HarmonyOS Sans SC", "MiSans", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
-/* 可选：给 <body>（或别的容器）加 .gl-stage，就得到深空基底和默认前景色（macOS 上同时开启灰阶抗锯齿）。
+/* 可选：给 <body>（或别的容器）加 .gl-stage，就得到深空基底、默认前景色与暗座舱滚动条。
    不加也行，只要宿主自己保证画布后面是深色。 */
 .gl-stage {
   background-color: var(--agy-bg);
   color: var(--agy-fg);
+  color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+/* 暗座舱滚动条（严格收在 .gl-stage 作用域内，视口那根靠 :root:has(> body.gl-stage) 补齐）：
+   轨道是 6px 微缩暗槽（与 .gl-track 同源），滑块是三色棱镜游丝（竖条 180deg、横条 90deg：香槟暖金 → 冰晶白 → 暮光紫）：
+   平时压在 38%–46% 静态克制亮度，悬停/拖拽时点亮到满血刀锋。
+   仅在非 WebKit 引擎（Firefox）回退到标准 scrollbar-width，避免 Chromium 121+ 因声明 scrollbar-color 而禁用 ::-webkit-scrollbar。 */
+:root:has(> body.gl-stage)::-webkit-scrollbar,
+.gl-stage::-webkit-scrollbar,
+.gl-stage ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+:root:has(> body.gl-stage)::-webkit-scrollbar-track,
+.gl-stage::-webkit-scrollbar-track,
+.gl-stage ::-webkit-scrollbar-track {
+  background: rgba(5, 10, 24, 0.48);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 2, 8, 0.65);
+}
+:root:has(> body.gl-stage)::-webkit-scrollbar-corner,
+.gl-stage::-webkit-scrollbar-corner,
+.gl-stage ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+:root:has(> body.gl-stage)::-webkit-scrollbar-thumb,
+.gl-stage::-webkit-scrollbar-thumb,
+.gl-stage ::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg in oklch,
+    rgba(255, 216, 155, 0.38) 0%,
+    rgba(230, 244, 255, 0.46) 45%,
+    rgba(187, 154, 247, 0.34) 100%
+  );
+  box-shadow: inset -1px -1px 0 #06080E;
+}
+:root:has(> body.gl-stage)::-webkit-scrollbar-thumb:horizontal,
+.gl-stage::-webkit-scrollbar-thumb:horizontal,
+.gl-stage ::-webkit-scrollbar-thumb:horizontal {
+  background: linear-gradient(
+    90deg in oklch,
+    rgba(255, 216, 155, 0.38) 0%,
+    rgba(230, 244, 255, 0.46) 45%,
+    rgba(187, 154, 247, 0.34) 100%
+  );
+}
+:root:has(> body.gl-stage)::-webkit-scrollbar-thumb:hover,
+.gl-stage::-webkit-scrollbar-thumb:hover,
+.gl-stage ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg in oklch,
+    rgba(255, 216, 155, 0.72) 0%,
+    rgba(230, 244, 255, 0.84) 45%,
+    rgba(187, 154, 247, 0.64) 100%
+  );
+}
+:root:has(> body.gl-stage)::-webkit-scrollbar-thumb:horizontal:hover,
+.gl-stage::-webkit-scrollbar-thumb:horizontal:hover,
+.gl-stage ::-webkit-scrollbar-thumb:horizontal:hover {
+  background: linear-gradient(
+    90deg in oklch,
+    rgba(255, 216, 155, 0.72) 0%,
+    rgba(230, 244, 255, 0.84) 45%,
+    rgba(187, 154, 247, 0.64) 100%
+  );
+}
+:root:has(> body.gl-stage)::-webkit-scrollbar-thumb:active,
+.gl-stage::-webkit-scrollbar-thumb:active,
+.gl-stage ::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(
+    180deg in oklch,
+    #FFD89B 0%,
+    #E6F4FF 45%,
+    rgba(187, 154, 247, 0.88) 100%
+  );
+}
+:root:has(> body.gl-stage)::-webkit-scrollbar-thumb:horizontal:active,
+.gl-stage::-webkit-scrollbar-thumb:horizontal:active,
+.gl-stage ::-webkit-scrollbar-thumb:horizontal:active {
+  background: linear-gradient(
+    90deg in oklch,
+    #FFD89B 0%,
+    #E6F4FF 45%,
+    rgba(187, 154, 247, 0.88) 100%
+  );
+}
+@supports not selector(::-webkit-scrollbar) {
+  :root:has(> body.gl-stage),
+  .gl-stage,
+  .gl-stage * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(196, 208, 245, 0.28) rgba(5, 10, 24, 0.48);
+  }
 }
 
 /* --------------------------------------------------------------------------

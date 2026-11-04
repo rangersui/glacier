@@ -16,56 +16,52 @@
   body {
     margin: 0;
     min-height: 100vh;
-    font: 14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+    font: 14px/1.6 var(--gl-font-sans);
   }
   a { color: var(--agy-accent-cyan); }
-  .wrap { max-width: 1040px; margin: 0 auto; padding: 24px 20px 80px; }
-  .topbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 48px; padding: 10px 14px; border-radius: 8px 8px 0 0; }
-  .topbar .brand { font: 600 12px/1 ui-monospace, "Cascadia Code", Consolas, monospace; letter-spacing: 2px; color: #7dcfff; margin-right: auto; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 32px 140px; }
+  .topbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 40px; padding: 11px 16px; border-radius: 8px 8px 0 0; }
+  .topbar .brand { font: 600 12px/1 var(--gl-font-mono); letter-spacing: 2px; color: #7dcfff; margin-right: auto; }
   .topbar a.gl-brick { text-decoration: none; }
-  .topbar .clock { font: 600 12px/1 ui-monospace, "Cascadia Code", Consolas, monospace; color: #e0f7ff; }
-  .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: start; margin-bottom: 40px; }
-  .hero h1 { font-size: 40px; line-height: 1.1; margin: 0 0 12px; color: #eef3ff; letter-spacing: -0.5px; }
-  .hero h1 small { display: block; font-size: 13px; font-weight: 500; letter-spacing: 3px; color: #7dcfff; margin-bottom: 10px; }
-  .hero p.lead { color: #aab6dc; margin: 0 0 22px; font-size: 15px; }
-  .bricks { display: flex; flex-wrap: wrap; gap: 10px; }
-  .stack { display: flex; flex-direction: column; gap: 14px; }
-  .gl-card:not(.gl-prose) h3 { margin: 0 0 6px; font-size: 14px; color: #eef3ff; }
-  .gl-card:not(.gl-prose) p { margin: 0; color: #b8c4e8; }
-  .gl-card:not(.gl-prose) p + p { margin-top: 8px; }
-  .gl-card:not(.gl-prose) code, .rule code { font: 12px var(--gl-font-mono); color: #ffd285; }
-  .panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px 18px; }
-  .panel label { display: block; font: 600 11px/1 ui-monospace, Consolas, monospace; letter-spacing: 1px; color: #7dcfff; margin-bottom: 7px; text-transform: uppercase; }
+  .topbar .clock { font: 600 12px/1 var(--gl-font-mono); color: #e0f7ff; }
+  .hero { display: flex; flex-direction: column; justify-content: center; min-height: calc(100vh - 160px); padding: 20px 0 60px; }
+  .hero h1 { font: 400 48px/1.18 var(--gl-font-serif); margin: 0 0 18px; color: #eef3ff; letter-spacing: 0.02em; }
+  .hero h1 small { display: block; font: 600 11px/1 var(--gl-font-mono); letter-spacing: 3px; color: #7dcfff; margin-bottom: 18px; }
+  .hero p.lead { color: #8E9BAE; margin: 0 0 36px; font-size: 15px; line-height: 1.8; max-width: 48ch; }
+  .bricks { display: flex; flex-wrap: wrap; gap: 12px; }
+  .gl-card.gl-prose { padding: 24px 28px; }
+  .panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px 24px; }
+  .panel label { display: block; font: 600 11px/1 var(--gl-font-mono); letter-spacing: 1.5px; color: #7dcfff; margin-bottom: 9px; text-transform: uppercase; }
   .panel .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .panel .gl-brick { padding: 6px 10px; font-size: 12px; }
   .panel .gl-brick.on { color: #fff6e0; }
   input[type="range"] { width: 100%; accent-color: #ffd285; }
-  /* 一颗自己漂的节点：带 data-gl-track，引擎逐帧跟着它量矩形、被手电探测（lamp 模式下还跟着受光）；它自己一句光的代码都没有 */
-  .drifter { position: fixed; left: 0; top: 0; z-index: 5; animation: drift 14s ease-in-out infinite alternate; }
+  .stress-stage { position: relative; }
+  .drifter { position: absolute; left: 0; top: 220px; z-index: 5; animation: drift 12s ease-in-out infinite alternate; }
   .drifter.paused { animation-play-state: paused; }
-  @keyframes drift { 0% { transform: translate(60vw, 18vh); } 50% { transform: translate(28vw, 42vh); } 100% { transform: translate(66vw, 58vh); } }
-  .readout { font: 11.5px/1.6 ui-monospace, "Cascadia Code", Consolas, monospace; color: #9fb3d9; white-space: pre-wrap; }
+  @keyframes drift { 0% { transform: translate(520px, 12px); } 50% { transform: translate(680px, 96px); } 100% { transform: translate(540px, 180px); } }
+  .readout { font: 11.5px/1.7 var(--gl-font-mono); color: #9fb3d9; white-space: pre-wrap; }
   .readout b { color: #e0f7ff; font-weight: 600; }
-  section { margin-top: 44px; }
-  section h2 { font-size: 12px; letter-spacing: 3px; color: #7dcfff; text-transform: uppercase; margin: 0 0 6px; }
-  section p.rule { margin: 0 0 14px; color: #8f9dc4; font-size: 13px; max-width: 760px; }
-  .states { display: flex; flex-wrap: wrap; gap: 18px 24px; align-items: flex-start; }
-  .states figure { margin: 0; display: flex; flex-direction: column; gap: 7px; }
-  .states figcaption { font: 600 10px/1 ui-monospace, Consolas, monospace; letter-spacing: 1px; color: rgba(196, 208, 245, 0.45); }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
-  .louver-demo { max-width: 420px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
-  .scroller { height: 260px; overflow: auto; padding: 12px; border-radius: 14px; background: rgba(8, 12, 24, 0.5); display: flex; flex-direction: column; gap: 9px; }
+  section { min-height: 62vh; padding: 120px 0; border-top: 1px solid rgba(196, 208, 245, 0.06); display: flex; flex-direction: column; justify-content: center; }
+  section .eyebrow { display: block; font: 600 11px/1 var(--gl-font-mono); letter-spacing: 3px; color: #7dcfff; text-transform: uppercase; margin: 0 0 12px; }
+  section h2 { font: 400 28px/1.3 var(--gl-font-serif); letter-spacing: 0.03em; color: #EDF4FF; margin: 0 0 12px; }
+  section p.rule { margin: 0 0 44px; color: #8E9BAE; font-size: 14.5px; max-width: 52ch; }
+  .states { display: flex; flex-wrap: wrap; gap: 28px 36px; align-items: flex-start; }
+  .states figure { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+  .states figcaption { font: 600 10px/1 var(--gl-font-mono); letter-spacing: 1px; color: rgba(196, 208, 245, 0.45); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start; max-width: 780px; }
+  .louver-demo { max-width: 380px; }
+  .scroller { max-width: 460px; height: 240px; overflow: auto; padding: 14px; border-radius: 8px; background: rgba(5, 10, 24, 0.56); box-shadow: inset 0 1px 2px rgba(0, 2, 8, 0.75), 0 1px 0 rgba(187, 154, 247, 0.08); display: flex; flex-direction: column; gap: 10px; }
   .scroller .gl-brick { flex: none; }
-  footer { margin-top: 60px; color: #6c7aa6; font-size: 12px; }
-  @media (max-width: 760px) { .hero, .two { grid-template-columns: 1fr; } .hero h1 { font-size: 30px; } }
+  footer { margin-top: 40px; padding-top: 40px; border-top: 1px solid rgba(196, 208, 245, 0.06); color: #6c7aa6; font-size: 12px; }
+  @media (max-width: 760px) { .wrap { padding: 20px 18px 80px; } .two { grid-template-columns: 1fr; gap: 24px; } .hero { min-height: auto; padding: 8px 0 44px; } .hero h1 { font-size: 32px; } section { min-height: auto; padding: 64px 0; } }
 </style>
 </head>
 <body class="gl-stage">
 <div class="wrap">
 
   <nav class="topbar gl-bar">
-    <span class="brand">GLACIER · 组件目录</span>
+    <span class="brand">GLACIER</span>
     <button class="gl-brick gl-nav"><span class="gl-icon">＋</span> 新建对话</button>
     <button class="gl-brick gl-nav"><span class="gl-icon">⏱</span> 自动化任务</button>
     <button class="gl-brick gl-nav"><span class="gl-icon">🧊</span> 冰山列表</button>
@@ -74,101 +70,77 @@
   </nav>
 
   <header class="hero">
-    <div>
-      <h1><small>DESIGN LANGUAGE</small>一艘停在冰川上的星舰</h1>
-      <p class="lead">背后有一盏按真实时间走动的灯，管轨迹游标和黑白底片的探照灯显影位置；控件的材质是焊死在空间里的 Windhawk 三色棱镜（1px 环：左上香槟暖金 <code>#FFD89B</code> → 冰晶白 <code>#E6F4FF</code> → 暮光紫，64% 后归零；厚度靠右下 <code>inset -1.5px</code> 的零模糊内暗槽），未选中绝不带玻璃与边，只有选中或鼠标手电靠近时才浮现立体玻璃键帽。这一页每个组件一节，各带一行规矩，每块砖都能按：同组单选、告警点一下算确认、漂移节点点一下停。用这些积木搭成的舰桥在 <a href="bridge.html">bridge.html</a>。背景默认是空的，工程面板里切 photo 看底片。</p>
-      <div class="bricks">
-        <button class="gl-brick gl-fresh">当前会话</button>
-        <button class="gl-brick">Casual Evening…</button>
-        <button class="gl-brick">MATLAB MCP 简介</button>
-        <button class="gl-brick">Libusb Guide</button>
-        <button class="gl-brick">星舰冰川 · 设计规格</button>
-        <button class="gl-brick gl-alert">⚠ 后台任务待确认</button>
-        <button class="gl-brick">网关 v2.1 媒体附件</button>
-      </div>
-    </div>
-    <div class="stack">
-      <div class="gl-card gl-pop-in">
-        <h3>两个文件，一行代码</h3>
-        <p>引入 <code>glacier.css</code> 和 <code>glacier.js</code>，然后 <code>Glacier.init()</code>。画布、太阳、灯、打光、手电、尺寸变化全部自动；给元素加 <code>.gl-brick</code> / <code>.gl-card</code> 就会受光，新塞进来的节点也一样。</p>
-      </div>
-      <div class="gl-card">
-        <h3>一盏灯，两个消费者</h3>
-        <p>overlay 上的轨道游标、root 上黑白底片的探照灯坐标与微弱明度呼吸，用的都是同一个点；底片永远是 100% 黑白银盐灰阶（零色相串味），砖和卡片的材质是 CSS 常数。这一页会动的东西都在听 <code>gl.sun</code>。</p>
-      </div>
+    <h1><small>GLACIER</small>一艘停在冰川上的星舰</h1>
+    <p class="lead">光属于房间，不属于按钮。搭好的暗座舱在 <a href="bridge.html">bridge.html</a>。</p>
+    <div class="bricks">
+      <button class="gl-brick gl-fresh">当前会话</button>
+      <button class="gl-brick">星舰冰川</button>
+      <button class="gl-brick">卡西尼环缝</button>
+      <button class="gl-brick gl-alert">⚠ 待确认</button>
+      <button class="gl-brick">深空日志</button>
     </div>
   </header>
 
-  <!-- ================= 组件目录 ================= -->
+  <!-- ================= 展厅 ================= -->
 
   <section>
-    <h2>砖 · .gl-brick</h2>
-    <p class="rule">严禁实心蓝油漆与双层斑马线框：静止态是均匀的烟熏磨砂底（暗槽内全透明）；点亮态肚子保持 80%+ 深邃黑曜石透明感（<code>rgba(18, 22, 32, 0.78)</code>），只留左上 10% 香槟暖金与左下 16% 皇家钴蓝呼吸微光，外加唯一一道 1px 单层光学刀锋（<code>#FFD89B → #E6F4FF → 88% transparent</code> 归零）与右下 <code>inset -1.5px #06080E</code> 硬朗内暗槽。</p>
+    <span class="eyebrow">01 // .GL-BRICK</span>
+    <h2>冰砖</h2>
+    <p class="rule">砖是状态，不是底座。平时哑光，点亮才起刀锋。</p>
     <div class="states">
-      <figure><button class="gl-brick">静止</button><figcaption>REST · 哑光 2.5%（无玻璃无边）</figcaption></figure>
-      <figure><button class="gl-brick">把鼠标放上来</button><figcaption>HOVER · 1px 刀锋 + 内暗槽</figcaption></figure>
-      <figure><button class="gl-brick on">选中</button><figcaption>.ON · 立体玻璃键帽</figcaption></figure>
-      <figure><button class="gl-brick gl-fresh">新鲜</button><figcaption>.GL-FRESH · 极寒凝结</figcaption></figure>
-      <figure><button class="gl-brick gl-alert">⚠ 要你看</button><figcaption>.GL-ALERT · 红只给要你看</figcaption></figure>
-      <figure><button class="gl-brick gl-nav"><span class="gl-icon">🧊</span> 导航</button><figcaption>.GL-NAV · 更亮、圆角 5px</figcaption></figure>
+      <figure><button class="gl-brick">静止</button><figcaption>REST</figcaption></figure>
+      <figure><button class="gl-brick">悬停手电</button><figcaption>:HOVER</figcaption></figure>
+      <figure><button class="gl-brick on">选中</button><figcaption>.ON</figcaption></figure>
+      <figure><button class="gl-brick gl-fresh">新鲜</button><figcaption>.GL-FRESH</figcaption></figure>
+      <figure><button class="gl-brick gl-alert">⚠ 告警</button><figcaption>.GL-ALERT</figcaption></figure>
+      <figure><button class="gl-brick gl-nav"><span class="gl-icon">🧊</span> 导航</button><figcaption>.GL-NAV</figcaption></figure>
     </div>
   </section>
 
   <section>
-    <h2>暗槽 · .gl-track</h2>
-    <p class="rule">同一组的几个小开关共用一条下沉的暗槽：比面板暗 3%，不带金边。槽里的砖自己不再要底片，槽就是形状；只有 <code>.on</code> / 悬停的那颗在槽里亮起。</p>
+    <span class="eyebrow">02 // .GL-TRACK</span>
+    <h2>暗槽</h2>
+    <p class="rule">同组开关共用一条下沉轨道，槽里只亮选中那一颗。</p>
     <div class="gl-track">
       <button class="gl-brick">实时</button>
       <button class="gl-brick on">延时</button>
-      <button class="gl-brick">落日来回</button>
+      <button class="gl-brick">落日</button>
       <button class="gl-brick">手动</button>
     </div>
   </section>
 
   <section>
-    <h2>光栅 · .gl-louver</h2>
-    <p class="rule">控件是光的传感器，布局就是传感器的摆放。一块砖只能告诉你一个点的光，一排等高、等距的长条才把手电的衰减画出来。长边朝光，节距（条高 + 缝）40–50px，160px 的手电里装得下 3–4 条；缝 8–12px，全页一个值。侧边栏、任务栏、服务列表都是它。</p>
-    <div class="two">
-      <div class="gl-louver louver-demo">
-        <button class="gl-brick on"><span>母星 · 冰星黄昏</span><small>16:00–19:00</small></button>
-        <button class="gl-brick"><span>轨道站 · 纯冰</span><small>实时</small></button>
-        <button class="gl-brick"><span>红巨星 · 日冕边缘</span><small>17:36</small></button>
-        <button class="gl-brick"><span>脉冲星 · 高频昼夜</span><small>24 s</small></button>
-        <button class="gl-brick"><span>深空 · 夜航</span><small>01:30</small></button>
-        <button class="gl-brick"><span>网关 v2.1 · 媒体</span><small>:8765</small></button>
-      </div>
-      <div class="gl-card">
-        <h3>为什么是一排，不是一块</h3>
-        <p>百叶窗上的阳光好看，同一片阳光打在墙上平平无奇。把鼠标在左边这排上下移，远近的条按距离依次亮起又隐去：那是光场被逐级采样出来了。</p>
-        <p>便当盒是唯一的死法：大小不一的卡片拼在一起，周期全乱，光打上去像一地碎玻璃。</p>
-      </div>
+    <span class="eyebrow">03 // .GL-LOUVER</span>
+    <h2>光栅</h2>
+    <p class="rule">一排等高长条，把手电的衰减一格格量出来。</p>
+    <div class="gl-louver louver-demo">
+      <button class="gl-brick on"><span>母星 · 冰星黄昏</span><small>16:00–19:00</small></button>
+      <button class="gl-brick"><span>轨道站 · 纯冰</span><small>实时</small></button>
+      <button class="gl-brick"><span>红巨星 · 日冕边缘</span><small>17:36</small></button>
+      <button class="gl-brick"><span>脉冲星 · 高频昼夜</span><small>24 s</small></button>
+      <button class="gl-brick"><span>深空 · 夜航</span><small>01:30</small></button>
     </div>
   </section>
 
   <section>
-    <h2>晶格 · .gl-lattice</h2>
-    <p class="rule">二维阵列：等大方格、缝 ≤ 6px、圆角 2px。相邻两条 1px 刀锋隔 4px 眼睛分不开，融成一道亮缝，光于是属于缝而不是格子；鼠标停在交叉点亮起的是经线和纬线。圆角跟节距走：独立砖 5–6px，密晶格 0–2px，否则每个交点留一个暗菱形把十字切断。标签（<code>.gl-lattice-label</code>）和空位（<code>.gl-void</code>）不是砖，只占格。</p>
-    <div class="two">
-      <div class="gl-lattice" id="lattice" style="--gl-lattice-cols: 8; --gl-lattice-cell: 44px;"></div>
-      <div class="gl-card">
-        <h3>Win10 日历的那枚十字星</h3>
-        <p>Reveal 的封神之作不是按钮，是 7×6 的日期矩阵和计算器键盘：手电罩住 3×3 个格子，经纬两条轴同时从鼠标向外衰减。舰桥右边那块当月日历就是它。</p>
-        <p>稀疏散落、中心点亮的小方块才是一排瞳孔；密阵列不是。</p>
-      </div>
-    </div>
+    <span class="eyebrow">04 // .GL-LATTICE</span>
+    <h2>晶格</h2>
+    <p class="rule">相邻刀锋融成亮缝，鼠标停在交点亮起十字星。</p>
+    <div class="gl-lattice" id="lattice" style="--gl-lattice-cols: 8; --gl-lattice-cell: 44px;"></div>
   </section>
 
   <section>
-    <h2>卡片 · .gl-card</h2>
-    <p class="rule">大块冰板：毛玻璃 + 玻璃噪点 + 一圈连续的 <code>1px</code> 归一化渐变环（左上香槟暖金 <code>#FFD89B</code> → 冰晶白 <code>#E6F4FF</code> → 暮光紫，64% 后归零；厚度靠 <code>inset -1.5px</code> 内暗槽），不是两条线。卡片装阵列，嵌套只许一层，里面不许有第三层边。</p>
+    <span class="eyebrow">05 // .GL-CARD</span>
+    <h2>冰板</h2>
+    <p class="rule">毛玻璃、磨砂噪点与 1px 连续环。嵌套只许一层。</p>
     <div class="two">
-      <div class="gl-card">
-        <h3>一张卡片</h3>
-        <p>环用 <code>100% 100% at 0% 0%</code> 椭圆径向渐变按盒子宽高自动归一化：无论方格还是宽条，顶边和左边从 0% 走起，右边和底边落在归零区，不漏紫白斑马线；厚度不在环里，在 <code>inset -1.5px</code> 的零模糊内暗槽里。</p>
+      <div class="gl-card gl-prose">
+        <h3>单层容器</h3>
+        <p>大块面板收纳阵列与长文，内部不再叠第三层边框。</p>
       </div>
-      <div class="gl-card">
-        <h3>卡片里装一条光栅</h3>
-        <div class="gl-louver" style="--gl-louver-h: 34px; --gl-louver-gap: 8px; margin-top: 8px;">
+      <div class="gl-card gl-prose">
+        <h3>内嵌光栅</h3>
+        <div class="gl-louver" style="--gl-louver-h: 34px; --gl-louver-gap: 8px; margin-top: 10px;">
           <button class="gl-brick">会话 A</button>
           <button class="gl-brick on">会话 B</button>
           <button class="gl-brick">会话 C</button>
@@ -178,38 +150,35 @@
   </section>
 
   <section>
-    <h2>图标 · .gl-icon</h2>
-    <p class="rule">图标色温：彩色 emoji / 位图压成冷银灰，别在黑金冰蓝里蹦出一块卡通色。左边原样，右边加了 <code>.gl-icon</code>。</p>
+    <span class="eyebrow">06 // .GL-ICON</span>
+    <h2>图标</h2>
+    <p class="rule">彩色图标压成冷银灰，不抢刀锋与告警的色温。</p>
     <div class="bricks">
-      <button class="gl-brick">🧊 冰山列表</button>
-      <button class="gl-brick"><span class="gl-icon">🧊</span> 冰山列表</button>
-      <button class="gl-brick">🛰 漂移节点</button>
-      <button class="gl-brick"><span class="gl-icon">🛰</span> 漂移节点</button>
-      <button class="gl-brick">📄 PDF</button>
-      <button class="gl-brick"><span class="gl-icon">📄</span> PDF</button>
+      <button class="gl-brick">🧊 原色</button>
+      <button class="gl-brick"><span class="gl-icon">🧊</span> 冷银灰</button>
+      <button class="gl-brick">🛰 原色</button>
+      <button class="gl-brick"><span class="gl-icon">🛰</span> 冷银灰</button>
     </div>
   </section>
 
   <section>
-    <h2>长文排版 · .gl-prose</h2>
-    <p class="rule">不发明新容器积木，只需给装文章的 <code>.gl-card</code>（或 <code>&lt;article&gt;</code>）多挂一个 <code>.gl-prose</code>：三轨字体栈（标题与引用走细衬线 <code>--gl-font-serif</code>、正文走高内白无衬线 <code>--gl-font-sans</code>、行内代码走等宽 <code>--gl-font-mono</code>）+ 信息熵明度阶跃（普通段落压在 <code>#8E9BAE</code> 冷石板银灰，重点词不傻加粗，靠提亮到冰晶白 <code>&lt;strong&gt;</code> 与香槟暖金 <code>&lt;mark&gt;</code> 浮出）。</p>
-    <article class="gl-card gl-prose">
-      <h1>光学蚀刻：为什么暗座舱不能用纯白排正文</h1>
-      <p>在 <code>#13141c</code> 的极暗深空基底与黑曜石毛玻璃上，文字不是印在纸上的黑墨水，而是<strong>刻在晶体表面被微光点亮的光学蚀刻（Laser Etching）</strong>。如果直接用纯白排满整篇段落，视网膜上的光渗效应会让亮字在暗底上刺眼眩目，读满五百字就会视觉疲劳。</p>
-      <blockquote>「把全部色相预算留给前景的 1px 棱镜刀锋，把全部明度阶跃留给真正携带信息熵的破局词。」——卡西尼号银盐底片显影守则</blockquote>
-      <h2>三轨字体栈与信息熵梯度</h2>
-      <p>常规叙述段落压在 <code>#8E9BAE</code>（约 62% 亮度的冷石板银灰），行高拉开到 <code>1.8</code>、单行锁死在 <code>66ch</code> 以内；当句子里出现高信息熵的核心判断时，不用粗笨的大黑体，而是用<strong>冰晶白 500 字重微光提亮</strong>或 <mark>香槟暖金锚点游丝</mark> 让概念自己从灰阶段落里浮出来。</p>
-      <hr>
-      <p>连章节之间的水平分割线 <code>&lt;hr&gt;</code> 与引用块左侧的垂直导轨 <code>&lt;blockquote&gt;</code>，也全部复用同一根 <code>1px</code> 香槟金 → 冰晶白 → 暮光紫光谱刀锋，从按钮、面板一直贯彻到标点符号。</p>
+    <span class="eyebrow">07 // .GL-PROSE</span>
+    <h2>蚀刻长文</h2>
+    <p class="rule">三轨字体栈。层级靠明度与色温拉开，不靠粗细。</p>
+    <article class="gl-card gl-prose" style="max-width: 640px;">
+      <h1>卡西尼环缝观测手记</h1>
+      <p>深空底片停在 <code>17:42</code> 的银盐灰阶里。常规遥测压在冷石板灰，只有<strong>轨道偏心率异常</strong>与 <mark>近星点点火窗口</mark> 从暗部浮出。</p>
+      <blockquote>「光属于房间，不属于按钮。」</blockquote>
     </article>
   </section>
 
-  <!-- ================= 工程面板 ================= -->
+  <!-- ================= 调光台 ================= -->
 
   <section>
-    <h2>工程面板</h2>
-    <p class="rule">这些是测试用的旋钮，不是设计的一部分。舰桥上只有两个：去哪、多快。</p>
-    <div class="gl-card">
+    <span class="eyebrow">08 // CONSOLE</span>
+    <h2>调光台</h2>
+    <p class="rule">拨时间、切底片、看读数。</p>
+    <div class="gl-card" style="max-width: 780px;">
       <div class="panel">
         <div style="grid-column: 1 / -1;">
           <label>时间 <span id="hourLabel" style="color:#ffd285"></span></label>
@@ -220,15 +189,15 @@
           <div class="row gl-track" data-group="mode">
             <button class="gl-brick" data-v="realtime">实时</button>
             <button class="gl-brick" data-v="timelapse">延时</button>
-            <button class="gl-brick" data-v="sunset">落日 16–19 来回</button>
+            <button class="gl-brick" data-v="sunset">落日 16–19</button>
             <button class="gl-brick" data-v="manual">手动</button>
           </div>
         </div>
         <div>
           <label>背景</label>
           <div class="row gl-track" data-group="background">
-            <button class="gl-brick" data-v="none">none 无画布</button>
-            <button class="gl-brick" data-v="photo">photo 照片</button>
+            <button class="gl-brick" data-v="none">none</button>
+            <button class="gl-brick" data-v="photo">photo</button>
           </div>
         </div>
         <div>
@@ -238,7 +207,7 @@
             <button class="gl-brick" id="btnStart">start()</button>
             <button class="gl-brick" id="btnDestroy">destroy()</button>
             <button class="gl-brick" id="btnInit">init()</button>
-            <button class="gl-brick" id="btnAdd">塞一块新砖</button>
+            <button class="gl-brick" id="btnAdd">+ 新砖</button>
           </div>
         </div>
         <div style="grid-column: 1 / -1;">
@@ -249,20 +218,15 @@
     </div>
   </section>
 
-  <!-- ================= 压力测试 ================= -->
-
-  <section>
-    <h2>更多卡片 · 往下滚：控件走纯 CSS 常量，滚动中零布局读取、零重算，停下后只给手电刷一轮矩形</h2>
-    <div class="grid" id="moreCards"></div>
-  </section>
-
-  <section>
-    <h2>内部滚动容器 · 滚动中手电跟着砖走（缓存矩形按位移平移，停下再真量）</h2>
+  <section class="stress-stage">
+    <span class="eyebrow">09 // MOTION</span>
+    <h2>动态与滚动</h2>
+    <p class="rule">内部滚动容器与逐帧跟踪节点。</p>
     <div class="scroller" id="scroller"></div>
-    <button class="gl-brick drifter" data-gl-track title="自己在飘的节点：没写任何光的代码，只贴了 .gl-brick 和 data-gl-track">🛰 漂移节点</button>
+    <button class="gl-brick drifter" data-gl-track>🛰 漂移节点</button>
   </section>
 
-  <footer>Glacier 设计语言 · 源头在 DESIGN.md · 本页只是宿主，宿主只做三件事：给画布、给类名、调 init()。</footer>
+  <footer>Glacier · DESIGN.md</footer>
 </div>
 
 <script src="glacier.js"></script>
@@ -275,19 +239,12 @@
     b.textContent = `${r + 1}${c + 1}`; lattice.appendChild(b);
   }
 
-  // ---- 填充滚动内容（都是普通元素 + 类名，库会自己找到它们） ----
-  const more = document.getElementById("moreCards");
-  for (let i = 0; i < 18; i++) {
-    const card = document.createElement("div");
-    card.className = "gl-card";
-    card.innerHTML = `<h3>卡片 ${String(i + 1).padStart(2, "0")}</h3><p>每块砖和卡片走 CSS 归一化三色常量（零内联变量），滚动从不重算，停下后只给鼠标手电刷一次矩形。</p><div class="bricks" style="margin-top:10px"><button class="gl-brick">砖 A</button><button class="gl-brick">砖 B</button></div>`;
-    more.appendChild(card);
-  }
+  // ---- 填充内部滚动容器 ----
   const scroller = document.getElementById("scroller");
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < 16; i++) {
     const b = document.createElement("button");
     b.className = "gl-brick";
-    b.textContent = `会话 ${String(i + 1).padStart(2, "0")} · 滚动中手电跟着砖走`;
+    b.textContent = `会话 ${String(i + 1).padStart(2, "0")}`;
     scroller.appendChild(b);
   }
 
