@@ -97,23 +97,23 @@
 
 <script src="glacier.js"></script>
 <script>
-  // ---- 航点：一个地方 = 一颗星 = 星区 + 它自己的钟 + 一句话。第一个是母星：打开页面落在这 ----
+  // ---- 航点：一个地方 = 一颗星 = 底片 + 它自己的钟 + 一句话。第一个是母星：打开页面落在这 ----
   // 底片都是 NASA 图库的灰阶负片（出处见 photos/README.md），通过 --gl-photo-level: 0.48 + 135° 三色空间色散提供 ~28% 可折射底光
   const PLACES = [
-    { id: "home", name: "母星 · 冰星黄昏", meta: "16:00–19:00 来回", sector: "cryo_blend",
+    { id: "home", name: "母星 · 冰星黄昏", meta: "16:00–19:00 来回",
       clock: { loop: { from: 16, to: 19, duration: 24000, bounce: true } },
       photo: "photos/home.jpg", credit: "Cassini · 土星新月与侧视环 · NASA/JPL/SSI",
       lore: "第三季风期将至，高空大气折射率偏高，今日晚霞预计持续四个标准时。" },
-    { id: "station", name: "轨道站 · 纯冰", meta: "跟实时", sector: "cryo_pure", clock: "realtime",
+    { id: "station", name: "轨道站 · 纯冰", meta: "跟实时", clock: "realtime",
       photo: "photos/station.jpg", credit: "Cassini · 土星 C 环与 B 环 · NASA/JPL/SSI",
       lore: "站内时间与母港同步。舷窗外的冰环每九十分钟完成一次自转。" },
-    { id: "giant", name: "红巨星 · 日冕边缘", meta: "17:36 定格", sector: "red_giant", clock: 17.6,
+    { id: "giant", name: "红巨星 · 日冕边缘", meta: "17:36 定格", clock: 17.6,
       photo: "photos/giant.jpg", credit: "SDO · 东边缘日珥喷发 2012-04-16 · NASA/GSFC",
       lore: "引擎逆着自转做同步巡航，太阳悬在天际线上三度。只要不发话，这片黄昏能停一个世纪。" },
-    { id: "pulsar", name: "脉冲星 · 高频昼夜", meta: "一天 24 秒", sector: "pulsar", clock: "timelapse",
+    { id: "pulsar", name: "脉冲星 · 高频昼夜", meta: "一天 24 秒", clock: "timelapse",
       photo: "photos/pulsar.jpg", credit: "Hubble · 蟹状星云 · NASA/ESA/JPL/ASU",
       lore: "近轨行星，昼夜更替极快。此地作息带着工业节拍，没人按「天」过日子。" },
-    { id: "deep", name: "深空 · 夜航", meta: "01:30 定格", sector: "cryo_blend", clock: 1.5,
+    { id: "deep", name: "深空 · 夜航", meta: "01:30 定格", clock: 1.5,
       photo: "photos/deep.jpg", credit: "Hubble · 极深场 XDF · NASA/ESA/GSFC",
       lore: "无星区。灯调到最低，只保留航点光栅和一行坐标。" }
   ];
@@ -153,14 +153,12 @@
 
   // ---- 引擎：落在母星上。舷窗是母星的底片：--gl-photo-level: 0.48 + 135° 空间三色色散，为毛玻璃提供可折射底光 ----
   // 那颗橙蓝径向渐变的行星是自发光的小太阳，会把黑位地板掀了、把 1px 刀锋淹了，所以不画；
-  // ?bg=none 看纯黑 + 轨道线，?bg=scene 把球叫回来看对比，?photo=<URL> 换自己的底片。
+  // ?bg=none 看纯黑 + 轨道线，?photo=<URL> 换自己的底片。
   const q = new URLSearchParams(location.search);
   var gl = Glacier.init({ // var：onUpdate 在 init 返回前就会被调一次
     background: q.get("bg") || "photo",
     photo: q.get("photo") || PLACES[0].photo,
-    sector: PLACES[0].sector,
     time: PLACES[0].clock,
-    idleDivider: 6,
     onUpdate: () => render()
   });
   window.gl = gl;
@@ -190,10 +188,9 @@
     };
     requestAnimationFrame(step);
   };
-  const jump = (p) => { // 去哪：星区 + 底片 + 钟 + 一句话，四样一起走，没有一样是跳的
+  const jump = (p) => { // 去哪：底片 + 钟 + 一句话，三样一起走，没有一样是跳的
     if (!p || (p === current && clockSel === "place")) return;
     current = p; clockSel = "place";
-    gl.setSector(p.sector);
     if (!q.get("photo")) gl.setPhoto(p.photo); // 底片跟航点走（URL 指定了自己的底片就不换）；库里单节点交叉淡化
     tweenClock(clockStartHour(p.clock), () => { if (current === p && clockSel === "place") applyClock(p.clock); });
     render();

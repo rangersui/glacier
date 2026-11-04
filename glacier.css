@@ -13,9 +13,7 @@
 :root {
   --agy-bg: #13141c;              /* 深空基底：山体 / 灯用 screen 混合，底下必须是深色 */
   --agy-fg: #c4d0f5;
-  --agy-accent: #7aa2f7;
   --agy-accent-cyan: #2ac3de;
-  --agy-accent-purple: #bb9af7;
   --agy-card-alpha: 0.82;
   /* 底片曝光基准：既保持暗座舱的克制，又留足 ~30% 透射率供毛玻璃与冰砖折射（Windhawk GlacierGlass 透射率 28%） */
   --gl-photo-level: 0.48;
@@ -24,7 +22,7 @@
      1. 严禁往按钮肚子里灌实心蓝油漆：点亮态肚子保持 80%+ 深邃黑曜石透明感（rgba(18, 22, 32, 0.78)），
         让背后的天体底片与星轨透出来，只在左上角给 10% 香槟暖金微光、左下角给 16% 皇家钴蓝呼吸微光；
      2. 唯一的一道 1px 光学刀锋（padding: 1px，in oklch 线性插值消灭 sRGB 灰泥区）：
-        左上香槟暖金 #FFD89B → 冰晶白 #E6F4FF → 暮光紫 rgba(160,140,240,.25) → 62% 处彻底 transparent 归零，
+        左上香槟暖金 #FFD89B → 36% 冰晶白 #E6F4FF → 64% 暮光紫 rgba(160,140,240,.25) → 88% 处彻底 transparent 归零，
         右边与底边绝不漏紫白斑马线，右下沉降槽只用零模糊的 inset -1.5px -1.5px 0px #06080E。 */
   --gl-crest-line: linear-gradient(
     90deg in oklch,
@@ -46,8 +44,6 @@
   /* 动效令牌（Apple 式：ease-out、短、只动 transform / opacity） */
   --agy-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --agy-ease-spring: cubic-bezier(0.22, 1.18, 0.36, 1);
-  --agy-ease-inout: cubic-bezier(0.45, 0, 0.55, 1);
-  --agy-dur-fast: 160ms;
   --agy-dur-base: 240ms;
   --agy-dur-slow: 320ms;
 }
@@ -60,7 +56,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   背景层：Glacier.init() 创建的几层（照片 → 行星 → 灯），铺满视口、不吃事件。
+   背景层：Glacier.init() 创建的几层（照片 → 灯），铺满视口、不吃事件。
    z-index: -1 让它们压在宿主正文下面、基底色上面；底片和灯用 screen 混合，所以只会提亮。
    -------------------------------------------------------------------------- */
 .gl-layer {
@@ -72,7 +68,6 @@
   pointer-events: none;
 }
 /* 场景压暗：init({ dim }) 写 --gl-dim；行星层按它降透明度并降饱和，玻璃压在上面才像玻璃 */
-.gl-layer-planet { opacity: calc(0.92 * (1 - var(--gl-dim, 0.3))); filter: saturate(0.8); }
 .gl-layer-lamp { mix-blend-mode: screen; }
 /* 照片背景（background: "photo"）：一张图就是一个独立合成单元（.gl-layer-photo，isolation: isolate + screen 混合）。
    ::before 画高反差灰阶底片（太空底是纯黑 #000），::after 用 multiply 做空间色散染色（向阳侧暖金 → 航点主色 → 背阳侧金星带暮光紫）；
@@ -98,9 +93,8 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  filter: contrast(1.25) brightness(0.82);
+  filter: grayscale(1) contrast(1.25) brightness(0.82); /* 底片永远是灰阶：颜色只许来自 ::after 的太阳染色 */
 }
-.gl-layer-photo.gl-photo-gray::before { filter: grayscale(1) contrast(1.25) brightness(0.82); }
 .gl-layer-photo::after {
   background-color: var(--agy-sun-photo, rgb(95, 175, 255));
   background-image: linear-gradient(
@@ -179,7 +173,7 @@
   border-radius: 5px;
 }
 
-/* 唯一的一道 1px 光学刀锋（::before）：严格锁死 1px 物理宽度，62% 处彻底透明归零 */
+/* 唯一的一道 1px 光学刀锋（::before）：严格锁死 1px 物理宽度，64% 后只剩暮光紫、88% 处彻底透明归零 */
 .gl-brick::before {
   content: "";
   position: absolute;
@@ -194,7 +188,6 @@
 }
 
 /* 彻底重写激活态/选中态/悬停态砖块 —— 严禁实心蓝油漆与多层套娃边框 */
-.gl-brick.is-active,
 .gl-brick.gl-fresh,
 .gl-brick.on,
 .gl-brick:hover {
@@ -210,13 +203,12 @@
     inset -1.5px -1.5px 0px #06080E,
     inset 0 1px 0 0 rgba(255, 220, 170, 0.12);
 }
-.gl-brick:hover:not(.on):not(.gl-fresh):not(.is-active):not(.gl-alert) {
+.gl-brick:hover:not(.on):not(.gl-fresh):not(.gl-alert) {
   background:
     radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.07) 0%, transparent 55%),
     radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.11) 0%, transparent 65%),
     rgba(18, 22, 32, 0.64);
 }
-.gl-brick.is-active::before,
 .gl-brick.gl-fresh::before,
 .gl-brick.on::before,
 .gl-brick:hover::before {
@@ -224,19 +216,17 @@
   opacity: 1;
 }
 /* 悬停比选中淡一档 */
-.gl-brick:hover:not(.on):not(.gl-fresh):not(.is-active):not(.gl-alert)::before {
+.gl-brick:hover:not(.on):not(.gl-fresh):not(.gl-alert)::before {
   opacity: 0.68;
 }
 .gl-brick small {
   color: rgba(196, 208, 245, 0.5);
   font-variant-numeric: tabular-nums;
 }
-.gl-brick.on,
-.gl-brick.is-active {
+.gl-brick.on {
   color: #F0F6FF;
 }
-.gl-brick.on small,
-.gl-brick.is-active small {
+.gl-brick.on small {
   color: rgba(37, 244, 238, 0.9);
 }
 
@@ -287,7 +277,7 @@
 
 /* 鼠标手电（Win10 Reveal）：待机态的砖平时是均匀的烟熏磨砂块，只有鼠标 --torch-r 像素内，
    外圈 1px 切边按离鼠标的远近柔和浮现（香槟暖金 → 冰晶白），鼠标移开即隐去。 */
-.gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.is-active):not(.gl-alert)::before {
+.gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert)::before {
   background: radial-gradient(
     var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y),
     rgba(255, 216, 155, 0.72) 0%,
@@ -383,7 +373,7 @@
 }
 
 /* ==========================================================================
-   卡片（.gl-card）：消息气泡 / 输入框那种大块冰板，带毛玻璃与 1,1,2,2 归一化金→冰白→暮光紫渐变环
+   卡片（.gl-card）：消息气泡 / 输入框那种大块冰板，带毛玻璃与 1px 归一化金→冰白→暮光紫渐变环
    ========================================================================== */
 .gl-card {
   position: relative;
@@ -456,7 +446,6 @@
 
 /* ==========================================================================
    尊重系统「减弱动态效果」：过渡瞬时完成，进场动画直接到终态。
-   背景画布那边由 glacier.js 处理（scene 自动退成 static）。
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
   .gl-brick,
