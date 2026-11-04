@@ -141,7 +141,7 @@ glacier/
 - `.gl-bar`：金星带顶栏 / 分割栏（复刻 Windhawk 命令栏：左半地球影暗槽 + 右半金星带瑞利散射紫微雾 + 底部 1px `--gl-crest-line` 光谱地平线）。
 - **未选中保持烟熏磨砂，点亮态严格对齐 Windows 11 开始菜单磁贴（Word 磁贴）的通透黑曜石结构**（`DESIGN.md` §4.3–4.4）：
   - **静止态**：均匀的烟熏磨砂暗底（`rgba(18, 22, 32, 0.42)`，`.gl-track` 暗槽内完全透明 `transparent`），无边框、无杂斑；静止态 `::before` 仅在鼠标手电靠近时按距离浮现 1px 切边。
-  - **点亮态（`.on` / `.gl-fresh` / `:hover`）**：严禁往肚子里灌实心蓝油漆——底色保持 80%+ 深邃黑曜石透明感（`rgba(18, 22, 32, 0.78)` + `backdrop-filter: blur(16px) saturate(160%)`），只叠左上 10% 香槟暖金与左下 16% 皇家钴蓝两团呼吸微光（`--gl-brick-fill`），让背后的土星环底片与星轨清晰穿透；`::before` 严格锁死 `padding: 1px` 物理宽度，用 `radial-gradient(100% 100% at 0% 0% in oklab, #FFD89B 0%, #E6F4FF 36%, rgba(160,140,240,.25) 64%, transparent 88%)` 在右上角与左下角（100%）前彻底透明归零，绝不在右边或底边漏出紫白斑马线；右下沉降只用零模糊的 `box-shadow: inset -1.5px -1.5px 0px #06080E`，文字 `#F0F6FF` 干净锐利无黑阴影。
+  - **点亮态（`.on` / `.gl-fresh` / `:hover`）**：严禁往肚子里灌实心蓝油漆——底色保持 80%+ 深邃黑曜石透明感（`rgba(18, 22, 32, 0.78)` + `backdrop-filter: blur(16px) saturate(160%)`），只叠左上 10% 香槟暖金与左下 16% 皇家钴蓝两团呼吸微光（`--gl-brick-fill`），让背后的土星环底片与星轨清晰穿透；`::before` 严格锁死 `padding: 1px` 物理宽度，用 `radial-gradient(100% 100% at 0% 0% in oklab, #FFD89B 0%, #E6F4FF 36%, rgba(187,154,247,.25) 64%, transparent 88%)` 在右上角与左下角（100%）前彻底透明归零，绝不在右边或底边漏出紫白斑马线；右下沉降只用零模糊的 `box-shadow: inset -1.5px -1.5px 0px #06080E`，文字 `#F0F6FF` 干净锐利无黑阴影。
 - `.on` 不贴指示器：环从悬停的 72% 到 100%，正文暖白，砖里的 `<small>` 读数亮成电光青。红灯芯（`.gl-alert` 的 `::after`）只给"要你看"。
 - `.gl-fresh` = 极寒凝结态（和选中同一套），`.on` = 选中，`.gl-pop-in` = 面板进场动画，`.gl-track` = 一组小开关共用的下沉暗槽，`.gl-icon` = 把彩色图标压成冷银灰。
 - `.gl-alert`：告警 / 要你看的砖（红巨星频段）——勃艮第酒红毛玻璃底 + 底部绯红短灯芯，用于后台任务待确认、报错、未读。红只给这类状态，装饰不许用。
@@ -201,6 +201,6 @@ glacier/
 ## 8. 宿主与生态关系
 
 - **本仓库（`glacier`）是 Glacier 设计语言的中心与唯一上游**，`./DESIGN.md` 是设计规格的源头，改设计先改这里。
-- **任何 Web / Electron / WebView 宿主**：直接引入本仓库的 `glacier.css` + `glacier.js`，宿主只需给深色基底（`.gl-stage`）、给 `.gl-*` 类名、调 `Glacier.init()`。
+- **任何 Web / Electron / WebView 宿主**：直接引入本仓库的 `glacier.css` + `glacier.js`，宿主只需给深色基底（`.gl-stage`）、给 `.gl-*` 类名、调 `Glacier.init()`。内核要求：`@property` 与 `in oklab` 渐变插值（Chromium 111+ / Safari 16.4+ / Firefox 128+）；更老的内核会拿到 `@supports` 兜底的 sRGB 刀锋与手电（结构不丢，只是金白之间少一层奶油过渡），装饰性渐变（滚动条、分割线、引用导轨）则直接退成无。
 - **Windows 11 系统壳（Windhawk）**：任务栏、开始菜单、通知中心与资源管理器通过静态 XAML 共享同一套三色空间光谱与暗槽光学（配置见 `./windhawk`）。
 - **外部客户端补丁（如 `ui-mod`、`hudd`）**：客户端只是这套设计语言的下游宿主——宿主自己的 DOM 注入、会话列表、终端与网关留在各自仓库维护，宿主版本怎么变都不影响 Glacier 设计语言本身。

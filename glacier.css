@@ -20,19 +20,22 @@
      1. 严禁往按钮肚子里灌实心蓝油漆：点亮态肚子保持 80%+ 深邃黑曜石透明感（rgba(18, 22, 32, 0.78)），
         让背后的天体底片与星轨透出来，只在左上角给 10% 香槟暖金微光、左下角给 16% 皇家钴蓝呼吸微光；
      2. 唯一的一道 1px 光学刀锋（padding: 1px，in oklab 感知均匀直线插值，不绕色相环、不泛薄荷绿）：
-        左上香槟暖金 #FFD89B → 36% 冰晶白 #E6F4FF → 64% 暮光紫 rgba(160,140,240,.25) → 88% 处彻底 transparent 归零，
+        左上香槟暖金 #FFD89B → 36% 冰晶白 #E6F4FF → 64% 暮光紫 rgba(187,154,247,.25)（#BB9AF7 同一锚点，只是降到 .25 透明度）→ 88% 处彻底 transparent 归零，
         右边与底边绝不漏紫白斑马线，右下沉降槽只用零模糊的 inset -1.5px -1.5px 0px #06080E。 */
+  /* 下面两个令牌先写不带插值空间的 sRGB 版本当兜底；认识 in oklab 的内核在 @property 之后的 @supports 块里整体换成 oklab 版。
+     老内核（Chromium < 111 / Safari < 16.2 / Firefox < 127）不认 in oklab 会把整条声明丢掉，令牌里更是到算值时才失效，
+     那样 .on 的刀锋环和输入框的整块背景会一起消失，所以兜底必须是能解析的普通渐变。 */
   --gl-crest-line: linear-gradient(
-    90deg in oklab,
+    90deg,
     rgba(255, 216, 155, 0.72) 0%,
     rgba(230, 244, 255, 0.88) 50%,
     rgba(187, 154, 247, 0.72) 100%
   );
   --gl-edge: radial-gradient(
-    100% 100% at 0% 0% in oklab,
+    100% 100% at 0% 0%,
     #FFD89B 0%,
     #E6F4FF 36%,
-    rgba(160, 140, 240, 0.25) 64%,
+    rgba(187, 154, 247, 0.25) 64%,
     transparent 88%
   );
   --gl-brick-fill:
@@ -241,6 +244,73 @@
 @property --sun-y { syntax: "<length>"; inherits: true; initial-value: -9999px; }
 @property --sun-a { syntax: "<number>"; inherits: true; initial-value: 0; }
 
+/* 双路手电的唯一配方（DESIGN.md §1「唯一锚点」在 CSS 里的唯一来源）：
+   --gl-torch-ring 鼠标手电、--gl-sun-ring 太阳手电，冰砖 / 滑轨 / 输入框 / 表格行都只引用这两个变量，不许再抄一份。
+   必须声明在被照的元素自己身上而不是 :root——var(--torch-x) 要在拥有那组内联变量的元素上代入才是它自己的坐标；
+   伪元素（::before / ::-webkit-slider-runnable-track）靠继承拿到代入后的渐变。
+   亮度统一乘 var(--torch-a) / var(--sun-a)（过渡写在元素上，@property 已登记为 <number>），--gl-torch-gain 是每种控件唯一允许的差异。
+   先给 sRGB 兜底，下面 @supports 里换 in oklab。 */
+.gl-brick,
+.gl-slider,
+.gl-input,
+.gl-table tbody tr {
+  --gl-torch-gain: 1;
+  --gl-torch-ring: radial-gradient(
+    var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y),
+    rgba(255, 216, 155, calc(0.76 * var(--torch-a) * var(--gl-torch-gain))) 0%,
+    rgba(230, 244, 255, calc(0.42 * var(--torch-a) * var(--gl-torch-gain))) 30%,
+    rgba(187, 154, 247, calc(0.22 * var(--torch-a) * var(--gl-torch-gain))) 54%,
+    transparent 74%
+  );
+  --gl-sun-ring: radial-gradient(
+    var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y),
+    rgba(255, 216, 155, calc(0.64 * var(--sun-a) * var(--gl-torch-gain))) 0%,
+    rgba(230, 244, 255, calc(0.34 * var(--sun-a) * var(--gl-torch-gain))) 32%,
+    rgba(187, 154, 247, calc(0.19 * var(--sun-a) * var(--gl-torch-gain))) 56%,
+    transparent 76%
+  );
+}
+.gl-table tbody tr {
+  --gl-torch-gain: 0.92;
+}
+/* 认识 in oklab 的内核：令牌与手电配方整体换成感知均匀直线插值（金 → 奶油白 → 冰白 → 暮光紫，不绕薄荷绿） */
+@supports (background: linear-gradient(in oklab, red, blue)) {
+  :root {
+    --gl-crest-line: linear-gradient(
+      90deg in oklab,
+      rgba(255, 216, 155, 0.72) 0%,
+      rgba(230, 244, 255, 0.88) 50%,
+      rgba(187, 154, 247, 0.72) 100%
+    );
+    --gl-edge: radial-gradient(
+      100% 100% at 0% 0% in oklab,
+      #FFD89B 0%,
+      #E6F4FF 36%,
+      rgba(187, 154, 247, 0.25) 64%,
+      transparent 88%
+    );
+  }
+  .gl-brick,
+  .gl-slider,
+  .gl-input,
+  .gl-table tbody tr {
+    --gl-torch-ring: radial-gradient(
+      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklab,
+      rgba(255, 216, 155, calc(0.76 * var(--torch-a) * var(--gl-torch-gain))) 0%,
+      rgba(230, 244, 255, calc(0.42 * var(--torch-a) * var(--gl-torch-gain))) 30%,
+      rgba(187, 154, 247, calc(0.22 * var(--torch-a) * var(--gl-torch-gain))) 54%,
+      transparent 74%
+    );
+    --gl-sun-ring: radial-gradient(
+      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklab,
+      rgba(255, 216, 155, calc(0.64 * var(--sun-a) * var(--gl-torch-gain))) 0%,
+      rgba(230, 244, 255, calc(0.34 * var(--sun-a) * var(--gl-torch-gain))) 32%,
+      rgba(187, 154, 247, calc(0.19 * var(--sun-a) * var(--gl-torch-gain))) 56%,
+      transparent 76%
+    );
+  }
+}
+
 /* ==========================================================================
    金星带顶栏 / 分割栏（.gl-bar）：复刻 Windhawk 资源管理器命令栏的「左半深邃暗槽（地球影）+
    右半金星带瑞利散射紫微雾 + 底部 1px 光谱地平线（香槟金 → 冰晶白 → 暮光紫）」。
@@ -293,7 +363,11 @@
   background-color: rgba(18, 22, 32, 0.42);
   background-image: none;
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.025);
-  transition: transform var(--gl-dur-base) var(--gl-ease-spring), border-radius var(--gl-dur-slow) var(--gl-ease-out);
+  transition:
+    transform var(--gl-dur-base) var(--gl-ease-spring),
+    border-radius var(--gl-dur-slow) var(--gl-ease-out),
+    --torch-a 160ms var(--gl-ease-out, ease-out),
+    --sun-a 800ms var(--gl-ease-out, ease-out);
 }
 
 /* 顶层导航按钮：同一套，颜色更亮、圆角 5px */
@@ -408,15 +482,7 @@
 /* 鼠标手电（Fluent Reveal 推至 1px 门缝极限）：待机态的砖平时是均匀的烟熏磨砂块，只有鼠标 --torch-r 像素内，
    外圈 1px 门缝按离鼠标的远近浮现 in oklab 金星带瑞利散射（香槟暖金 → 冰晶白 → 暮光紫），鼠标移开即隐去。 */
 .gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert)::before {
-  background: radial-gradient(
-    var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklab,
-    rgba(255, 216, 155, 0.76) 0%,
-    rgba(230, 244, 255, 0.44) 30%,
-    rgba(187, 154, 247, 0.22) 54%,
-    transparent 74%
-  );
-  opacity: var(--torch-a);
-  transition: opacity 160ms var(--gl-ease-out, ease-out);
+  background: var(--gl-torch-ring);
 }
 /* 太阳手电：轨道游标是第二支手电，同一配方（1px 外圈、in oklab 金星带三色散射、同一衰减形状），只是更大（--sun-r）、更暗（--sun-a 跟 glow）、
    更慢（800ms 释放，像荧光粉的余晖）。走 ::after，和鼠标那支互不打断；告警砖不参与（它的 ::after 是红灯芯）。
@@ -428,19 +494,11 @@
   z-index: -1;
   border-radius: inherit;
   padding: 1px;
-  background: radial-gradient(
-    var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklab,
-    rgba(255, 216, 155, 0.72) 0%,
-    rgba(230, 244, 255, 0.40) 32%,
-    rgba(187, 154, 247, 0.20) 56%,
-    transparent 76%
-  );
+  background: var(--gl-sun-ring);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
-  opacity: var(--sun-a);
-  transition: opacity 800ms var(--gl-ease-out, ease-out);
   pointer-events: none;
 }
 
@@ -724,20 +782,8 @@
   height: 6px;
   border-radius: 3px;
   background:
-    radial-gradient(
-      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklab,
-      rgba(255, 216, 155, calc(0.76 * var(--torch-a))) 0%,
-      rgba(230, 244, 255, calc(0.42 * var(--torch-a))) 30%,
-      rgba(187, 154, 247, calc(0.22 * var(--torch-a))) 54%,
-      transparent 74%
-    ) 0 100% / 100% 1px no-repeat,
-    radial-gradient(
-      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklab,
-      rgba(255, 216, 155, calc(0.60 * var(--sun-a))) 0%,
-      rgba(230, 244, 255, calc(0.32 * var(--sun-a))) 32%,
-      rgba(187, 154, 247, calc(0.18 * var(--sun-a))) 56%,
-      transparent 76%
-    ) 0 100% / 100% 1px no-repeat,
+    var(--gl-torch-ring) 0 100% / 100% 1px no-repeat,
+    var(--gl-sun-ring) 0 100% / 100% 1px no-repeat,
     linear-gradient(
       90deg in oklab,
       rgba(255, 216, 155, 0.22) 0%,
@@ -822,20 +868,8 @@
   background:
     linear-gradient(#060911, #060911) padding-box,
     linear-gradient(180deg, #03050B 0%, #03050B calc(100% - 6px), rgba(3, 5, 11, 0.45) calc(100% - 2px), transparent 100%) border-box,
-    radial-gradient(
-      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklab,
-      rgba(255, 216, 155, calc(0.76 * var(--torch-a))) 0%,
-      rgba(230, 244, 255, calc(0.42 * var(--torch-a))) 30%,
-      rgba(187, 154, 247, calc(0.22 * var(--torch-a))) 54%,
-      transparent 74%
-    ) border-box,
-    radial-gradient(
-      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklab,
-      rgba(255, 216, 155, calc(0.60 * var(--sun-a))) 0%,
-      rgba(230, 244, 255, calc(0.32 * var(--sun-a))) 32%,
-      rgba(187, 154, 247, calc(0.18 * var(--sun-a))) 56%,
-      transparent 76%
-    ) border-box,
+    var(--gl-torch-ring) border-box,
+    var(--gl-sun-ring) border-box,
     linear-gradient(rgba(196, 208, 245, 0.08), rgba(196, 208, 245, 0.08)) border-box,
     linear-gradient(#03050B, #03050B) border-box;
   color: #8E9BAE;
@@ -925,7 +959,7 @@ textarea.gl-input {
 .gl-input:focus-within {
   color: #DCE8FF;
   background:
-    radial-gradient(90% 60% at 35% 100%, rgba(255, 216, 155, 0.045) 0%, rgba(45, 110, 255, 0.055) 55%, transparent 100%) padding-box,
+    radial-gradient(90% 60% at 35% 100% in oklab, rgba(255, 216, 155, 0.045) 0%, rgba(45, 110, 255, 0.055) 55%, transparent 100%) padding-box,
     linear-gradient(#070A14, #070A14) padding-box,
     linear-gradient(180deg, #03050B 0%, #03050B calc(100% - 6px), rgba(3, 5, 11, 0.35) calc(100% - 2px), transparent 100%) border-box,
     var(--gl-crest-line) border-box;
@@ -965,20 +999,8 @@ textarea.gl-input {
     --torch-a 160ms var(--gl-ease-out, ease-out),
     --sun-a 800ms var(--gl-ease-out, ease-out);
   background:
-    radial-gradient(
-      var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklab,
-      rgba(255, 216, 155, calc(0.70 * var(--torch-a))) 0%,
-      rgba(230, 244, 255, calc(0.38 * var(--torch-a))) 30%,
-      rgba(187, 154, 247, calc(0.20 * var(--torch-a))) 54%,
-      transparent 74%
-    ) 0 100% / 100% 1px no-repeat,
-    radial-gradient(
-      var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklab,
-      rgba(255, 216, 155, calc(0.56 * var(--sun-a))) 0%,
-      rgba(230, 244, 255, calc(0.30 * var(--sun-a))) 32%,
-      rgba(187, 154, 247, calc(0.16 * var(--sun-a))) 56%,
-      transparent 76%
-    ) 0 100% / 100% 1px no-repeat;
+    var(--gl-torch-ring) 0 100% / 100% 1px no-repeat,
+    var(--gl-sun-ring) 0 100% / 100% 1px no-repeat;
 }
 /* 行间 1px 分隔线单独一条规则（末行没有），手电渐变只在上面写一次 */
 .gl-table tbody tr:not(:last-child) td {
@@ -1001,7 +1023,7 @@ textarea.gl-input {
 .gl-table tbody tr:hover {
   background:
     var(--gl-crest-line) 0 100% / 100% 1px no-repeat,
-    radial-gradient(85% 90% at 35% 100%, rgba(255, 216, 155, 0.05) 0%, rgba(45, 110, 255, 0.07) 55%, transparent 100%);
+    radial-gradient(85% 90% at 35% 100% in oklab, rgba(255, 216, 155, 0.05) 0%, rgba(45, 110, 255, 0.07) 55%, transparent 100%);
 }
 .gl-table tbody tr:hover td {
   color: #DCE8FF;
