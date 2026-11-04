@@ -1,14 +1,16 @@
-# Glacier · 星舰冰川 — 独立浏览器库
+# Glacier · 星舰冰川 — 设计语言与独立浏览器库
 
-> 把「黑曜石的底，冰的刃」这套设计语言（GLACIER）（规格见上一级的 `DESIGN.md`）打包成两个文件，任何网页 / Electron / WebView 都能直接用。
+> 把「黑曜石的底，冰的刃」这套设计语言（GLACIER，完整规格见同目录 `DESIGN.md`）打包成两个零依赖文件（`glacier.css` + `glacier.js`），任何网页 / Electron / WebView 都能直接挂载。
 > **把时间拍扁进空间**：点亮的冰砖、毛玻璃卡片、金星带顶栏（`.gl-bar`）、鼠标手电与太阳轨道弧线，统一锁死 Windhawk 同款的「香槟暖金 `#FFD89B` → 冰晶白 `#E6F4FF` → 金星带暮光紫 + 右下 `inset -1.5px` 深海黑内槽」三色空间光谱；未选中的按钮绝对不带玻璃与边框，一排里只有选中的那一颗是精致的立体玻璃键帽。背后的天体底片则永远锁死 **100% 纯黑白银盐灰阶**（零色相染色、零色相串味），一盏按时间走动的太阳沿横跨视口的轨道推进游标，并用径向暗房探照灯遮罩在黑白底片上局部显影。
 
 ```
 glacier/
-├── glacier.css   令牌与 Windhawk 三色光学常量、三轨字体栈、@property 注册、画布/底片层、.gl-brick / .gl-nav / .gl-card / .gl-bar / .gl-prose / .gl-slider / .gl-input / .gl-table / .gl-popover / .gl-alert / .gl-track 规则（无 !important、无宿主选择器）
+├── DESIGN.md     设计语言源头规格：层次、太阳轨道与探针五律、冰砖三律、阵列与暗座舱、三轨蚀刻排版、凹凸物理、动效与性能守则
+├── glacier.css   令牌与三色光学常量、三轨字体栈、@property 注册、画布/底片层、.gl-brick / .gl-nav / .gl-card / .gl-bar / .gl-prose / .gl-slider / .gl-input / .gl-table / .gl-popover / .gl-alert / .gl-track 规则（无 !important、无宿主选择器）
 ├── glacier.js    Glacier.sun / Lamp / applySunVars，加 Glacier.init()
 ├── demo.html     组件目录：按展柜陈列全部 11 类光学原语 + 调光台与动态滚动压测
 ├── bridge.html   舰桥：用这套积木搭的暗座舱范例——三个问题（在哪 / 几点 / 有没有事）、两个旋钮（去哪 / 多快）、航点光栅 + 当月日历晶格 + 告警行（A 模拟、Esc 清）
+├── photos/       5 张 NASA 公有领域 100% 纯黑白银盐灰阶负片与署名说明
 └── README.md     本文件
 ```
 
@@ -69,9 +71,9 @@ glacier/
 
 底片与玻璃折射的平衡（`--gl-photo-level: 0.55` + 100% 纯黑白银盐灰阶）：天体照片在背景里既不能像自发光的塑料球或跑马灯那样抢正文，又要留出约 28%–35% 的银灰透射率供上面的毛玻璃卡片和点亮冰砖折射（对应 Windhawk `GlacierGlass` 的 `0xB8` 透射率），同时**绝不能给底片染彩色**（一旦底片染上黄昏棕橙或午夜紫蓝，透进半透明 `.gl-brick` 就会把按钮原本的皇家钴蓝搅成脏灰绿）。因此：
 - **底片只管纹理与明度（Luminance Only）**：永远锁死 `grayscale(1) contrast(1.32) brightness(0.92)` 纯黑白银盐灰阶，把全部色相预算留给前景按钮的 1px 棱镜刀锋与钴蓝暗涌；
-- **太阳探照灯局部显影（Spatial Masking）**：不用全屏一起忽明忽暗的廉价呼吸灯，而是让 `::after` 盖一层以太阳游标坐标（`--agy-sun-x`、`--agy-sun-y`）为圆心的 `85vmax` 径向暗房遮罩——太阳游标所在的星轨扇区把底下的黑白土星环照出 25%–35% 的银白锐度，其余深空压在暗部里；时间推进时，白光探照灯在黑白星环纹理上缓缓滑过。`photos/` 里有五张 NASA 灰阶负片和出处（`photos/README.md`），舰桥一个航点一张。
+- **太阳探照灯局部显影（Spatial Masking）**：不用全屏一起忽明忽暗的廉价呼吸灯，而是让 `::after` 盖一层以太阳游标坐标（`--gl-sun-x`、`--gl-sun-y`）为圆心的 `85vmax` 径向暗房遮罩——太阳游标所在的星轨扇区把底下的黑白土星环照出 25%–35% 的银白锐度，其余深空压在暗部里；时间推进时，白光探照灯在黑白星环纹理上缓缓滑过。`photos/` 里有五张 NASA 灰阶负片和出处（`photos/README.md`），舰桥一个航点一张。
 
-`Glacier.init({ background: "photo", photo: "photos/home.jpg" })`。一张图一个 `div.gl-layer-photo`，不建任何画布：节点自己是一个独立合成单元（`isolation: isolate` + `screen` 混合叠上黑位地板），`::before` 画高反差纯黑白银盐底片（`cover` 居中），`::after` 叠上跟随太阳坐标 `--agy-sun-x / --agy-sun-y` 的径向暗房遮罩——纯黑在 screen 下恒为 0，黑位地板永远不被污染，700ms 交叉淡化时每一帧都是干净的黑白银盐成品图，中途绝不泛白或串色；外层不透明度 = `--gl-photo-level`（0.55）× `--agy-sun-exposure`（0.68–1.0 微弱呼吸）× `(1 − dim)`。
+`Glacier.init({ background: "photo", photo: "photos/home.jpg" })`。一张图一个 `div.gl-layer-photo`，不建任何画布：节点自己是一个独立合成单元（`isolation: isolate` + `screen` 混合叠上黑位地板），`::before` 画高反差纯黑白银盐底片（`cover` 居中），`::after` 叠上跟随太阳坐标 `--gl-sun-x / --gl-sun-y` 的径向暗房遮罩——纯黑在 screen 下恒为 0，黑位地板永远不被污染，700ms 交叉淡化时每一帧都是干净的黑白银盐成品图，中途绝不泛白或串色；外层不透明度 = `--gl-photo-level`（0.55）× `--gl-sun-exposure`（0.68–1.0 微弱呼吸）× `(1 − dim)`。
 
 换成自己的照片：`demo.html` 和 `bridge.html` 默认都用 `photos/home.jpg`（卡西尼拍的土星新月，可带 `?photo=<URL>` 覆盖）。自己选图时，深色、大面积、太空底接近纯黑的图最合适。
 
@@ -99,7 +101,7 @@ glacier/
 库往页面上写的东西（也就是 `destroy()` 会收回的东西）：
 
 - `root` 前面的背景层（从下到上）：`photo` 模式一个 `div.gl-layer-photo`（淡化期间短暂两个），再加一张 `canvas.gl-layer-lamp`（`lampOverlay: false` 就没有）
-- `root.style` 上的 `--agy-sun-x` / `--agy-sun-y`（太阳探照灯在视口里的百分比坐标）、`--agy-sun-exposure`（0.68–1.0，微弱明度呼吸）、`--gl-dim`、`--torch-r`、`--sun-r`。四组光色、`--agy-sun-photo` 彩色染色和 `--agy-sun-ta` 均已砍掉
+- `root.style` 上的 `--gl-sun-x` / `--gl-sun-y`（太阳探照灯在视口里的百分比坐标）、`--gl-sun-exposure`（0.68–1.0，微弱明度呼吸）、`--gl-dim`、`--torch-r`、`--sun-r`。四组光色与彩色染色层均已砍掉
 - 冰砖和卡片**零常驻内联变量**（全部走 `glacier.css` 焊死的 1px 切边 + `100% 100% at 0% 0%` 归一化三色光学常量）；仅在鼠标手电半径内的砖写三个 `--torch-x / --torch-y / --torch-a`（鼠标移开即删），太阳手电半径内的砖写三个 `--sun-x / --sun-y / --sun-a`（游标走开即删）
 - `window` 上一个 `resize`，`document` 上一个 `visibilitychange`；开了手电时 `document` 上一个捕获、被动的 `scroll`、`pointermove / pointerleave`、`root` 上的 `focusin / focusout`（以及开了 `observe` 时一个 `MutationObserver`）
 
@@ -128,11 +130,11 @@ glacier/
 | `Glacier.sun.tableFromPath(fn, frames = 48)` | 从"相位 → 位置"的函数造一张表：`fn(t)` 返回 `{ u, v, glow?, isDay? }`，`t ∈ [0, 1)` 是一天的相位。任意闭合曲线（圆、扁弧、你自己的一圈）都从这进来；光色从公式同一小时借。曲线必须是钟：单环闭合或单程扫（`DESIGN.md` §3 探针五律） |
 | `Glacier.sun.sampleTable(step)` / `stateFromTable(table, hour, W, H)` / `frameFromModel(hour)` | 关键帧表：采样内置公式、按表插值出状态、取公式在某小时的一帧 |
 | `new Glacier.Lamp(canvas)` → `draw(state, hour, W, H, { path, pathKey, loop })` | 灯 overlay。`path(hour) → { x, y, isDay }` 是轨迹采样器（默认 `Lamp.formulaPath(W, H)`），`pathKey` 换表时要换，`loop = { from, span }` 要加亮的区间。位置取整后没变、颜色没变、尺寸没变就不重画 |
-| `Glacier.applySunVars(el, state)` | 把 `--agy-sun-x`、`--agy-sun-y`、`--agy-sun-exposure` 写到 `el` 上，同值不写 |
+| `Glacier.applySunVars(el, state)` | 把 `--gl-sun-x`、`--gl-sun-y`、`--gl-sun-exposure` 写到 `el` 上，同值不写 |
 
 ## 5. CSS 约定
 
-- 令牌在 `:root`：`--agy-bg`、`--agy-fg`、`--agy-accent-cyan`、`--agy-card-alpha`，动效 `--agy-ease-out / spring`、`--agy-dur-base / slow`，底片透射基准 `--gl-photo-level: 0.55`，三轨字体栈 `--gl-font-mono`（等宽遥测轨：`JetBrains Mono` / `Cascadia Code`）、`--gl-font-display`（标题/叙事轨：西文 `Newsreader` 细衬线 + 中文 `Noto Sans SC` 400 冷峻细黑体，彻底剔除 `SimSun` 宋体回退）、`--gl-font-sans`（高内白无衬线正文轨：`Inter` + `Noto Sans SC`），以及焊死的磁贴光学常量 `--gl-crest-line`（水平 90° `in oklch`：香槟暖金 → 冰晶白 → 金星带暮光紫）、`--gl-edge`（`100% 100% at 0% 0% in oklch` 归一化 1px 单层刀锋，88% 处彻底透明归零）、`--gl-brick-fill`（左上 10% 香槟金微光 + 左下 16% 皇家钴蓝呼吸微光）。
+- 令牌在 `:root`：`--gl-bg`、`--gl-fg`、`--gl-accent-cyan`、`--gl-card-alpha`，动效 `--gl-ease-out / spring`、`--gl-dur-base / slow`，底片透射基准 `--gl-photo-level: 0.55`，三轨字体栈 `--gl-font-mono`（等宽遥测轨：`JetBrains Mono` / `Cascadia Code`）、`--gl-font-display`（标题/叙事轨：西文 `Newsreader` 细衬线 + 中文 `Noto Sans SC` 400 冷峻细黑体，彻底剔除 `SimSun` 宋体回退）、`--gl-font-sans`（高内白无衬线正文轨：`Inter` + `Noto Sans SC`），以及焊死的磁贴光学常量 `--gl-crest-line`（水平 90° `in oklch`：香槟暖金 → 冰晶白 → 金星带暮光紫）、`--gl-edge`（`100% 100% at 0% 0% in oklch` 归一化 1px 单层刀锋，88% 处彻底透明归零）、`--gl-brick-fill`（左上 10% 香槟金微光 + 左下 16% 皇家钴蓝呼吸微光）。
 - 字体加载：`demo.html` 和 `bridge.html` 顶部带 Google Fonts 的 `<link>`（加载 `Inter` 400/500、`JetBrains Mono` 400/600、`Newsreader` 400、`Noto Sans SC` 300/400/500），离线环境下回退到本地 `Cascadia Code` + `Noto Sans SC` / `HarmonyOS Sans SC` / `Microsoft YaHei UI`，绝不掉回 Windows `SimSun` 老宋体。`.gl-stage` 带 `-webkit-font-smoothing: antialiased`。
 - `--torch-*`（鼠标手电，`::before`）和 `--sun-*`（太阳手电，`::after`）都用 `@property` 注册成继承且有类型，伪元素才能读到、`-a` 才能过渡。两支手电同一配方：1px 外圈、同一色谱、同一衰减；太阳那支半径 `--sun-r`（root 上，= torchRadius × 1.5）、亮度跟 glow、释放 800ms。不再有任何 `--ice-*` 内联变量（见 `DESIGN.md` §4.3–4.4）。
 - `.gl-bar`：金星带顶栏 / 分割栏（复刻 Windhawk 命令栏：左半地球影暗槽 + 右半金星带瑞利散射紫微雾 + 底部 1px `--gl-crest-line` 光谱地平线）。
@@ -143,14 +145,15 @@ glacier/
 - `.gl-fresh` = 极寒凝结态（和选中同一套），`.on` = 选中，`.gl-pop-in` = 面板进场动画，`.gl-track` = 一组小开关共用的下沉暗槽，`.gl-icon` = 把彩色图标压成冷银灰。
 - `.gl-alert`：告警 / 要你看的砖（红巨星频段）——勃艮第酒红毛玻璃底 + 底部绯红短灯芯，用于后台任务待确认、报错、未读。红只给这类状态，装饰不许用。
 - 卡片的边同样是一圈 1px 的 `--gl-edge` 渐变环（`::after`，85% 不透明：左上香槟暖金 → 冰晶白 → 暮光紫 → 88% 处归零）；厚度靠 `inset -1.5px` 的内暗槽，不在环里。
-- 圆角用 `--glacier-radius`（默认 6px）覆盖。
+- 圆角用 `--gl-radius`（默认 6px）覆盖。
 - **阵列**（控件是光的传感器，排法决定光场看不看得见，DESIGN.md §4.1）：`.gl-louver` 一维光栅——等高长条竖排、长边朝光，`--gl-louver-gap`（缝，默认 10px）/ `--gl-louver-h`（条高，默认 38px），节距 40–50px 让 160px 的手电里装 3–4 条；`.gl-lattice` 二维晶格——等大方格、缝 ≤ 6px、圆角 2px，`--gl-lattice-cols / -cell / -gap`（默认 7 / 40px / 4px），相邻刀锋融成一道亮缝、交叉点起十字星；格里的 `.gl-lattice-label`（星期、坐标轴）和 `.gl-void`（空位）不是砖、不受光、只占格。
-- **长文排版与光学蚀刻（`.gl-prose`，`DESIGN.md` §4.5）**：不增加新容器积木，只需给装文章的 `.gl-card`（或 `<article>`）挂上 `.gl-prose`：正文段落压在 `#8E9BAE`（62% 冷石板银灰，行高 `1.8`、行宽 `66ch`），标题 `h1 / h2` 与引用 `blockquote` 用细衬线体 `--gl-font-display`（`font-weight: 400`），高信息熵重点词 `strong` / `.gl-fresh` 提亮到 `#F4F8FF` 冰晶白、`mark` 提亮到 `#FFD89B` 香槟暖金细游丝，行内 `code` 做成微型暗槽 + `#64E8E5` 电光青等宽字，`hr` 与 `blockquote` 左刃同样复用 1px 三色光谱刀锋。
-- 背景层类名：`.gl-layer` 公共（fixed 铺满、`z-index: -1`、不吃事件），`.gl-layer-lamp`（screen 混合）、`.gl-layer-photo`（单节点 `isolation: isolate` + `screen` 混合：`::before` 画 100% 纯黑白银盐底片，`::after` 画跟随 `--agy-sun-x / --agy-sun-y` 的径向暗房遮罩，外层 `opacity = photo-level × exposure × (1 − dim)`）。
+- **长文排版与光学蚀刻（`.gl-prose`，`DESIGN.md` §4.5）**：不增加新容器积木，只需给装文章的 `.gl-card`（或 `<article>`）挂上 `.gl-prose`：正文段落压在 `#8E9BAE`（62% 冷石板银灰，行高 `1.8`、行宽 `66ch`），标题 `h1 / h2` 与引用 `blockquote` 用 `--gl-font-display`（西文 `Newsreader` 衬线、中文 `400` 细黑体），高信息熵重点词 `strong` / `.gl-fresh` 提亮到 `#F4F8FF` 冰晶白、`mark` 提亮到 `#FFD89B` 香槟暖金细游丝，行内 `code` 做成微型暗槽 + `#64E8E5` 电光青等宽字，`hr` 与 `blockquote` 左刃同样复用 1px 三色光谱刀锋。
+- **表单、数据表与瞬态浮层（`.gl-slider` / `.gl-input` / `.gl-table` / `.gl-popover`，`DESIGN.md` §4.6）**：滑块与输入框遵循左上同一光源的凹凸反相物理（暗槽左上 `#03050B` 崖壁暗影、内胆 `#060911`、底部 1px 圆角贴合迎光底刃），数据表严禁竖向网格、手电只擦亮行底 1px 细刃，浮层采用 0.92 高密度黑曜石 + 22px 模糊 + 满血 1px 刀锋，舞台与输入框分别配深海钴蓝（28%）与香槟暖金（20%）半透明 `::selection` 光学滤片。
+- 背景层类名：`.gl-layer` 公共（fixed 铺满、`z-index: -1`、不吃事件），`.gl-layer-lamp`（screen 混合）、`.gl-layer-photo`（单节点 `isolation: isolate` + `screen` 混合：`::before` 画 100% 纯黑白银盐底片，`::after` 画跟随 `--gl-sun-x / --gl-sun-y` 的径向暗房遮罩，外层 `opacity = photo-level × exposure × (1 − dim)`）。
 
 ## 6. 性能
 
-设计守则（`DESIGN.md` §13）在库里的体现：灯只在动了才重画；渐变按 key 缓存；同值不写；读写分离；**滚动中不读布局**；砖和卡片是 CSS 常数，根本不写；页面不可见时灯不画、回前台补一帧。
+设计守则（`DESIGN.md` §6）在库里的体现：灯只在动了才重画；渐变按 key 缓存；同值不写；读写分离；**滚动中不读布局**；砖和卡片是 CSS 常数，根本不写；页面不可见时灯不画、回前台补一帧。
 
 实测（2026-11-02，Edge 156 独立配置，1280×900 窗口、DPR 2、60Hz；demo 页 112 个受光元素）：
 
@@ -193,11 +196,10 @@ glacier/
 - `data-gl-track` 的元素每帧量一次矩形，而且一个常动的元素会让整页每帧重新合成（§6）。
 - 减弱动态只由 CSS 的 `@media (prefers-reduced-motion)` 管（过渡瞬时完成），JS 侧没有开关，改系统设置实时生效。
 - 浏览器特性要求：`@property`（手电变量继承与过渡）、`mask-composite` / `-webkit-mask-composite`（1px 环镂空）、`backdrop-filter`（毛玻璃卡片与点亮态冰砖内胆）、`isolation: isolate`（底片独立合成单元）。
-- 没搬的东西：冰山半衰期（依赖会话列表）、舰态自动检测（依赖 Antigravity 的 DOM 信号）、汉化、终端、飞行日志总线——那些是宿主专属。
 
-## 8. 和别处的关系
+## 8. 宿主与生态关系
 
-- `../DESIGN.md` 是设计语言的源头，改设计先改那里。
-- `../custom.css` + `../modules/` 是第一个宿主（Antigravity）的实现，选择器贴着它的 DOM 写，不能直接拿去别处。
-- hudd 的 `examples/glacier/` 曾是第二个宿主（同样的太阳模型和灯，总线换成主进程 IPC，灯横跨整个桌面）。本库 2026-11-04 已把程序画的行星场景（`Scene` / 星区 / 舰态）和逐元素解算器一起剃掉，那边若还用 `Glacier.Scene`，去 git 历史 `cc67cdd` 拿。本仓库里没有任何东西引用它，这一条没有再验证。
-- 换到下一个宿主（Web、Electron、WebView、opencode 的 Web UI……）带这两个文件走：宿主要做的只有给深色底、给类名、调 `init()`。
+- **本仓库（`glacier`）是 Glacier 设计语言的中心与唯一上游**，`./DESIGN.md` 是设计规格的源头，改设计先改这里。
+- **任何 Web / Electron / WebView 宿主**：直接引入本仓库的 `glacier.css` + `glacier.js`，宿主只需给深色基底（`.gl-stage`）、给 `.gl-*` 类名、调 `Glacier.init()`。
+- **Windows 11 系统壳（Windhawk）**：任务栏、开始菜单、通知中心与资源管理器通过静态 XAML 共享同一套三色空间光谱与暗槽光学（配置见 `./windhawk`）。
+- **外部客户端补丁（如 `ui-mod`、`hudd`）**：客户端只是这套设计语言的下游宿主——宿主自己的 DOM 注入、会话列表、终端与网关留在各自仓库维护，宿主版本怎么变都不影响 Glacier 设计语言本身。

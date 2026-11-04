@@ -13,10 +13,10 @@
    ========================================================================== */
 
 :root {
-  --agy-bg: #13141c;              /* 深空基底：山体 / 灯用 screen 混合，底下必须是深色 */
-  --agy-fg: #c4d0f5;
-  --agy-accent-cyan: #2ac3de;
-  --agy-card-alpha: 0.82;
+  --gl-bg: #13141c;               /* 深空基底：灯与底片用 screen 混合，底下必须是深色 */
+  --gl-fg: #c4d0f5;
+  --gl-accent-cyan: #2ac3de;
+  --gl-card-alpha: 0.82;
   /* 底片曝光基准：纯黑白银盐底片不染彩色，留足 25%–35% 银灰透射率供毛玻璃与冰砖折射（Windhawk GlacierGlass 透射率 28%） */
   --gl-photo-level: 0.55;
 
@@ -44,14 +44,14 @@
     radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.16) 0%, transparent 65%);
 
   /* 动效令牌（Apple 式：ease-out、短、只动 transform / opacity） */
-  --agy-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --agy-ease-spring: cubic-bezier(0.22, 1.18, 0.36, 1);
-  --agy-dur-base: 240ms;
-  --agy-dur-slow: 320ms;
+  --gl-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --gl-ease-spring: cubic-bezier(0.22, 1.18, 0.36, 1);
+  --gl-dur-base: 240ms;
+  --gl-dur-slow: 320ms;
 
   /* 三轨光学字体栈（Tri-Track Font Stack）：
      1. 遥测与数据轨（等宽刀锋）：JetBrains Mono / Cascadia Code，负责 .gl-brick small、坐标表头、行内代码
-     2. 叙事与标题轨（高反差人文衬线）：Newsreader + Noto Serif SC（思源宋体），负责长文大标题 H1/H2、引用块、舰桥底片注脚
+     2. 叙事与标题轨（西文 Newsreader 细衬线、中文 400 细黑体）：负责长文大标题 H1/H2、引用块、舰桥底片注脚
      3. 正文阅读轨（高内白无衬线）：Inter + Noto Sans SC（思源黑体），负责长文段落与常规控件标签
      （demo.html 与 bridge.html 通过 Google Fonts 按需加载这组字体，离线则落到本地已装的 Cascadia Code / Noto 全家桶） */
   --gl-font-mono: "JetBrains Mono", "Cascadia Code", "Geist Mono", "IBM Plex Mono", Consolas, "Noto Sans SC", "Source Han Sans SC", "HarmonyOS Sans SC", "MiSans", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", monospace;
@@ -62,8 +62,8 @@
 /* 可选：给 <body>（或别的容器）加 .gl-stage，就得到深空基底、默认前景色与暗座舱滚动条。
    不加也行，只要宿主自己保证画布后面是深色。 */
 .gl-stage {
-  background-color: var(--agy-bg);
-  color: var(--agy-fg);
+  background-color: var(--gl-bg);
+  color: var(--gl-fg);
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -202,17 +202,17 @@
 /* 照片背景（background: "photo"）：一张图就是一个独立合成单元（.gl-layer-photo，isolation: isolate + screen 混合）。
    底片永远锁死 100% 消色差的纯黑白银盐灰阶（Luminance Only），绝不染任何彩色——把全部色相预算留给前景的 1px 棱镜刀锋与钴蓝暗涌，
    彻底杜绝彩色底片透进半透明 .gl-brick 时造成色相串味（如黄昏棕橙把按钮钴蓝搅成脏灰绿）。
-   ::before 画高反差纯黑白银盐底片（太空底是纯黑 #000），::after 是跟随太阳游标坐标（--agy-sun-x / --agy-sun-y）的径向暗房遮罩（Spatial Masking）：
+   ::before 画高反差纯黑白银盐底片（太空底是纯黑 #000），::after 是跟随太阳游标坐标（--gl-sun-x / --gl-sun-y）的径向暗房遮罩（Spatial Masking）：
    平时深空底片压在暗部里，只有太阳游标所在的星轨扇区被照出 25%–35% 的银灰锐度，时间推进时白光探照灯在黑白星环纹理上缓缓滑过；
-   外层再以 screen 混合、按 --gl-photo-level（0.55）× --agy-sun-exposure × (1 - --gl-dim) 叠上 #13141c 黑位地板，
+   外层再以 screen 混合、按 --gl-photo-level（0.55）× --gl-sun-exposure × (1 - --gl-dim) 叠上 #13141c 黑位地板，
    淡入淡出改外层 opacity 时物理上不可能泛白或残留鬼影。 */
 .gl-layer-photo {
   background-size: 0;
   background-repeat: no-repeat;
   isolation: isolate;
   mix-blend-mode: screen;
-  opacity: calc(var(--gl-photo-level, 0.55) * var(--agy-sun-exposure, 1) * (1 - var(--gl-dim, 0.3)));
-  transition: opacity 700ms var(--agy-ease-out, ease-out);
+  opacity: calc(var(--gl-photo-level, 0.55) * var(--gl-sun-exposure, 1) * (1 - var(--gl-dim, 0.3)));
+  transition: opacity 700ms var(--gl-ease-out, ease-out);
 }
 .gl-layer-photo::before,
 .gl-layer-photo::after {
@@ -229,7 +229,7 @@
 }
 .gl-layer-photo::after {
   background: radial-gradient(
-    85vmax circle at var(--agy-sun-x, 50%) var(--agy-sun-y, 25%),
+    85vmax circle at var(--gl-sun-x, 50%) var(--gl-sun-y, 25%),
     rgba(0, 0, 0, 0) 0%,
     rgba(0, 0, 0, 0.18) 50%,
     rgba(0, 0, 0, 0.42) 100%
@@ -288,7 +288,7 @@
   gap: 8px;
   padding: 9px 12px;
   border: none;
-  border-radius: var(--glacier-radius, 6px);
+  border-radius: var(--gl-radius, 6px);
   color: rgba(196, 208, 245, 0.76);
   font: 500 13px/1.3 var(--gl-font-sans);
   text-align: left;
@@ -297,7 +297,7 @@
   background-color: rgba(18, 22, 32, 0.42);
   background-image: none;
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.025);
-  transition: transform var(--agy-dur-base) var(--agy-ease-spring), border-radius var(--agy-dur-slow) var(--agy-ease-out);
+  transition: transform var(--gl-dur-base) var(--gl-ease-spring), border-radius var(--gl-dur-slow) var(--gl-ease-out);
 }
 
 /* 顶层导航按钮：同一套，颜色更亮、圆角 5px */
@@ -419,7 +419,7 @@
     transparent 66%
   );
   opacity: var(--torch-a);
-  transition: opacity 160ms var(--agy-ease-out, ease-out);
+  transition: opacity 160ms var(--gl-ease-out, ease-out);
 }
 /* 太阳手电：轨道游标是第二支手电，同一配方（1px 外圈、同一色谱、同一衰减形状），只是更大（--sun-r）、更暗（--sun-a 跟 glow）、
    更慢（800ms 释放，像荧光粉的余晖）。走 ::after，和鼠标那支互不打断；告警砖不参与（它的 ::after 是红灯芯）。
@@ -442,7 +442,7 @@
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
   opacity: var(--sun-a);
-  transition: opacity 800ms var(--agy-ease-out, ease-out);
+  transition: opacity 800ms var(--gl-ease-out, ease-out);
   pointer-events: none;
 }
 
@@ -543,7 +543,7 @@
   background:
     radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.08) 0%, transparent 50%),
     radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.10) 0%, transparent 60%),
-    rgba(16, 20, 30, var(--agy-card-alpha, 0.78));
+    rgba(16, 20, 30, var(--gl-card-alpha, 0.78));
   backdrop-filter: blur(18px) saturate(150%);
   box-shadow:
     inset -1.5px -1.5px 0px #06080E,
@@ -593,13 +593,13 @@
   pointer-events: none;
 }
 
-/* 弹出面板的进场（和 Antigravity 里下拉菜单同一套曲线） */
+/* 弹出面板的进场（轻微弹簧过冲） */
 @keyframes glPopIn {
   from { opacity: 0; transform: translateY(6px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .gl-pop-in {
-  animation: glPopIn var(--agy-dur-base) var(--agy-ease-spring) both;
+  animation: glPopIn var(--gl-dur-base) var(--gl-ease-spring) both;
 }
 
 /* ==========================================================================
@@ -719,8 +719,8 @@
   cursor: pointer;
   outline: none;
   transition:
-    --torch-a 160ms var(--agy-ease-out, ease-out),
-    --sun-a 800ms var(--agy-ease-out, ease-out);
+    --torch-a 160ms var(--gl-ease-out, ease-out),
+    --sun-a 800ms var(--gl-ease-out, ease-out);
 }
 .gl-slider::-webkit-slider-runnable-track {
   height: 6px;
@@ -765,7 +765,7 @@
   box-shadow:
     inset -1.5px -1.5px 0 #06080E,
     0 1px 0 0 rgba(0, 2, 8, 0.5);
-  transition: transform var(--agy-dur-base) var(--agy-ease-spring), box-shadow var(--agy-dur-base) var(--agy-ease-out);
+  transition: transform var(--gl-dur-base) var(--gl-ease-spring), box-shadow var(--gl-dur-base) var(--gl-ease-out);
 }
 .gl-slider:hover::-webkit-slider-thumb,
 .gl-slider:focus-visible::-webkit-slider-thumb {
@@ -844,10 +844,10 @@
     inset 0 2px 5px rgba(0, 2, 8, 0.88);
   outline: none;
   transition:
-    --torch-a 160ms var(--agy-ease-out, ease-out),
-    --sun-a 800ms var(--agy-ease-out, ease-out),
-    color 160ms var(--agy-ease-out, ease-out),
-    box-shadow var(--agy-dur-base) var(--agy-ease-out);
+    --torch-a 160ms var(--gl-ease-out, ease-out),
+    --sun-a 800ms var(--gl-ease-out, ease-out),
+    color 160ms var(--gl-ease-out, ease-out),
+    box-shadow var(--gl-dur-base) var(--gl-ease-out);
 }
 /* 遥测等宽输入框（如航点坐标 / 时间戳读数）：走等宽仪表字，待机暗青灰 #7A90A8，聚焦提亮为冰晶白 #DCE8FF */
 .gl-input.gl-mono {
@@ -876,7 +876,7 @@ textarea.gl-input {
 .gl-input > .gl-icon,
 .gl-input > svg {
   color: rgba(142, 155, 174, 0.48);
-  transition: color 160ms var(--agy-ease-out, ease-out);
+  transition: color 160ms var(--gl-ease-out, ease-out);
 }
 .gl-input:focus-within > .gl-icon,
 .gl-input:focus-within > svg {
@@ -960,8 +960,8 @@ textarea.gl-input {
 }
 .gl-table tbody tr {
   transition:
-    --torch-a 160ms var(--agy-ease-out, ease-out),
-    --sun-a 800ms var(--agy-ease-out, ease-out);
+    --torch-a 160ms var(--gl-ease-out, ease-out),
+    --sun-a 800ms var(--gl-ease-out, ease-out);
   background:
     radial-gradient(
       var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y),
@@ -983,7 +983,7 @@ textarea.gl-input {
 .gl-table td {
   padding: 10px 14px;
   color: #8E9BAE;
-  transition: color 140ms var(--agy-ease-out);
+  transition: color 140ms var(--gl-ease-out);
 }
 .gl-table th.num,
 .gl-table td.num {

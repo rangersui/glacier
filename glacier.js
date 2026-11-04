@@ -4,14 +4,14 @@
  * 一盏灯，两个消费者（轨道游标、黑白底片探照灯遮罩），加一个把它们装到页面上的 init()：
  *   Glacier.sun          太阳模型：时间 → 位置（横跨整个视口的轨道）→ 光色与亮度；关键帧表 sampleTable / stateFromTable
  *   Glacier.Lamp         灯 overlay：柔光球 + 三色光谱轨迹弧 + 刻度 + 当前时间（静态层不随时间重建）
- *   Glacier.applySunVars 把底片探照灯坐标与微弱明度呼吸（--agy-sun-x / --agy-sun-y / --agy-sun-exposure）写到一个元素（通常是 body）上
+ *   Glacier.applySunVars 把底片探照灯坐标与微弱明度呼吸（--gl-sun-x / --gl-sun-y / --gl-sun-exposure）写到一个元素（通常是 body）上
  *   Glacier.init(options) 建画布、起太阳、画灯、鼠标手电（控件材质走 CSS 焊死的 1px 环 + 100% 100% at 0% 0% 归一化三色常量，零内联 --ice-*），
  *                         返回句柄 { setHour, setMode, setLoop, setSunTable, setBackground, setPhoto, relight, stop, destroy, sun … }
  *   Glacier.preloadPhoto(url) 提前取图并解码，之后 setPhoto 零等待
  *   挂上总线即受光：root 里新出现的 .gl-* 节点自动纳入（observe），会动的节点加 data-gl-track 逐帧跟着被手电探测
  *   两支手电：鼠标（快）和太阳（慢，轨道游标经过的砖被擦亮、800ms 暗回去）同一配方；Glacier.sun.tableFromPath 造任意闭合轨道的表
  *
- * 性能守则同 DESIGN.md §13：灯只在动了才重画、渐变缓存、同值不写、读写分离、滚动中不读布局。
+ * 性能守则同 DESIGN.md §6：灯只在动了才重画、渐变缓存、同值不写、读写分离、滚动中不读布局。
  * 砖与卡片走 CSS 常量，零内联 --ice-* 变量，滚动、对表都不碰砖；measureRects 只给鼠标手电读一轮矩形。
  *
  * 只有一个全局：window.Glacier（CommonJS 环境下同时 module.exports）。除了 init() 创建的画布，
@@ -22,7 +22,7 @@
   const Glacier = {};
 
   // ==========================================================================
-  // 1. 太阳模型（模块 4）
+  // 1. 太阳模型
   // ==========================================================================
   // 轨迹（纯函数）：白天 05–19 点抛物线，06:00 左下边缘升起、正午顶部正中、18:00 右下落下；
   // 夜里 19–05 点低轨道从右走回左。两段在 05:00 / 19:00 处位置相同。
@@ -400,13 +400,13 @@
   // ==========================================================================
   // 3. 太阳位置与微弱明度广播（底片 100% 消色差黑白银盐灰阶，零色相染色）
   // ==========================================================================
-  // 材质是 CSS 常数，底片是纯黑白银盐负片；太阳只管底片暗房探照灯的坐标（--agy-sun-x / --agy-sun-y）和极克制的明度呼吸（--agy-sun-exposure）
+  // 材质是 CSS 常数，底片是纯黑白银盐负片；太阳只管底片暗房探照灯的坐标（--gl-sun-x / --gl-sun-y）和极克制的明度呼吸（--gl-sun-exposure）
   Glacier.applySunVars = (el, state) => {
     const st = el.style;
     const set = (k, val) => { if (val && st.getPropertyValue(k) !== val) st.setProperty(k, val); };
-    set("--agy-sun-x", `${((state.sunU ?? 0.5) * 100).toFixed(1)}%`);
-    set("--agy-sun-y", `${((state.sunV ?? 0.25) * 100).toFixed(1)}%`);
-    set("--agy-sun-exposure", (0.68 + 0.32 * (state.lampGlow ?? 1)).toFixed(2));
+    set("--gl-sun-x", `${((state.sunU ?? 0.5) * 100).toFixed(1)}%`);
+    set("--gl-sun-y", `${((state.sunV ?? 0.25) * 100).toFixed(1)}%`);
+    set("--gl-sun-exposure", (0.68 + 0.32 * (state.lampGlow ?? 1)).toFixed(2));
   };
 
   // ==========================================================================
@@ -455,7 +455,7 @@
   };
   Glacier.DEFAULTS = DEFAULTS;
 
-  const SUN_VARS = ["--agy-sun-x", "--agy-sun-y", "--agy-sun-exposure"];
+  const SUN_VARS = ["--gl-sun-x", "--gl-sun-y", "--gl-sun-exposure"];
   const BACKGROUNDS = ["none", "photo"];
   const LOOP_TICK = 80; // loop / timelapse 模式对表的节拍（毫秒）
   const TORCH_VARS = ["--torch-x", "--torch-y", "--torch-a"];

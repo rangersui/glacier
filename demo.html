@@ -18,7 +18,7 @@
     min-height: 100vh;
     font: 14px/1.6 var(--gl-font-sans);
   }
-  a { color: var(--agy-accent-cyan); }
+  a { color: var(--gl-accent-cyan); }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 32px 140px; }
   .topbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 40px; padding: 11px 16px; border-radius: 8px 8px 0 0; }
   .topbar .brand { font: 600 12px/1 var(--gl-font-mono); letter-spacing: 2px; color: #7dcfff; margin-right: auto; }
@@ -392,7 +392,7 @@
     mark("mode", modeKey); mark("background", gl.background); mark("orbit", orbitSel);
     const brickInfo = "locked 1px ring (100%×100% @ 0% 0% in oklch · #FFD89B → #E6F4FF → 暮光紫 → transparent 88% · inset -1.5px #06080E · 0 inline vars)";
     $("readout").innerHTML =
-      `lamp <b>${Math.round(s.sunX)}, ${Math.round(s.sunY)}</b> / ${s.W}×${s.H}   glow <b>${s.lampGlow.toFixed(2)}</b>   photo mask <b>${document.body.style.getPropertyValue("--agy-sun-x")} ${document.body.style.getPropertyValue("--agy-sun-y")}</b> × <b>${document.body.style.getPropertyValue("--agy-sun-exposure")}</b>\n` +
+      `lamp <b>${Math.round(s.sunX)}, ${Math.round(s.sunY)}</b> / ${s.W}×${s.H}   glow <b>${s.lampGlow.toFixed(2)}</b>   photo mask <b>${document.body.style.getPropertyValue("--gl-sun-x")} ${document.body.style.getPropertyValue("--gl-sun-y")}</b> × <b>${document.body.style.getPropertyValue("--gl-sun-exposure")}</b>\n` +
       `background <b>${gl.background}</b>   mode <b>${gl.mode}</b>   relights <b>${stats.relights}</b>   measures <b>${stats.measures}</b>\n` +
       `brick[0] <b>${brickInfo}</b>`;
   }
