@@ -5,9 +5,9 @@
 
 ```
 glacier/
-├── glacier.css   令牌与 Windhawk 三色光学常量、@property 注册、画布/底片层、.gl-brick / .gl-nav / .gl-card / .gl-bar / .gl-alert / .gl-track 规则（无 !important、无宿主选择器）
+├── glacier.css   令牌与 Windhawk 三色光学常量、三轨字体栈、@property 注册、画布/底片层、.gl-brick / .gl-nav / .gl-card / .gl-bar / .gl-prose / .gl-alert / .gl-track 规则（无 !important、无宿主选择器）
 ├── glacier.js    Glacier.sun / Lamp / applySunVars，加 Glacier.init()
-├── demo.html     组件目录：每个组件一节（砖的五种状态、暗槽、卡片、光栅、晶格、图标、漂移节点、滚动容器）+ 工程面板（时间 / 时钟 / 背景 / 生命周期 / 读数）
+├── demo.html     组件目录：每个组件一节（砖的五种状态、暗槽、卡片、光栅、晶格、图标、长文排版 .gl-prose、漂移节点、滚动容器）+ 工程面板（时间 / 时钟 / 背景 / 生命周期 / 读数）
 ├── bridge.html   舰桥：用这套积木搭的暗座舱范例——三个问题（在哪 / 几点 / 有没有事）、两个旋钮（去哪 / 多快）、航点光栅 + 当月日历晶格 + 告警行（A 模拟、Esc 清）
 └── README.md     本文件
 ```
@@ -130,7 +130,8 @@ glacier/
 
 ## 5. CSS 约定
 
-- 令牌在 `:root`：`--agy-bg`、`--agy-fg`、`--agy-accent-cyan`、`--agy-card-alpha`，动效 `--agy-ease-out / spring`、`--agy-dur-base / slow`，底片透射基准 `--gl-photo-level: 0.55`，以及焊死的磁贴光学常量 `--gl-crest-line`（水平 90° `in oklch`：香槟暖金 → 冰晶白 → 金星带暮光紫）、`--gl-edge`（`100% 100% at 0% 0% in oklch` 归一化 1px 单层刀锋，88% 处彻底透明归零）、`--gl-brick-fill`（左上 10% 香槟金微光 + 左下 16% 皇家钴蓝呼吸微光）。
+- 令牌在 `:root`：`--agy-bg`、`--agy-fg`、`--agy-accent-cyan`、`--agy-card-alpha`，动效 `--agy-ease-out / spring`、`--agy-dur-base / slow`，底片透射基准 `--gl-photo-level: 0.55`，三轨字体栈 `--gl-font-mono`（等宽遥测轨：`JetBrains Mono` / `Cascadia Code`）、`--gl-font-serif`（细衬线标题/叙事轨：`Newsreader` + `Noto Serif SC`）、`--gl-font-sans`（高内白无衬线正文轨：`Inter` + `Noto Sans SC`），以及焊死的磁贴光学常量 `--gl-crest-line`（水平 90° `in oklch`：香槟暖金 → 冰晶白 → 金星带暮光紫）、`--gl-edge`（`100% 100% at 0% 0% in oklch` 归一化 1px 单层刀锋，88% 处彻底透明归零）、`--gl-brick-fill`（左上 10% 香槟金微光 + 左下 16% 皇家钴蓝呼吸微光）。
+- 字体加载：`demo.html` 和 `bridge.html` 顶部带 Google Fonts 的 `<link>`（加载 `Inter` 400/500、`JetBrains Mono` 400/600、`Newsreader` 400、`Noto Sans SC` 400/500、`Noto Serif SC` 400），保证任何裸机打开都有完整的三轨字体与 500 字重；离线环境下本机装了 `Cascadia Code` + `Noto Sans SC` + `Noto Serif SC` 也能原地命中（若裸 Windows 既离线又没装 Noto，衬线轨会退回 `Georgia + SimSun` 宋体）。`.gl-stage` 带 `-webkit-font-smoothing: antialiased`（仅 macOS 生效，Windows 仍走系统 DirectWrite）。
 - `--torch-*` 用 `@property` 注册成继承且有类型，`::before` 才能读到、`--torch-a` 才能过渡。不再有任何 `--ice-*` 内联变量（见 `DESIGN.md` §4.3–4.4）。
 - `.gl-bar`：金星带顶栏 / 分割栏（复刻 Windhawk 命令栏：左半地球影暗槽 + 右半金星带瑞利散射紫微雾 + 底部 1px `--gl-crest-line` 光谱地平线）。
 - **未选中保持烟熏磨砂，点亮态严格对齐 Windows 11 开始菜单磁贴（Word 磁贴）的通透黑曜石结构**（`DESIGN.md` §4.3–4.4）：
@@ -142,6 +143,7 @@ glacier/
 - 卡片的边同样是一圈 1px 的 `--gl-edge` 渐变环（`::after`，85% 不透明：左上香槟暖金 → 冰晶白 → 暮光紫 → 88% 处归零）；厚度靠 `inset -1.5px` 的内暗槽，不在环里。
 - 圆角用 `--glacier-radius`（默认 6px）覆盖。
 - **阵列**（控件是光的传感器，排法决定光场看不看得见，DESIGN.md §4.1）：`.gl-louver` 一维光栅——等高长条竖排、长边朝光，`--gl-louver-gap`（缝，默认 10px）/ `--gl-louver-h`（条高，默认 38px），节距 40–50px 让 160px 的手电里装 3–4 条；`.gl-lattice` 二维晶格——等大方格、缝 ≤ 6px、圆角 2px，`--gl-lattice-cols / -cell / -gap`（默认 7 / 40px / 4px），相邻刀锋融成一道亮缝、交叉点起十字星；格里的 `.gl-lattice-label`（星期、坐标轴）和 `.gl-void`（空位）不是砖、不受光、只占格。
+- **长文排版与光学蚀刻（`.gl-prose`，`DESIGN.md` §4.5）**：不增加新容器积木，只需给装文章的 `.gl-card`（或 `<article>`）挂上 `.gl-prose`：正文段落压在 `#8E9BAE`（62% 冷石板银灰，行高 `1.8`、行宽 `66ch`），标题 `h1 / h2` 与引用 `blockquote` 用细衬线体 `--gl-font-serif`（`font-weight: 400`），高信息熵重点词 `strong` / `.gl-fresh` 提亮到 `#F4F8FF` 冰晶白、`mark` 提亮到 `#FFD89B` 香槟暖金细游丝，行内 `code` 做成微型暗槽 + `#64E8E5` 电光青等宽字，`hr` 与 `blockquote` 左刃同样复用 1px 三色光谱刀锋。
 - 背景层类名：`.gl-layer` 公共（fixed 铺满、`z-index: -1`、不吃事件），`.gl-layer-lamp`（screen 混合）、`.gl-layer-photo`（单节点 `isolation: isolate` + `screen` 混合：`::before` 画 100% 纯黑白银盐底片，`::after` 画跟随 `--agy-sun-x / --agy-sun-y` 的径向暗房遮罩，外层 `opacity = photo-level × exposure × (1 − dim)`）。
 
 ## 6. 性能

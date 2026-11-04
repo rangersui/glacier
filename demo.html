@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Glacier · 组件目录</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;600&family=Newsreader:opsz,wght@6..72,400&family=Noto+Sans+SC:wght@400;500&family=Noto+Serif+SC:wght@400&display=swap">
 <link rel="stylesheet" href="glacier.css">
 <style>
   /* demo 自己的布局。设计语言的部分全在 glacier.css 里，这里只有排版。
@@ -27,10 +30,10 @@
   .hero p.lead { color: #aab6dc; margin: 0 0 22px; font-size: 15px; }
   .bricks { display: flex; flex-wrap: wrap; gap: 10px; }
   .stack { display: flex; flex-direction: column; gap: 14px; }
-  .gl-card h3 { margin: 0 0 6px; font-size: 14px; color: #eef3ff; }
-  .gl-card p { margin: 0; color: #b8c4e8; }
-  .gl-card p + p { margin-top: 8px; }
-  .gl-card code, .rule code { font: 12px ui-monospace, "Cascadia Code", Consolas, monospace; color: #ffd285; }
+  .gl-card:not(.gl-prose) h3 { margin: 0 0 6px; font-size: 14px; color: #eef3ff; }
+  .gl-card:not(.gl-prose) p { margin: 0; color: #b8c4e8; }
+  .gl-card:not(.gl-prose) p + p { margin-top: 8px; }
+  .gl-card:not(.gl-prose) code, .rule code { font: 12px var(--gl-font-mono); color: #ffd285; }
   .panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px 18px; }
   .panel label { display: block; font: 600 11px/1 ui-monospace, Consolas, monospace; letter-spacing: 1px; color: #7dcfff; margin-bottom: 7px; text-transform: uppercase; }
   .panel .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
@@ -185,6 +188,20 @@
       <button class="gl-brick">📄 PDF</button>
       <button class="gl-brick"><span class="gl-icon">📄</span> PDF</button>
     </div>
+  </section>
+
+  <section>
+    <h2>长文排版 · .gl-prose</h2>
+    <p class="rule">不发明新容器积木，只需给装文章的 <code>.gl-card</code>（或 <code>&lt;article&gt;</code>）多挂一个 <code>.gl-prose</code>：三轨字体栈（标题与引用走细衬线 <code>--gl-font-serif</code>、正文走高内白无衬线 <code>--gl-font-sans</code>、行内代码走等宽 <code>--gl-font-mono</code>）+ 信息熵明度阶跃（普通段落压在 <code>#8E9BAE</code> 冷石板银灰，重点词不傻加粗，靠提亮到冰晶白 <code>&lt;strong&gt;</code> 与香槟暖金 <code>&lt;mark&gt;</code> 浮出）。</p>
+    <article class="gl-card gl-prose">
+      <h1>光学蚀刻：为什么暗座舱不能用纯白排正文</h1>
+      <p>在 <code>#13141c</code> 的极暗深空基底与黑曜石毛玻璃上，文字不是印在纸上的黑墨水，而是<strong>刻在晶体表面被微光点亮的光学蚀刻（Laser Etching）</strong>。如果直接用纯白排满整篇段落，视网膜上的光渗效应会让亮字在暗底上刺眼眩目，读满五百字就会视觉疲劳。</p>
+      <blockquote>「把全部色相预算留给前景的 1px 棱镜刀锋，把全部明度阶跃留给真正携带信息熵的破局词。」——卡西尼号银盐底片显影守则</blockquote>
+      <h2>三轨字体栈与信息熵梯度</h2>
+      <p>常规叙述段落压在 <code>#8E9BAE</code>（约 62% 亮度的冷石板银灰），行高拉开到 <code>1.8</code>、单行锁死在 <code>66ch</code> 以内；当句子里出现高信息熵的核心判断时，不用粗笨的大黑体，而是用<strong>冰晶白 500 字重微光提亮</strong>或 <mark>香槟暖金锚点游丝</mark> 让概念自己从灰阶段落里浮出来。</p>
+      <hr>
+      <p>连章节之间的水平分割线 <code>&lt;hr&gt;</code> 与引用块左侧的垂直导轨 <code>&lt;blockquote&gt;</code>，也全部复用同一根 <code>1px</code> 香槟金 → 冰晶白 → 暮光紫光谱刀锋，从按钮、面板一直贯彻到标点符号。</p>
+    </article>
   </section>
 
   <!-- ================= 工程面板 ================= -->

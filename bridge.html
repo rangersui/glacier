@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Glacier · 舰桥</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;600&family=Newsreader:opsz,wght@6..72,400&family=Noto+Sans+SC:wght@400;500&family=Noto+Serif+SC:wght@400&display=swap">
 <link rel="stylesheet" href="glacier.css">
 <style>
   /* 舰桥：暗座舱（DESIGN.md §4.2）。一切正常时面板是黑的，亮着的东西就是要你看的东西。
@@ -21,7 +24,7 @@
     gap: 22px 28px;
     padding: 18px 26px 16px;
   }
-  .mono { font: 600 11px/1 ui-monospace, "Cascadia Code", Consolas, monospace; letter-spacing: 2px; }
+  .mono { font: 600 11px/1 var(--gl-font-mono); letter-spacing: 2px; }
 
   /* 顶：钟 + 金星带顶栏（.gl-bar：左半地球影暗槽 + 右半金星带瑞利散射紫 + 1px GlacierCrestLine 光谱地平线） */
   .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; margin: -18px -26px 0; padding: 11px 26px 10px; }
@@ -32,11 +35,11 @@
   .knob .gl-brick { padding: 5px 9px; font-size: 12px; }
   input[type="range"] { width: 150px; height: 2px; accent-color: #ffd285; }
 
-  /* 中：舷窗。什么都不盖，只有底部一句话 */
+  /* 中：舷窗。什么都不盖，只有底部一句话（叙事衬线轨 + 遥测等宽标头） */
   .window { position: relative; }
-  .lore { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; color: rgba(196, 208, 245, 0.42); font-size: 12.5px; letter-spacing: 0.3px; }
-  .lore i { display: block; font-style: normal; font-size: 10.5px; letter-spacing: 0.5px; color: rgba(196, 208, 245, 0.28); margin-top: 6px; }
-  .lore b { display: block; color: rgba(224, 247, 255, 0.7); font: 600 11px/1 ui-monospace, "Cascadia Code", Consolas, monospace; letter-spacing: 2px; margin-bottom: 8px; }
+  .lore { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; font-family: var(--gl-font-serif); color: rgba(196, 208, 245, 0.48); font-size: 13px; letter-spacing: 0.4px; }
+  .lore i { display: block; font-style: normal; font-family: var(--gl-font-mono); font-size: 10.5px; letter-spacing: 0.5px; color: rgba(196, 208, 245, 0.28); margin-top: 6px; }
+  .lore b { display: block; color: rgba(224, 247, 255, 0.72); font: 600 11px/1 var(--gl-font-mono); letter-spacing: 2px; margin-bottom: 8px; }
 
   /* 左：航点光栅（去哪）。亮着的那条就是现在在的地方 */
   .places h2, .cal h2 { margin: 0 0 10px; font: 600 10px/1 ui-monospace, "Cascadia Code", Consolas, monospace; letter-spacing: 3px; color: rgba(125, 207, 255, 0.6); }
