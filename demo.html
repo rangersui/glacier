@@ -404,6 +404,16 @@
           </div>
         </div>
         <div style="grid-column: 1 / -1;">
+          <label>光学运镜（导演接口 · 临界阻尼借光 &amp; 向心 Catmull-Rom 星轨）</label>
+          <div class="row">
+            <button class="gl-brick" id="btnFocusAttr">贴 data-gl-focus（照「落日」键）</button>
+            <button class="gl-brick" id="btnFocusSub">gl.focus（照「+ 新砖」· 可半途拐弯）</button>
+            <button class="gl-brick" id="btnTour2">2 点天桥弧（时钟槽 ↔ 背景槽）</button>
+            <button class="gl-brick" id="btnTour3">3 点向心样条（时钟 → 轨道 → + 新砖）</button>
+            <button class="gl-brick" id="btnLightReset">归还日晷轨道</button>
+          </div>
+        </div>
+        <div style="grid-column: 1 / -1;">
           <label>状态</label>
           <div class="readout" id="readout">—</div>
         </div>
@@ -472,7 +482,7 @@
   };
 
   // ---- 轨道：试验用的三条曲线（库里不留预设）。曲线必须是钟：单环闭合，一圈就是一天；光色、游标、底片探照灯、太阳手电全跟着表走 ----
-  let orbitSel = "formula";
+  let orbitSel = "formula", preTourOrbit = "formula";
   const ORBITS = {
     formula: () => null, // 内置天穹抛物线
     circle: () => {
@@ -507,10 +517,12 @@
     if (document.activeElement !== hourInput) hourInput.value = s.h.toFixed(2);
     // 按钮的 data-v 和时钟模式对不上一一对应：loop 要分"延时（整天）"和"落日（区间）"，fixed 对应"手动"
     const modeKey = gl.mode === "loop" ? (gl.clock?.loop && gl.clock.loop.span < 24 ? "sunset" : "timelapse") : gl.mode === "fixed" ? "manual" : gl.mode;
+    if (!gl.options.sunTable?.open && orbitSel.startsWith("tour")) orbitSel = preTourOrbit;
     mark("mode", modeKey); mark("background", gl.background); mark("orbit", orbitSel);
+    const camState = gl.focusEl ? `focus(${gl.focusEl.id || gl.focusEl.tagName.toLowerCase()})` : (s.offOrbit ? "returning" : (gl.options.sunTable?.open ? "tour(spline)" : "orbit"));
     const brickInfo = "locked 1px ring (100%×100% @ 0% 0% in oklab · #FFD89B → #E6F4FF → 暮光紫 → transparent 88% · inset -1.5px #06080E · 0 inline vars)";
     $("readout").innerHTML =
-      `lamp <b>${Math.round(s.sunX)}, ${Math.round(s.sunY)}</b> / ${s.W}×${s.H}   glow <b>${s.lampGlow.toFixed(2)}</b>   photo mask <b>${document.body.style.getPropertyValue("--gl-sun-x")} ${document.body.style.getPropertyValue("--gl-sun-y")}</b> × <b>${document.body.style.getPropertyValue("--gl-sun-exposure")}</b>\n` +
+      `lamp <b>${Math.round(s.sunX)}, ${Math.round(s.sunY)}</b> / ${s.W}×${s.H}   glow <b>${s.lampGlow.toFixed(2)}</b>   camera <b>${camState}</b>   photo mask <b>${document.body.style.getPropertyValue("--gl-sun-x")} ${document.body.style.getPropertyValue("--gl-sun-y")}</b> × <b>${document.body.style.getPropertyValue("--gl-sun-exposure")}</b>\n` +
       `background <b>${gl.background}</b>   mode <b>${gl.mode}</b>   relights <b>${stats.relights}</b>   measures <b>${stats.measures}</b>\n` +
       `brick[0] <b>${brickInfo}</b>`;
   }
@@ -521,7 +533,7 @@
     const g = b.closest("[data-group]").dataset.group, v = b.dataset.v;
     if (g === "mode") { if (v === "sunset") gl.setLoop({ from: 16, to: 19, duration: 12000, bounce: true }); else gl.setMode(v); }
     else if (g === "background") { gl.setBackground(v); instrument(); }
-    else if (g === "orbit") { orbitSel = v; gl.setSunTable(ORBITS[v] ? ORBITS[v]() : null); }
+    else if (g === "orbit") { orbitSel = preTourOrbit = v; gl.setSunTable(ORBITS[v] ? ORBITS[v]() : null); }
     render();
   });
   $("btnStop").onclick = () => { gl.stop(); render(); };
@@ -532,6 +544,28 @@
   $("btnAdd").onclick = () => { // 新节点：不注册、不调 relight()，observe 看见它就打光
     const b = document.createElement("button"); b.className = "gl-brick"; b.textContent = `新砖 ${String(++added).padStart(2, "0")}`;
     document.querySelector(".hero .bricks").appendChild(b);
+  };
+  // 光学运镜演示：1) DOM 属性 data-gl-focus；2) gl.focus()；3) glacier:light 事件 2 点天桥弧与 3 点向心样条巡航
+  $("btnFocusAttr").onclick = () => {
+    const target = document.querySelector('[data-group="mode"] [data-v="sunset"]');
+    target.removeAttribute("data-gl-focus");
+    target.setAttribute("data-gl-focus", ""); // MutationObserver 自动捕获并启动 8s 临界阻尼借光
+  };
+  $("btnFocusSub").onclick = () => gl.focus("#btnAdd");
+  $("btnTour2").onclick = () => {
+    if (!orbitSel.startsWith("tour")) preTourOrbit = orbitSel;
+    orbitSel = "tour2";
+    window.dispatchEvent(new CustomEvent("glacier:light", { detail: { path: ['[data-group="mode"]', '[data-group="background"]'], duration: 6000 } }));
+  };
+  $("btnTour3").onclick = () => {
+    if (!orbitSel.startsWith("tour")) preTourOrbit = orbitSel;
+    orbitSel = "tour3";
+    window.dispatchEvent(new CustomEvent("glacier:light", { detail: { path: ['[data-group="mode"]', '[data-group="orbit"]', "#btnAdd"], duration: 8000 } }));
+  };
+  $("btnLightReset").onclick = () => {
+    orbitSel = preTourOrbit;
+    document.querySelectorAll("[data-gl-focus]").forEach((el) => el.removeAttribute("data-gl-focus"));
+    window.dispatchEvent(new CustomEvent("glacier:light", { detail: { clear: true } }));
   };
   document.addEventListener("scroll", () => render(), { capture: true, passive: true }); // 只刷读数
 

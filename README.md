@@ -62,6 +62,7 @@ glacier/
 | `observe` | `true` | 监视 `root` 里的节点增删：新塞进来的 `.gl-brick` 节点自动纳入鼠标手电探测，不用注册、不用调 `relight()` |
 | `trackSelector` | `"[data-gl-track]"` | 会自己动的节点（漂移、拖拽、动画）逐帧重新量矩形、被手电探测。这是本库唯一的逐帧布局读取，只给会动的东西加 |
 | `dim` | `0.3` | 底片压暗 0–1：照片层不透明度乘 `(1 − dim)`，面板后面的背景要安静 |
+| `focusLease` | `8000` | `data-gl-focus` / `focus()` / `tour()` 默认离轨借光租期（毫秒）；到期后相对速度二阶临界阻尼弹簧自动把太阳游标无滞后拉回日晷轨道 |
 | `root` | `document.body` | 画布插到哪、冰砖在哪找、底片变量写在哪 |
 | `settleDelay` | `160` | 滚动停下多久算「停下」（毫秒）。停下后给鼠标手电真量一轮矩形纠偏 |
 | `realtimeInterval` | `28000` | 实时模式对表间隔（毫秒）。实时一小时灯走约 100px，28 秒一次完全够 |
@@ -90,6 +91,8 @@ glacier/
 | `setMode("realtime" \| "fixed" \| "loop" \| "external" \| "timelapse")` | 切时钟：跟真实时间 / 定住一帧 / 区间来回 / 宿主推 / 一天循环 |
 | `setLoop({ from, to, duration, bounce })` | 在某个区间来回：`from`/`to` 小时，`duration` 毫秒走完一圈，`bounce` 到头折返。例：落日 `{ from: 16, to: 19, duration: 12000, bounce: true }` |
 | `setSunTable(table \| null)` | 换「几点钟长什么样」的关键帧表；`null` 回内置公式 |
+| `focus(target, { lease })` | **定点借光**：太阳游标按相对速度二阶临界阻尼弹簧（$\zeta = 1.0,\ \omega_n = 9.5\text{ rad/s}$）脱离原轨道滑向目标元素（或 CSS 选择器）中心，照亮其 `1px` 刀锋与银盐底片；背景日晷游丝留在原处，内部时钟不停；到期（默认 `8000ms`，传 `0` 或 `Infinity` 常驻）或传 `null` 自动无滞后追上并归还轨道 |
+| `tour(targets, { duration, bounce, closed, lease })` | **多点星轨巡航**：把 2 个或以上 DOM 节点（或选择器 / `{u,v}` 坐标）用向心 Catmull-Rom（$\alpha = 0.5$）样条串成 `1px` 金星带临时星轨（2 点时自动拱起法向天桥弧）并来回巡航；默认租期 `max(focusLease, duration)`（传 `lease: 0` 或 `Infinity` 常驻），到期或传 `null` 平顺归还巡航前的轨道与时钟。注：巡航中途若手动调用 `setHour` / `setMode` / `setLoop` / `setSunTable` 视为接管控制权，会清掉巡航前快照，此后 `tour(null)` 将归还至默认公式轨道 |
 | `setBackground("none" \| "photo")` | 原地换背景模式（背景层重建，冰砖不动） |
 | `setPhoto(url)` | 换底片：`photo` 模式下先解码完，再让新旧底片 700ms 交叉淡化（解码不在主线程上卡，旧的淡出而不是到点拿掉）。每张底片是独立合成单元，染色在单元内部完成，淡的是成品图，中途不会发白；A → B → A 快切时还在淡出的 A 原地救回，不重建节点。其它模式只记下，下次切到 `photo` 用。一个航点一张底片。`Glacier.preloadPhoto(url)` 提前解码，之后零等待 |
 | `relight()` | 下一帧重新扫描手电目标并量一轮矩形。宿主关了 `observe` 又自己改了 DOM 时才需要 |
@@ -119,6 +122,10 @@ glacier/
 
 - 砖与卡片的材质是焊死在 CSS 里的空间三色棱镜（琥珀 `#FFCE91` → 冰白 `#F0FCFF` → 金星带暮光紫 `#BB9AF7`），零内联变量：`init()` 时只找元素、给手电量一次矩形，之后滚动、对表都不碰砖。
 - 动态新建的节点：`observe` 看到它出现就纳入，下一轮就能被手电照到。
+- **纯光学运镜（`data-gl-focus` / `glacier:light` / `#gl-focus=`）**：不增加任何遮罩或高亮框，直接调度房间里的太阳探针：
+  - **HTML 属性（零 JS 权限的 LLM 也可驱动）**：往任意元素贴 `<button class="gl-brick" data-gl-focus>`（或 `data-gl-focus="12000"` 指定毫秒租期），`MutationObserver` 立即捕获并让太阳游标滑过去打光，`8s` 后自动弹回日晷轨道；
+  - **窗口事件（外部 CDP / 脚本驱动）**：`window.dispatchEvent(new CustomEvent("glacier:light", { detail: { target: "#btn" } }))` 或 `{ path: ["#a", "#b", "#c"] }`；
+  - **URL 锚点（纯链接分享）**：打开 `demo.html#gl-focus=kbChassis` 自动把太阳滑向目标控件。
 - 会自己动的节点（漂移、拖拽、动画）：再加 `data-gl-track`，引擎逐帧跟着它量矩形，穿过手电光圈时边缘实时流过高光。demo 里那颗「🛰 漂移节点」就是这么做的。
 - 不动的节点别加 `data-gl-track`：逐帧量矩形是这个库里唯一不省的事，而且一个常动的元素会逼整页每帧重新合成（见 §6）。
 
@@ -129,7 +136,8 @@ glacier/
 | `Glacier.sun.lampPointAt(hour, W, H)` | 时间 → 灯在 W×H 里的位置（白天 05–19 抛物线，夜里低轨道从右走回左） |
 | `Glacier.sun.computeSunState(hour, W, H)` | 位置 + 四组光色 + `lampGlow`（靠近下沿渐隐） |
 | `Glacier.sun.tableFromPath(fn, frames = 48)` | 从"相位 → 位置"的函数造一张表：`fn(t)` 返回 `{ u, v, glow?, isDay? }`，`t ∈ [0, 1)` 是一天的相位。任意闭合曲线（圆、扁弧、你自己的一圈）都从这进来；光色从公式同一小时借。曲线必须是钟：单环闭合或单程扫（`DESIGN.md` §3 探针五律） |
-| `Glacier.sun.sampleTable(step)` / `stateFromTable(table, hour, W, H)` / `frameFromModel(hour)` | 关键帧表：采样内置公式、按表插值出状态、取公式在某小时的一帧 |
+| `Glacier.sun.tableFromPoints(points, { closed, frames })` | 从 2 个或以上归一化点 `[{ u, v, glow?, isDay? }, ...]` 生成向心 Catmull-Rom（$\alpha = 0.5$）关键帧表（2 点时自动沿法线偏移 `0.08–0.12` 合成天桥弧拱顶） |
+| `Glacier.sun.sampleTable(step)` / `stateFromTable(table, hour, W, H)` / `frameFromModel(hour)` | 关键帧表：采样内置公式、按表（向心 Catmull-Rom 三次样条）插值出状态、取公式在某小时的一帧 |
 | `new Glacier.Lamp(canvas)` → `draw(state, hour, W, H, { path, pathKey, loop })` | 灯 overlay。`path(hour) → { x, y, isDay }` 是轨迹采样器（默认 `Lamp.formulaPath(W, H)`），`pathKey` 换表时要换，`loop = { from, span }` 要加亮的区间。位置取整后没变、颜色没变、尺寸没变就不重画 |
 | `Glacier.applySunVars(el, state)` | 把 `--gl-sun-x`、`--gl-sun-y`、`--gl-sun-exposure` 写到 `el` 上，同值不写 |
 

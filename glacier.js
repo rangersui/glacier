@@ -6,10 +6,11 @@
  *   Glacier.Lamp         灯 overlay：柔光球 + 三色光谱轨迹弧 + 刻度 + 当前时间（静态层不随时间重建）
  *   Glacier.applySunVars 把底片探照灯坐标与微弱明度呼吸（--gl-sun-x / --gl-sun-y / --gl-sun-exposure）写到一个元素（通常是 body）上
  *   Glacier.init(options) 建画布、起太阳、画灯、鼠标手电（控件材质走 CSS 焊死的 1px 环 + 100% 100% at 0% 0% 归一化三色常量，零内联 --ice-*），
- *                         返回句柄 { setHour, setMode, setLoop, setSunTable, setBackground, setPhoto, relight, stop, destroy, sun … }
+ *                         返回句柄 { setHour, setMode, setLoop, setSunTable, focus, tour, setBackground, setPhoto, relight, stop, destroy, sun … }
  *   Glacier.preloadPhoto(url) 提前取图并解码，之后 setPhoto 零等待
  *   挂上总线即受光：root 里新出现的 .gl-* 节点自动纳入（observe），会动的节点加 data-gl-track 逐帧跟着被手电探测
- *   两支手电：鼠标（快）和太阳（慢，轨道游标经过的砖被擦亮、800ms 暗回去）同一配方；Glacier.sun.tableFromPath 造任意闭合轨道的表
+ *   两支手电：鼠标（快）和太阳（慢，轨道游标经过的砖被擦亮、800ms 暗回去）同一配方；Glacier.sun.tableFromPath / tableFromPoints 造任意轨道表
+ *   纯光学运镜（导演接口）：data-gl-focus 属性监听 + glacier:light 窗口事件 + #gl-focus= 地址栏锚点 + focus() 二阶临界阻尼借光 + tour() 向心样条巡航
  *
  * 性能守则同 DESIGN.md §6：灯只在动了才重画、渐变缓存、同值不写、读写分离、滚动中不读布局。
  * 砖与卡片走 CSS 常量，零内联 --ice-* 变量，滚动、对表都不碰砖；measureRects 只给鼠标手电读一轮矩形。
@@ -141,10 +142,20 @@
     return t;
   };
   /** 按表算某个小时的太阳状态（和 computeSunState 同样的返回结构）。
-   *  位置 (u, v) 与亮度 glow 在等距表（>=4 帧、间隔之比 <=1.5）上用周期性 Catmull-Rom 三次样条，消除折线棱角；非等距表退回折线。 */
+   *  位置 (u, v) 用向心 Catmull-Rom（α = 0.5，Barry-Goldman 金字塔递推）三次样条插值：严格过点、C¹ 连续，
+   *  且在任意非均匀 DOM 节点排布或稀疏手写表下绝不产生尖角（Cusps）、自交环或过冲。 */
   const catmullRom = (p0, p1, p2, p3, t) => {
     const t2 = t * t, t3 = t2 * t;
     return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+  };
+  const knotDelta = (a, b) => Math.max(1e-4, Math.pow(Math.hypot(b.u - a.u, b.v - a.v), 0.5));
+  const centripetalCR = (p0, p1, p2, p3, s) => {
+    const dt0 = knotDelta(p0, p1), dt1 = knotDelta(p1, p2), dt2 = knotDelta(p2, p3);
+    const t1 = dt0, t2 = t1 + dt1, t3 = t2 + dt2, t = t1 + s * dt1;
+    const lp = (a, b, w) => ({ u: lerp(a.u, b.u, w), v: lerp(a.v, b.v, w) });
+    const A1 = lp(p0, p1, t / t1), A2 = lp(p1, p2, s), A3 = lp(p2, p3, (t - t2) / dt2);
+    const B1 = lp(A1, A2, t / t2), B2 = lp(A2, A3, (t - t1) / (t3 - t1));
+    return lp(B1, B2, s);
   };
   // 归一化后的关键帧按表的身份缓存：同一张表第一次用时算一次（每帧要跑 frameFromModel），之后 240 段轨道、
   // 每帧 28 个余晖采样都直接拿。宿主换表是换数组，自然换缓存；原地改表后要 setSunTable 重新喂
@@ -152,53 +163,77 @@
   const keyframesOf = (table) => {
     let kf = kfCache.get(table);
     if (kf) return kf;
+    const isOpen = !!table.open;
     kf = table
       .filter((k) => Number.isFinite(k?.hour))
-      .map((k) => ({ ...frameFromModel(k.hour), ...k, hour: ((k.hour % 24) + 24) % 24 }))
+      .map((k, idx, arr) => ({
+        ...frameFromModel(k.hour),
+        ...k,
+        hour: isOpen && k.hour === 24 && idx === arr.length - 1 ? 24 : (((k.hour % 24) + 24) % 24)
+      }))
       .sort((a, b) => a.hour - b.hour);
-    // 等距判定：相邻帧（含跨午夜那一段）的间隔之比在 1.5 以内才算等距；均匀 Catmull-Rom 只对等距表成立，
-    // 稀疏手写表（6、7、12、19 点四帧）走样条会忽快忽慢、过冲出屏，退回折线
     let gmin = Infinity, gmax = 0;
-    for (let i = 0; i < kf.length; i++) {
-      const g = ((kf[(i + 1) % kf.length].hour - kf[i].hour) % 24 + 24) % 24 || 24;
+    for (let i = 0; i < (isOpen ? kf.length - 1 : kf.length); i++) {
+      const g = isOpen ? (kf[i + 1].hour - kf[i].hour) : (((kf[(i + 1) % kf.length].hour - kf[i].hour) % 24 + 24) % 24 || 24);
       gmin = Math.min(gmin, g); gmax = Math.max(gmax, g);
     }
+    kf.open = isOpen;
     kf.uniform = kf.length >= 4 && gmax / gmin <= 1.5;
     kfCache.set(table, kf);
     return kf;
   };
   const stateFromTable = (table, hour, W, H) => {
     if (!Array.isArray(table) || !table.length) return computeSunState(hour, W, H);
-    const h = ((hour % 24) + 24) % 24;
     const kf = keyframesOf(table);
     const n = kf.length;
     if (!n) return computeSunState(hour, W, H);
+    const h = kf.open ? Math.max(0, Math.min(24, Number(hour) || 0)) : (((hour % 24) + 24) % 24);
     let idx1, idx2, t;
-    const i = kf.findIndex((k) => k.hour > h);
-    if (i <= 0) {
-      idx1 = n - 1; idx2 = 0;
-      const span = ((kf[0].hour - kf[n - 1].hour) % 24 + 24) % 24 || 24;
-      t = (((h - kf[n - 1].hour) % 24) + 24) % 24 / span;
+    if (kf.open) {
+      const i = kf.findIndex((k) => k.hour > h);
+      if (i <= 0) {
+        if (h >= kf[n - 1].hour) { idx1 = Math.max(0, n - 2); idx2 = n - 1; t = 1; }
+        else { idx1 = 0; idx2 = Math.min(1, n - 1); t = 0; }
+      } else {
+        idx1 = i - 1; idx2 = i;
+        t = (h - kf[idx1].hour) / ((kf[idx2].hour - kf[idx1].hour) || 1);
+      }
     } else {
-      idx1 = i - 1; idx2 = i;
-      t = (h - kf[idx1].hour) / ((kf[idx2].hour - kf[idx1].hour) || 1);
+      const i = kf.findIndex((k) => k.hour > h);
+      if (i <= 0) {
+        idx1 = n - 1; idx2 = 0;
+        const span = ((kf[0].hour - kf[n - 1].hour) % 24 + 24) % 24 || 24;
+        t = (((h - kf[n - 1].hour) % 24) + 24) % 24 / span;
+      } else {
+        idx1 = i - 1; idx2 = i;
+        t = (h - kf[idx1].hour) / ((kf[idx2].hour - kf[idx1].hour) || 1);
+      }
     }
     if (n === 1) { idx2 = idx1; t = 0; }
     const a = kf[idx1], b = kf[idx2];
     let u, v, glow;
-    if (kf.uniform) {
-      const p0 = kf[(idx1 - 1 + n) % n], p3 = kf[(idx2 + 1) % n];
-      u = catmullRom(p0.u, a.u, b.u, p3.u, t);
-      v = catmullRom(p0.v, a.v, b.v, p3.v, t);
-      glow = Math.max(0, Math.min(1, catmullRom(p0.glow, a.glow, b.glow, p3.glow, t)));
+    if (n >= 3) {
+      const p0 = kf.open
+        ? (idx1 > 0 ? kf[idx1 - 1] : { u: 2 * a.u - b.u, v: 2 * a.v - b.v, glow: a.glow })
+        : kf[(idx1 - 1 + n) % n];
+      const p3 = kf.open
+        ? (idx2 + 1 < n ? kf[idx2 + 1] : { u: 2 * b.u - a.u, v: 2 * b.v - a.v, glow: b.glow })
+        : kf[(idx2 + 1) % n];
+      const pos = centripetalCR(p0, a, b, p3, t);
+      u = pos.u;
+      v = pos.v;
+      glow = kf.uniform
+        ? Math.max(0, Math.min(1, catmullRom(p0.glow, a.glow, b.glow, p3.glow, t)))
+        : Math.max(0, Math.min(1, lerp(a.glow, b.glow, t)));
     } else {
       u = lerp(a.u, b.u, t);
       v = lerp(a.v, b.v, t);
       glow = Math.max(0, Math.min(1, lerp(a.glow, b.glow, t)));
     }
     const isDay = t < 0.5 ? !!a.isDay : !!b.isDay;
+    const hMod = ((h % 24) + 24) % 24;
     const st = {
-      h, u: lampPointAt(h, W, H).u, isDay, hour: h, W, H,
+      h: hMod, u: lampPointAt(hMod, W, H).u, isDay, hour: hMod, W, H,
       sunX: u * W, sunY: v * H, orbScreenX: u * W, orbScreenY: v * H,
       sunU: u, sunV: v, lampGlow: glow
     };
@@ -217,7 +252,53 @@
     }
     return t;
   };
-  Glacier.sun = { lampPointAt, computeSunState, sampleTable, stateFromTable, frameFromModel, tableFromPath };
+  /** 从 2 个或以上归一化坐标点 [{ u, v, glow?, isDay? }, ...] 生成向心 Catmull-Rom（α = 0.5）关键帧表。
+   *  - 仅 2 个点时自动沿法线（朝屏幕上方或远离中心一侧）偏移 0.08~0.12 跨度合成拱顶控制点 P_mid，画成优雅的天桥弧线；
+   *  - 默认开放腰线（open = !opts.closed，首尾反射虚拟端点自然收笔，不拉闭合底弦）；opts.closed = true 时首尾闭合；
+   *  - 按向心弦长参数化采样 frames 帧，直接喂给 setSunTable 与 Lamp.buildStatic。 */
+  const tableFromPoints = (points, opts = {}) => {
+    const raw = (Array.isArray(points) ? points : []).filter((p) => Number.isFinite(p?.u) && Number.isFinite(p?.v));
+    if (raw.length < 2) return null;
+    const closed = !!opts.closed;
+    const frames = Math.max(16, Number(opts.frames) || 48);
+    let pts = raw.map((p) => ({ u: Number(p.u), v: Number(p.v), glow: Number.isFinite(p.glow) ? p.glow : 1, isDay: p.isDay === undefined ? true : !!p.isDay }));
+    if (pts.length === 2 && !closed) {
+      const A = pts[0], B = pts[1];
+      const du = B.u - A.u, dv = B.v - A.v, L = Math.hypot(du, dv) || 0.2;
+      let nx = -dv / L, ny = du / L;
+      if (ny > 0 || (Math.abs(ny) < 1e-4 && ((A.u + B.u) * 0.5 > 0.5 ? nx < 0 : nx > 0))) { nx = -nx; ny = -ny; }
+      const arch = Math.max(0.08, Math.min(0.12, L * 0.24));
+      pts = [A, { u: (A.u + B.u) * 0.5 + nx * arch, v: (A.v + B.v) * 0.5 + ny * arch, glow: lerp(A.glow, B.glow, 0.5), isDay: true }, B];
+    }
+    const n = pts.length;
+    const segCount = closed ? n : n - 1;
+    const cum = [0];
+    for (let i = 0; i < segCount; i++) cum.push(cum[i] + knotDelta(pts[i], pts[(i + 1) % n]));
+    const total = cum[segCount] || 1;
+    const ptAt = (idx) => {
+      if (closed) return pts[(idx % n + n) % n];
+      if (idx < 0) return { u: 2 * pts[0].u - pts[1].u, v: 2 * pts[0].v - pts[1].v };
+      if (idx >= n) return { u: 2 * pts[n - 1].u - pts[n - 2].u, v: 2 * pts[n - 1].v - pts[n - 2].v };
+      return pts[idx];
+    };
+    const out = [];
+    for (let i = 0; i < frames; i++) {
+      const phase = closed ? i / frames : i / (frames - 1);
+      const hour = phase * 24;
+      const targetS = phase * total;
+      let seg = 0;
+      while (seg < segCount - 1 && cum[seg + 1] < targetS) seg++;
+      const span = (cum[seg + 1] - cum[seg]) || 1;
+      const s = Math.max(0, Math.min(1, (targetS - cum[seg]) / span));
+      const p0 = ptAt(seg - 1), p1 = ptAt(seg), p2 = ptAt(seg + 1), p3 = ptAt(seg + 2);
+      const pos = centripetalCR(p0, p1, p2, p3, s);
+      const f = frameFromModel(hour);
+      out.push({ ...f, hour, u: pos.u, v: pos.v, glow: lerp(p1.glow, p2.glow, s), isDay: s < 0.5 ? p1.isDay : p2.isDay });
+    }
+    if (!closed) out.open = true;
+    return out;
+  };
+  Glacier.sun = { lampPointAt, computeSunState, sampleTable, stateFromTable, frameFromModel, tableFromPath, tableFromPoints, centripetalCR };
 
   // ==========================================================================
   // 2. 灯 overlay：轨迹就是「几点钟灯在哪」那张表画出来的线
@@ -331,14 +412,16 @@
       return sp;
     }
     /**
-     * @param opts { path?: hour → {x, y, isDay}（默认公式）, pathKey?: 表的版本号（换表要换 key）, loop?: { from, span } 要加亮的区间 }
-     * 只有游标位置取整后变了、颜色变了、尺寸变了、表 / 区间变了才重画；游标只重画脏矩形。
+     * @param opts { path?: hour → {x, y, isDay}（默认公式）, pathKey?: 表的版本号（换表要换 key）, loop?: { from, span } 要加亮的区间, open?: 开放样条不跨午夜回绕, trail?: 离轨真实位移轨迹 }
+     * 只有游标位置取整后变了、余晖尾端变了、颜色变了、尺寸变了、表 / 区间变了才重画；游标只重画脏矩形。
      */
     draw(state, hour, W, H, opts = {}) {
       if (!(W > 0 && H > 0)) return false; // 0×0 的视口（隐藏的标签页）没得画
       const path = opts.path || Lamp.formulaPath(W, H), pathKey = opts.pathKey || "formula", loop = opts.loop || null;
       const x = state.sunX, y = state.sunY, glow = state.lampGlow ?? 1;
-      const key = `${Math.round(x)}:${Math.round(y)}:${state.orbCorona}:${state.orbCore}:${W}x${H}:${glow.toFixed(2)}:${state.isDay}:${pathKey}:${loop ? `${loop.from}+${loop.span}` : ""}`;
+      const extTrail = Array.isArray(opts.trail) ? opts.trail : null;
+      const extTail = extTrail && extTrail.length > 1 ? extTrail[extTrail.length - 1] : null;
+      const key = `${Math.round(x)}:${Math.round(y)}:${extTail ? `${Math.round(extTail.x)}:${Math.round(extTail.y)}` : ""}:${state.orbCorona}:${state.orbCore}:${W}x${H}:${glow.toFixed(2)}:${state.isDay}:${pathKey}:${loop ? `${loop.from}+${loop.span}` : ""}`;
       if (key === this.lastKey) return false;
       this.lastKey = key;
       const canvas = this.canvas;
@@ -349,14 +432,23 @@
       const prevStaticKey = this.staticKey;
       const layer = this.buildStatic(W, H, dpr, state, path, pathKey, loop);
       const D = CURSOR_DIRTY;
-      // 余晖：上一帧到这一帧游标往哪边走了，就在身后那一侧沿轨道画 TRAIL_H 小时的连续渐变光尾；没动（定格、首帧、大幅跳拨）就没有余晖
-      let delta = this.lastHour === null ? 0 : ((hour - this.lastHour) % 24 + 24) % 24;
-      if (delta > 12) delta -= 24;
-      this.lastHour = hour;
-      const trail = [];
-      if (Math.abs(delta) > 1e-4 && Math.abs(delta) <= 2) {
-        const dir = delta > 0 ? 1 : -1;
-        for (let i = 0; i <= TRAIL_N; i++) trail.push(path((hour - dir * TRAIL_H * (i / TRAIL_N) + 24) % 24));
+      // 余晖：在轨时沿轨道画 TRAIL_H 小时的连续渐变光尾；离轨借光（opts.trail）时沿真实位移轨迹画光尾，停稳定格（v → 0）时尾迹自动收进星核（探针第五律）
+      let trail;
+      if (extTrail) {
+        trail = extTrail;
+        this.lastHour = hour;
+      } else {
+        let delta = this.lastHour === null ? 0 : (opts.open ? hour - this.lastHour : (((hour - this.lastHour) % 24 + 24) % 24));
+        if (!opts.open && delta > 12) delta -= 24;
+        this.lastHour = hour;
+        trail = [];
+        if (Math.abs(delta) > 1e-4 && Math.abs(delta) <= 2) {
+          const dir = delta > 0 ? 1 : -1;
+          for (let i = 0; i <= TRAIL_N; i++) {
+            const th = hour - dir * TRAIL_H * (i / TRAIL_N);
+            trail.push(path(opts.open ? Math.max(0, Math.min(24, th)) : (((th % 24) + 24) % 24)));
+          }
+        }
       }
       let rx0 = x - D, rx1 = x + D, ry0 = y - D, ry1 = y + D;
       for (const t of trail) { rx0 = Math.min(rx0, t.x - 8); rx1 = Math.max(rx1, t.x + 8); ry0 = Math.min(ry0, t.y - 8); ry1 = Math.max(ry1, t.y + 8); }
@@ -373,8 +465,8 @@
       this.prevRect = newRect;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.lineCap = "round"; ctx.lineJoin = "round";
-      // 余晖：单笔连续平滑曲线 + 香槟暖金 → 冰晶白 → 暮光紫渐隐（零结节）
-      if (trail.length > 1) {
+      // 余晖：单笔连续平滑曲线 + 香槟暖金 → 冰晶白 → 暮光紫渐隐（零结节；首尾间距 < 1.5px 时视为定格不画余晖）
+      if (trail.length > 1 && Math.hypot(trail[0].x - trail[trail.length - 1].x, trail[0].y - trail[trail.length - 1].y) >= 1.5) {
         const head = trail[0], tail = trail[trail.length - 1], gFactor = Math.max(0.4, glow);
         const tg = ctx.createLinearGradient(head.x, head.y, tail.x, tail.y);
         tg.addColorStop(0, `rgba(255, 216, 155, ${(0.82 * gFactor).toFixed(3)})`);
@@ -432,6 +524,7 @@
   //   trackSelector 会自己动的节点（漂移、拖拽、动画）：带这个选择器的元素逐帧重新量矩形、重新被手电探测；
   //                 默认 [data-gl-track]。不动的元素别加，省着算
   //   dim          底片压暗 0–1（默认 0.3）：面板后面的背景要安静
+  //   focusLease   data-gl-focus / focus() 默认租期（毫秒，默认 8000）：离轨是租借不是搬家，到期弹簧自动把太阳拉回日晷轨道
   //   root         画布插到哪、冰砖在哪找（默认 document.body）；底片变量也写在它上面
   //   onUpdate(state)       每次太阳状态更新后的回调
   const DEFAULTS = {
@@ -447,6 +540,7 @@
     observe: true,
     trackSelector: "[data-gl-track]",
     dim: 0.3,
+    focusLease: 8000,
     root: null,
     settleDelay: 160,
     realtimeInterval: 28000,
@@ -461,6 +555,8 @@
   const TORCH_VARS = ["--torch-x", "--torch-y", "--torch-a"];
   const SUN_TORCH_VARS = ["--sun-x", "--sun-y", "--sun-a"];
   const SUN_TORCH_SCALE = 1.5; // 太阳手电半径 = torchRadius × 1.5
+  const SPRING_OMEGA = 9.5;    // 二阶临界阻尼弹簧固有频率 ω_n (rad/s，ζ = 1.0)：调节时间 t_s ≈ 4/ω_n ≈ 420ms，零过冲
+  const SPRING_TRAIL_N = 20;   // 离轨运动余晖环缓冲点数
   const INSTANCE_KEY = "__glacierInstance";
   const { applySunVars } = Glacier;
 
@@ -504,6 +600,8 @@
       this.shownPhoto = null; // 当前挂着的底片 URL（photo 模式）
       this.torched = new Set(); this.torchEls = []; this.torchPos = null; this.torchFocus = null; this.torchRaf = 0;
       this.tracked = []; this.trackRaf = 0; this.observer = null; this.observeTimer = 0;
+      this.focusEl = null; this.focusTimer = 0; this.tourTimer = 0; this.preTourState = null;
+      this.spring = { active: false, parked: false, u: 0.5, v: 0.25, vu: 0, vv: 0, prevTu: null, prevTv: null, glow: 0.85, lastTime: 0, raf: 0, trail: [] };
       this.clock = { mode: "manual", hour: 12 };
       this.setTimeOption(o.time);
       this.background = "none";
@@ -527,6 +625,7 @@
       this.update();
       this.scheduleRelight();
       this.startClock();
+      this.initFocus();
     }
 
     // ---- 背景层 ------------------------------------------------------------
@@ -585,7 +684,8 @@
       if (!L) return this.clock.hour;
       let phase = ((now - L.start) / L.duration) % 1;
       if (L.bounce) phase = 1 - Math.abs(1 - 2 * phase); // 三角波：去了再回来
-      return (L.from + phase * L.span) % 24;
+      const raw = L.from + phase * L.span;
+      return this.options.sunTable?.open && raw <= 24 ? raw : (raw % 24);
     }
     currentHour() {
       if (this.clock.mode === "realtime") return nowHour();
@@ -606,12 +706,22 @@
 
     // ---- 太阳状态：算一次、发给灯和 root ------------------------------------
     // 砖和卡片的材质直接走 CSS 常数，底片永远纯黑白灰阶，所以这里只碰灯和 root（探照灯坐标、微弱明度呼吸）。
+    computeOrbitalState(hour, W, H) {
+      return this.options.sunTable ? stateFromTable(this.options.sunTable, hour, W, H) : computeSunState(hour, W, H);
+    }
     update() {
       if (this.destroyed) return;
       const [W, H] = viewport();
       const hour = this.currentHour();
       this.clock.hour = hour;
-      this.state = this.options.sunTable ? stateFromTable(this.options.sunTable, hour, W, H) : computeSunState(hour, W, H);
+      const orb = this.computeOrbitalState(hour, W, H);
+      if (this.spring.active) {
+        // 离轨借光期间：若未聚焦元素（回轨途中）且轨道钟本身在走，唤醒弹簧继续追当前轨道位置
+        if (!this.focusEl && this.spring.parked) this.wakeSpring(false);
+        this.applySpringState(orb, W, H);
+      } else {
+        this.state = orb;
+      }
       if (this.lamp && !document.hidden) this.lamp.draw(this.state, hour, W, H, this.lampOpts(W, H));
       applySunVars(this.root, this.state);
       if (this.options.torch && this.options.sunTorch) this.scheduleTorch(); // 太阳挪了，它那支手电也要重探（rAF 合并）
@@ -621,11 +731,210 @@
     // 灯的轨迹按"几点钟灯在哪"那张表画：有表按表采样，没表用公式；loop 模式把区间传过去加亮
     lampOpts(W, H) {
       const table = this.options.sunTable;
+      const open = !!table?.open;
       const path = table
         ? (h) => { const s = stateFromTable(table, h, W, H); return { x: s.sunX, y: s.sunY, isDay: s.isDay }; }
         : Lamp.formulaPath(W, H);
-      const L = this.clock.mode === "loop" && this.clock.loop?.span < 24 ? this.clock.loop : null;
-      return { path, pathKey: table ? `table${this.tableVersion}` : "formula", loop: L ? { from: L.from, span: L.span } : null };
+      const L = this.clock.mode === "loop" && this.clock.loop?.span < 24 && !open ? this.clock.loop : null;
+      return {
+        path,
+        pathKey: table ? `table${this.tableVersion}` : "formula",
+        loop: L ? { from: L.from, span: L.span } : null,
+        open,
+        trail: this.spring.active ? this.spring.trail : null
+      };
+    }
+
+    // ---- 纯光学运镜：二阶临界阻尼弹簧（focus 定点借光）+ 向心样条巡航（tour） ----
+    resolveTarget(target) {
+      if (!target) return null;
+      if (target.nodeType === 1) return target;
+      if (typeof target === "string") {
+        const s = target.trim();
+        if (!s) return null;
+        try {
+          const el = this.root.querySelector(s) || document.querySelector(s);
+          if (el) return el;
+        } catch {}
+        return document.getElementById(s.replace(/^#/, ""));
+      }
+      return null;
+    }
+    springTarget(orb, W, H) {
+      const el = this.focusEl;
+      if (el && el.isConnected) {
+        const r = el.__glRect || (el.__glRect = rectOf(el.getBoundingClientRect()));
+        if (r.width > 0 || r.height > 0) {
+          return [(r.left + r.width * 0.5) / W, (r.top + r.height * 0.5) / H, Math.max(orb.lampGlow ?? 0.85, 0.92)];
+        }
+      }
+      return [orb.sunU, orb.sunV, orb.lampGlow ?? 0.85];
+    }
+    applySpringState(orb, W, H) {
+      const sp = this.spring;
+      const sx = sp.u * W, sy = sp.v * H;
+      this.state = {
+        ...orb,
+        sunU: sp.u,
+        sunV: sp.v,
+        sunX: sx,
+        sunY: sy,
+        orbScreenX: sx,
+        orbScreenY: sy,
+        lampGlow: sp.glow,
+        offOrbit: true
+      };
+    }
+    wakeSpring(launchKick = false, resetTargetVel = true) {
+      if (this.destroyed) return;
+      const [W, H] = viewport();
+      const hour = this.currentHour();
+      const orb = this.computeOrbitalState(hour, W, H);
+      const sp = this.spring;
+      if (!sp.active) {
+        sp.active = true;
+        sp.u = this.state ? this.state.sunU : orb.sunU;
+        sp.v = this.state ? this.state.sunV : orb.sunV;
+        sp.vu = 0;
+        sp.vv = 0;
+        sp.glow = this.state ? (this.state.lampGlow ?? 0.85) : 0.85;
+        sp.trail = [{ x: sp.u * W, y: sp.v * H }];
+      }
+      if (resetTargetVel) { sp.prevTu = null; sp.prevTv = null; }
+      sp.parked = false;
+      const [tu, tv] = this.springTarget(orb, W, H);
+      // 从静止/低速起跳时，朝目标方向注入初速度并叠加 0.38 倍侧向偏置（取轨道切线朝向），确保静止钟或任意目标方位都能甩出圆润弧线；
+      // 若已在飞行中途切换目标（sp.vu/sp.vv 非零），保留实时速度矢量，保证空中变向二阶导数连续
+      if (launchKick && Math.hypot(sp.vu, sp.vv) < 0.08) {
+        const du = tu - sp.u, dv = tv - sp.v, dist = Math.hypot(du, dv);
+        if (dist > 1e-3) {
+          const pA = this.computeOrbitalState(hour - 0.25, W, H);
+          const pB = this.computeOrbitalState(hour + 0.25, W, H);
+          let tx = pB.sunU - pA.sunU, ty = pB.sunV - pA.sunV;
+          const tLen = Math.hypot(tx, ty) || 1;
+          tx /= tLen; ty /= tLen;
+          if (tx * du + ty * dv < -0.15 * dist) { tx = -tx; ty = -ty; }
+          const cross = tx * dv - ty * du;
+          const nx = -ty, ny = tx;
+          const sign = cross >= 0 ? -1 : 1;
+          const speed = Math.min(2.2, Math.max(0.35, dist * SPRING_OMEGA * 0.48));
+          sp.vu = (tx * 0.82 + nx * sign * 0.38) * speed;
+          sp.vv = (ty * 0.82 + ny * sign * 0.38) * speed;
+        }
+      }
+      sp.lastTime = 0;
+      if (!sp.raf) sp.raf = requestAnimationFrame((now) => this.stepSpring(now));
+    }
+    stepSpring(now) {
+      const sp = this.spring;
+      sp.raf = 0;
+      if (this.destroyed || !sp.active) return;
+      if (this.focusEl && !this.focusEl.isConnected) { this.focusEl = null; sp.prevTu = null; sp.prevTv = null; }
+      const [W, H] = viewport();
+      const hour = this.currentHour();
+      this.clock.hour = hour;
+      const orb = this.computeOrbitalState(hour, W, H);
+      const [tu, tv, tGlow] = this.springTarget(orb, W, H);
+      const tNow = performance.now();
+      const dt = sp.lastTime ? Math.min(0.1, Math.max(0.001, (tNow - sp.lastTime) / 1000)) : (1 / 60);
+      sp.lastTime = tNow;
+      // 目标速度差分 vt（目标身份切换首帧 prevTu 为 null，vt = 0，避免把位置阶跃当成速度）
+      let vtu = 0, vtv = 0, tu0 = tu, tv0 = tv;
+      if (sp.prevTu !== null && dt > 1e-4) {
+        vtu = (tu - sp.prevTu) / dt;
+        vtv = (tv - sp.prevTv) / dt;
+        if (Math.hypot(vtu, vtv) <= 4) {
+          tu0 = sp.prevTu;
+          tv0 = sp.prevTv;
+        } else {
+          vtu = 0; vtv = 0;
+        }
+      }
+      sp.prevTu = tu;
+      sp.prevTv = tv;
+      // 二阶临界阻尼状态机（ζ = 1.0, ω_n = SPRING_OMEGA）：a = ω_n² (pt - p) - 2 ω_n (v - vt) 的相对误差闭式解，彻底消除运动轨道的稳态滞后 v/ω 与帧率抖动误差
+      const w = SPRING_OMEGA, exp = Math.exp(-w * dt);
+      const eu0 = sp.u - tu0, ev0 = sp.v - tv0;
+      const evu0 = sp.vu - vtu, evv0 = sp.vv - vtv;
+      const cu = evu0 + w * eu0, cv = evv0 + w * ev0;
+      const eu = (eu0 + cu * dt) * exp;
+      const ev = (ev0 + cv * dt) * exp;
+      const evu = (evu0 - w * cu * dt) * exp;
+      const evv = (evv0 - w * cv * dt) * exp;
+      sp.u = tu + eu;
+      sp.v = tv + ev;
+      sp.vu = vtu + evu;
+      sp.vv = vtv + evv;
+      sp.glow = lerp(sp.glow, tGlow, Math.min(1, dt * 8));
+      const sx = sp.u * W, sy = sp.v * H;
+      sp.trail.unshift({ x: sx, y: sy });
+      if (sp.trail.length > SPRING_TRAIL_N) sp.trail.pop();
+
+      this.applySpringState(orb, W, H);
+      if (this.lamp && !document.hidden) this.lamp.draw(this.state, hour, W, H, this.lampOpts(W, H));
+      applySunVars(this.root, this.state);
+      if (this.options.torch && this.options.sunTorch) this.scheduleTorch();
+      this.options.onUpdate?.(this.state);
+
+      const distPx = Math.hypot((tu - sp.u) * W, (tv - sp.v) * H);
+      const relSpeedPx = Math.hypot((sp.vu - vtu) * W, (sp.vv - vtv) * H);
+      const targetMoving = Math.hypot(vtu * W, vtv * H) > 2;
+      const tail = sp.trail[sp.trail.length - 1];
+      const trailSpan = tail ? Math.hypot(sx - tail.x, sy - tail.y) : 0;
+      // 交还判定：运动轨道有曲率向心加速度残差（≈ a/ω²，随视口尺寸约 1~5px），误差 < 5.5px 且相对速度收敛即无缝交还；
+      // 静止目标/静止轨道则等尾迹收进星核（trailSpan < 1.5px）后退出或定格休眠
+      const settled = (!this.focusEl && targetMoving)
+        ? (distPx < 5.5 && relSpeedPx < 24)
+        : (distPx < 1.2 && relSpeedPx < 4 && trailSpan < 1.5);
+      if (settled) {
+        sp.u = tu; sp.v = tv; sp.vu = vtu; sp.vv = vtv;
+        sp.trail = [{ x: tu * W, y: tv * H }];
+        if (!this.focusEl) {
+          // 已平顺并入日晷/巡航轨道：退出弹簧态，交还轨道时钟直驱（零后台 rAF）
+          sp.active = false;
+          sp.parked = false;
+          sp.prevTu = null;
+          sp.prevTv = null;
+          sp.trail = [];
+          if (this.lamp) this.lamp.lastHour = hour;
+          this.update();
+          return;
+        }
+        // 已停稳在目标元素中心且余晖收尽：进入定格休眠（0 CPU），滚动/缩放/租期到点时再唤醒
+        sp.vu = 0; sp.vv = 0;
+        sp.parked = true;
+        if (this.lamp && !document.hidden) this.lamp.draw(this.state, hour, W, H, this.lampOpts(W, H));
+        return;
+      }
+      sp.raf = requestAnimationFrame((t) => this.stepSpring(t));
+    }
+    initFocus() {
+      if (this.applyHashFocus()) return;
+      const all = this.root.querySelectorAll("[data-gl-focus]");
+      if (all.length) {
+        const last = all[all.length - 1];
+        const raw = last.getAttribute("data-gl-focus");
+        const lease = raw !== null && raw !== "" && Number.isFinite(Number(raw)) ? Number(raw) : undefined;
+        this.focus(last, { lease });
+      }
+    }
+    applyHashFocus() {
+      if (typeof location === "undefined" || !location.hash) return false;
+      const m = /(?:^|[#&])gl-focus=([^&]+)/.exec(location.hash);
+      if (!m) return false;
+      try {
+        const sel = decodeURIComponent(m[1]).trim();
+        const el = this.resolveTarget(sel);
+        if (!el || !el.isConnected) return false;
+        const r = el.getBoundingClientRect();
+        const [, H] = viewport();
+        if (r.bottom < 0 || r.top > H) {
+          el.scrollIntoView({ block: "center" });
+          this.measureRects();
+        }
+        return !!this.focus(el);
+      } catch {}
+      return false;
     }
 
     // ---- 手电目标扫描与矩形测量 -----------------------------------------------
@@ -643,13 +952,16 @@
       const o = this.options;
       this.torchEls = o.torch ? Array.from(this.root.querySelectorAll(o.torchSelector)) : [];
       this.tracked = (o.torch && o.trackSelector) ? this.torchEls.filter((el) => el.matches(o.trackSelector)) : [];
-      if (this.torchEls.length && !this.scrolling) this.measureRects();
+      if ((this.torchEls.length || this.focusEl) && !this.scrolling) this.measureRects();
       if (this.tracked.length) this.startTracking();
       if (this.torchEls.length) this.scheduleTorch(); // 矩形刚量好：两支手电（鼠标、太阳）按新矩形探一轮
     }
-    // 砖在哪、多大：纯读一轮矩形给手电用，零 DOM 样式写入
+    // 砖在哪、多大：纯读一轮矩形给手电与离轨焦点用，零 DOM 样式写入
     measureRects() {
       for (const el of this.torchEls) if (el.isConnected) el.__glRect = rectOf(el.getBoundingClientRect());
+      if (this.focusEl && this.focusEl.isConnected && !this.torchEls.includes(this.focusEl)) {
+        this.focusEl.__glRect = rectOf(this.focusEl.getBoundingClientRect());
+      }
       this.syncScrollers();
     }
     // 矩形刚量完，每个滚动容器的基线就是此刻的 scrollTop；砖的归属缓存也作废（可能有新砖）
@@ -680,28 +992,67 @@
         moved = true;
       }
       if (moved && this.anyTorchLit()) { this.applyTorch(); if (this.options.sunTorch) this.applySunTorch(); }
+      if (moved && this.focusEl && this.tracked.includes(this.focusEl)) this.wakeSpring(false, false);
       this.trackRaf = requestAnimationFrame(() => this.trackFrame());
     }
-    // ---- 节点增删：挂上总线即受光 ----------------------------------------------
-    // 只看增删的节点本身是不是（或装着）手电目标元素，不在整棵树里查；命中就隔 120ms 重量一轮。
+    // ---- 节点增删与 data-gl-focus 属性监听：挂上总线即受光，贴上属性即运镜 ----
+    // 1. 节点增删：只看增删的节点本身是不是（或装着）手电目标元素，命中就隔 120ms 重量一轮；
+    // 2. data-gl-focus：属性变更或新插入带 data-gl-focus 的节点时，太阳游标自动脱离轨道滑向最新那一个（data-gl-alert 只亮红灯芯、绝不抢镜头）。
     observeRoot() {
       const sel = this.options.torchSelector;
-      const hits = (nodes) => { for (const n of nodes) { if (n.nodeType !== 1) continue; if (n.matches(sel) || (n.firstElementChild && n.querySelector(sel))) return true; } return false; };
+      const hits = (nodes) => {
+        if (!this.options.torch || !sel) return false;
+        for (const n of nodes) { if (n.nodeType !== 1) continue; if (n.matches(sel) || (n.firstElementChild && n.querySelector(sel))) return true; }
+        return false;
+      };
+      const findFocusIn = (nodes) => {
+        let found = null;
+        for (const n of nodes) {
+          if (n.nodeType !== 1) continue;
+          if (n.hasAttribute("data-gl-focus")) found = n;
+          if (n.firstElementChild) {
+            const all = n.querySelectorAll("[data-gl-focus]");
+            if (all.length) found = all[all.length - 1];
+          }
+        }
+        return found;
+      };
       this.observer = new MutationObserver((records) => {
+        let needRelight = false;
+        let nextFocus = undefined;
         for (const m of records) {
-          if (hits(m.addedNodes) || hits(m.removedNodes)) { this.scheduleObservedRelight(); return; }
+          if (m.type === "attributes" && m.attributeName === "data-gl-focus") {
+            const el = m.target;
+            if (el.nodeType === 1 && el.hasAttribute("data-gl-focus")) nextFocus = el;
+            else if (el === this.focusEl) nextFocus = null;
+          } else if (m.type === "childList") {
+            if (hits(m.addedNodes) || hits(m.removedNodes)) needRelight = true;
+            const addedFocus = findFocusIn(m.addedNodes);
+            if (addedFocus) nextFocus = addedFocus;
+            else if (this.focusEl && !this.focusEl.isConnected) nextFocus = null;
+          }
+        }
+        if (needRelight) this.scheduleObservedRelight();
+        if (nextFocus !== undefined) {
+          if (nextFocus) {
+            const raw = nextFocus.getAttribute("data-gl-focus");
+            const lease = raw !== null && raw !== "" && Number.isFinite(Number(raw)) ? Number(raw) : undefined;
+            this.focus(nextFocus, { lease });
+          } else {
+            this.focus(null);
+          }
         }
       });
-      this.observer.observe(this.root, { childList: true, subtree: true });
+      this.observer.observe(this.root, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-gl-focus"] });
     }
     scheduleObservedRelight() {
       clearTimeout(this.observeTimer);
       this.observeTimer = setTimeout(() => { this.observeTimer = 0; this.scheduleRelight(); }, 120);
     }
-    // ---- 滚动：期间不读布局，只平移缓存矩形让手电跟着砖走；停下 settleDelay 后再真量一轮纠偏 ----
+    // ---- 滚动：期间不读布局，只平移缓存矩形让手电与离轨焦点跟着砖走；停下 settleDelay 后再真量一轮纠偏 ----
     onScroll(sc) {
       this.scrolling = true;
-      if (sc && this.torchEls.length) {
+      if (sc && (this.torchEls.length || this.focusEl)) {
         const prev = sc.__glScrollPos;
         const now = { x: sc.scrollLeft, y: sc.scrollTop };
         sc.__glScrollPos = now;
@@ -714,7 +1065,12 @@
               if (!r) continue;
               r.left -= dx; r.right -= dx; r.top -= dy; r.bottom -= dy;
             }
+            if (this.focusEl && this.focusEl.__glRect && !inside.includes(this.focusEl) && (sc === document.scrollingElement || sc.contains(this.focusEl))) {
+              const fr = this.focusEl.__glRect;
+              fr.left -= dx; fr.right -= dx; fr.top -= dy; fr.bottom -= dy;
+            }
             if (this.anyTorchLit()) this.scheduleTorch();
+            if (this.focusEl) this.wakeSpring(false, false);
           }
         }
       }
@@ -722,15 +1078,29 @@
       this.settleTimer = setTimeout(() => {
         this.settleTimer = 0;
         this.scrolling = false;
-        if (this.torchEls.length) this.measureRects();
+        if (this.torchEls.length || this.focusEl) this.measureRects();
         if (this.anyTorchLit()) this.scheduleTorch();
+        if (this.focusEl) this.wakeSpring(false, false);
       }, this.options.settleDelay);
     }
 
     // ---- 监听器 --------------------------------------------------------------
     bind() {
       const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); this.listeners.push([target, type, fn, opts]); };
-      on(window, "resize", () => { this.update(); this.scheduleRelight(); });
+      on(window, "resize", () => {
+        this.scheduleRelight();
+        if (this.focusEl) this.wakeSpring(false, false);
+        this.update();
+      });
+      // 纯前端导演通道：window 自定义事件 glacier:light + 地址栏 #gl-focus=xxx
+      on(window, "glacier:light", (e) => {
+        const d = e?.detail || {};
+        if (Array.isArray(d.path)) this.tour(d.path, d);
+        else if ("target" in d) this.focus(d.target, d);
+        else if (d.clear || d.reset) { this.focus(null); this.tour(null); }
+      });
+      on(window, "hashchange", () => this.applyHashFocus());
+      if (this.options.observe) this.observeRoot();
       if (this.options.torch) {
         // 整页滚动器先登记：首轮量矩形时就记下基线，第一下滚轮的位移不会丢
         const page = document.scrollingElement || document.documentElement;
@@ -743,12 +1113,11 @@
             // 第一次见到的子容器：scroll 事件到达时它已经滚完了，没法知道滚了多少，
             // 所以真量一轮当基线（一个容器一辈子只多付这一次），而不是把滚完的位置当起点
             this.scrollers.add(sc);
-            if (this.torchEls.length) this.measureRects(); else this.syncScrollers();
+            if (this.torchEls.length || this.focusEl) this.measureRects(); else this.syncScrollers();
             if (this.anyTorchLit()) this.scheduleTorch(); // 矩形刚变，这一帧手电就按新位置重探
           }
           this.onScroll(sc);
         }, { capture: true, passive: true });
-        if (this.options.observe) this.observeRoot();
         const sel = this.options.torchSelector;
         on(document, "pointerdown", (e) => { this.torchPos = { x: e.clientX, y: e.clientY }; this.scheduleTorch(); }, { passive: true });
         on(document, "pointermove", (e) => { this.torchPos = { x: e.clientX, y: e.clientY }; this.scheduleTorch(); }, { passive: true });
@@ -763,9 +1132,12 @@
       for (const [t, type, fn, opts] of this.listeners) t.removeEventListener(type, fn, opts);
       this.listeners.length = 0;
       clearTimeout(this.settleTimer); this.settleTimer = 0;
+      clearTimeout(this.focusTimer); this.focusTimer = 0;
+      clearTimeout(this.tourTimer); this.tourTimer = 0;
       if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = 0; }
       if (this.torchRaf) { cancelAnimationFrame(this.torchRaf); this.torchRaf = 0; }
       if (this.trackRaf) { cancelAnimationFrame(this.trackRaf); this.trackRaf = 0; }
+      if (this.spring.raf) { cancelAnimationFrame(this.spring.raf); this.spring.raf = 0; }
       clearTimeout(this.observeTimer); this.observeTimer = 0;
       if (this.observer) { this.observer.disconnect(); this.observer = null; }
       this.tracked = [];
@@ -846,8 +1218,13 @@
     get sun() { return this.state; }
     get hour() { return this.currentHour(); }
     get mode() { return this.clock.mode; }
+    clearTourLease() {
+      clearTimeout(this.tourTimer); this.tourTimer = 0;
+      this.preTourState = null;
+    }
     /** 定在某个小时（fixed）；external 模式下也用它推时间（保持 external） */
     setHour(h) {
+      this.clearTourLease();
       this.clock.hour = ((Number(h) % 24) + 24) % 24;
       if (this.clock.mode !== "external") { this.clock.mode = "fixed"; this.stopClock(); }
       this.update();
@@ -855,6 +1232,7 @@
     }
     /** "realtime" | "fixed" | "loop" | "external" | "timelapse"（= 一天循环）；"manual" 等于 "fixed" */
     setMode(mode) {
+      this.clearTourLease();
       if (mode === "loop" && this.clock.loop) { this.clock.mode = "loop"; this.clock.loop.start = performance.now(); }
       else if (mode === "loop") this.setLoopSpec({ from: 0, to: 24, duration: this.options.timelapseDuration }, false);
       else this.setTimeOption(mode === "manual" ? "fixed" : mode);
@@ -863,9 +1241,114 @@
       return this.clock.mode;
     }
     /** 在某个区间来回：setLoop({ from: 16, to: 19, duration: 12000, bounce: true }) */
-    setLoop(spec) { this.setLoopSpec(spec, true); this.update(); return { ...this.clock.loop }; }
+    setLoop(spec) { this.clearTourLease(); this.setLoopSpec(spec, true); this.update(); return { ...this.clock.loop }; }
     /** 换"几点钟长什么样"的表；null 回到内置公式。Glacier.sun.sampleTable() 采一张来改 */
-    setSunTable(table) { this.options.sunTable = Array.isArray(table) && table.length ? table : null; this.tableVersion++; this.update(); return this.options.sunTable; }
+    setSunTable(table) { this.clearTourLease(); this.options.sunTable = Array.isArray(table) && table.length ? table : null; this.tableVersion++; this.update(); return this.options.sunTable; }
+    /**
+     * 定点借光（focus）：太阳游标按二阶临界阻尼弹簧（ζ = 1.0, ω_n = 9.5 rad/s）脱离原日晷轨道滑向 target 中心，
+     * 照亮其 1px 金星带刀锋与背后的银盐底片；背景日晷轨道线留在原地，内部时钟一秒不停。
+     * @param {Element|string|null} target 目标元素或 CSS 选择器；传 null 立即归还回轨
+     * @param {{ lease?: number }} [opts] lease 租期毫秒（默认 options.focusLease = 8000；传 0 或 Infinity 则常驻直到手动释放或移除 data-gl-focus）
+     */
+    focus(target, opts = {}) {
+      if (this.destroyed) return null;
+      clearTimeout(this.focusTimer); this.focusTimer = 0;
+      const el = this.resolveTarget(target);
+      if (!el || !el.isConnected) {
+        if (!this.focusEl && !this.spring.active) return null;
+        this.focusEl = null;
+        this.wakeSpring(true, true);
+        return null;
+      }
+      const r = rectOf(el.getBoundingClientRect());
+      if (r.width === 0 && r.height === 0) return null;
+      el.__glRect = r;
+      const launchKick = !this.spring.active || this.spring.parked;
+      this.focusEl = el;
+      this.wakeSpring(launchKick, true);
+      const rawAttr = el.getAttribute?.("data-gl-focus");
+      const attrLease = rawAttr !== null && rawAttr !== "" && Number.isFinite(Number(rawAttr)) ? Number(rawAttr) : undefined;
+      const lease = opts.lease !== undefined ? Number(opts.lease) : (attrLease !== undefined ? attrLease : Number(this.options.focusLease));
+      if (Number.isFinite(lease) && lease > 0) {
+        this.focusTimer = setTimeout(() => { this.focusTimer = 0; this.focus(null); }, lease);
+      }
+      return el;
+    }
+    /**
+     * 多点星轨巡航（tour）：把 2 个或以上 DOM 节点（或选择器 / {u,v} 坐标）用向心 Catmull-Rom（α = 0.5）样条
+     * 串成临时 1px 金星带星轨（2 点时自动拱起法向天桥弧），太阳游标平滑切入并沿轨来回巡航；到期自动归还巡航前的日晷轨道。
+     * @param {Array<Element|string|{u:number,v:number}>|null} targets 节点或选择器数组；传 null 恢复巡航前的日晷轨道与时钟
+     * @param {{ duration?: number, bounce?: boolean, closed?: boolean, frames?: number, lease?: number, loop?: boolean }} [opts]
+     */
+    tour(targets, opts = {}) {
+      if (this.destroyed) return null;
+      clearTimeout(this.tourTimer); this.tourTimer = 0;
+      if (!targets || (Array.isArray(targets) && !targets.length)) {
+        const saved = this.preTourState;
+        this.preTourState = null;
+        this.options.sunTable = saved ? saved.sunTable : null;
+        this.tableVersion++;
+        if (saved) {
+          this.clock.mode = saved.mode;
+          this.clock.hour = saved.hour;
+          if (saved.loop) this.clock.loop = { ...saved.loop, start: performance.now() };
+          if (!this.stopped) this.startClock();
+        }
+        this.focusEl = null;
+        this.wakeSpring(true, true);
+        return null;
+      }
+      if (!Array.isArray(targets)) return this.focus(targets, opts);
+      const [W, H] = viewport();
+      const pts = [];
+      let singleEl = null;
+      for (const item of targets) {
+        if (item && typeof item === "object" && Number.isFinite(item.u) && Number.isFinite(item.v)) {
+          pts.push({ u: Number(item.u), v: Number(item.v), glow: item.glow, isDay: item.isDay });
+        } else {
+          const el = this.resolveTarget(item);
+          if (!el || !el.isConnected) continue;
+          const r = rectOf(el.getBoundingClientRect());
+          if (r.width === 0 && r.height === 0) continue;
+          el.__glRect = r;
+          singleEl = el;
+          pts.push({ u: (r.left + r.width * 0.5) / W, v: (r.top + r.height * 0.5) / H });
+        }
+      }
+      if (pts.length === 1 && singleEl) return this.focus(singleEl, opts);
+      const table = tableFromPoints(pts, { closed: !!opts.closed, frames: opts.frames || 48 });
+      if (!table) return null;
+      if (!this.preTourState) {
+        this.preTourState = {
+          sunTable: this.options.sunTable,
+          mode: this.clock.mode,
+          hour: this.clock.hour,
+          loop: this.clock.loop ? { ...this.clock.loop } : null
+        };
+      }
+      clearTimeout(this.focusTimer); this.focusTimer = 0;
+      this.focusEl = null;
+      const saved = this.preTourState;
+      this.options.sunTable = table;
+      this.tableVersion++;
+      const dur = Number(opts.duration) || 10000;
+      if (opts.loop !== false) {
+        this.setLoopSpec({
+          from: 0,
+          to: 24,
+          duration: dur,
+          bounce: opts.bounce !== undefined ? !!opts.bounce : !opts.closed
+        }, true);
+      }
+      this.preTourState = saved;
+      this.wakeSpring(true, true);
+      const defaultLease = Math.max(Number(this.options.focusLease) || 8000, dur);
+      const lease = opts.lease !== undefined ? Number(opts.lease) : defaultLease;
+      if (Number.isFinite(lease) && lease > 0) {
+        this.tourTimer = setTimeout(() => { this.tourTimer = 0; this.tour(null); }, lease);
+      }
+      return table;
+    }
     /** 换背景模式：none | photo（背景层原地重建，冰砖不动） */
     setBackground(mode) {
       this.unmountBackground();
@@ -928,6 +1411,7 @@
       const rs = this.root.style;
       for (const k of [...SUN_VARS, "--torch-r", "--sun-r", "--gl-dim"]) rs.removeProperty(k);
       for (const el of this.torchEls) delete el.__glRect;
+      if (this.focusEl) { delete this.focusEl.__glRect; this.focusEl = null; }
       for (const el of this.torched) for (const k of TORCH_VARS) el.style.removeProperty(k);
       for (const el of this.sunTorched) for (const k of SUN_TORCH_VARS) el.style.removeProperty(k);
       this.torched.clear(); this.sunTorched.clear(); this.torchEls = [];
@@ -938,7 +1422,7 @@
 
   /**
    * 装到页面上。同一个 root 上重复 init 会先 destroy 上一个（热重载 / 换选项都安全）。
-   * @returns {Instance} 句柄：setHour, setMode, setLoop, setSunTable, setBackground, setPhoto,
+   * @returns {Instance} 句柄：setHour, setMode, setLoop, setSunTable, focus, tour, setBackground, setPhoto,
    *                     relight, start, stop, destroy, sun, hour, mode, background, lamp, options
    */
   Glacier.init = (options = {}) => {
