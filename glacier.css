@@ -1100,10 +1100,14 @@ textarea.gl-input {
 }
 
 /* ==========================================================================
-   4g. 瞬态浮层与下拉菜单（.gl-popover）：
-   悬在面板之上的高密度黑曜石棱镜（Tooltip / 右键菜单 / Select 浮层）：
-   比 .gl-card 更深（0.92 不透明度 + 22px 强模糊 + 深空投影），外加 100% 满血 1px --gl-edge 刀锋；
-   内部装 .gl-brick 时，未悬停项背景全透明（像 .gl-track 一样不画多余灰块），悬停/选中那一项才浮成立体玻璃键帽。
+   4g. 瞬态浮层与级联菜单（.gl-popover / .gl-popover-sub）：
+   悬在面板之上的高密度黑曜石棱镜（Tooltip / 右键菜单 / 级联子菜单）：
+   - 严禁外投影：比 .gl-card 更致密（0.92 不透明度 + 22px 模糊 + 100% 满血 1px --gl-edge 刀锋 + 右下 inset -1.5px #05070C 硬暗槽）；
+   - 内部装 .gl-brick 时，未悬停项背景全透明（平躺印字），悬停/选中那一项才浮成立体玻璃键帽；
+   - 级联两层叠压（.is-receded 下层父菜单 + .gl-popover-sub 上层子菜单）：
+     1. 上层子菜单进前：棱镜密度升至 blur(28px) saturate(185%)、底色压至 0.96，左上 1px 满血刀锋完整切在下层之上；
+     2. 下层父菜单退后（.is-receded）：肚子微光压暗至 --gl-fill: 0.35，外环 ::after 缩回左上半区（65% 半径、74% 归零、0.42 不透明度），被子菜单压住的右侧环彻底熄灭；
+     3. 父菜单中展开子菜单的那一项挂 .gl-sub-open，保持半亮驻留态，将 100% 满血 .on 键帽焦点让给上层子菜单。
    ========================================================================== */
 .gl-popover {
   position: relative;
@@ -1117,15 +1121,18 @@ textarea.gl-input {
   color: #EDF4FF;
   font: 400 13px/1.45 var(--gl-font-sans);
   isolation: isolate;
-  background:
-    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.11) 0%, transparent 50%),
-    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.14) 0%, transparent 60%),
-    rgba(12, 15, 24, 0.92);
+  --gl-fill: 1;
+  background-color: rgba(12, 15, 24, 0.92);
+  background-image:
+    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, calc(0.11 * var(--gl-fill))) 0%, transparent 50%),
+    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, calc(0.14 * var(--gl-fill))) 0%, transparent 60%);
   backdrop-filter: blur(22px) saturate(170%);
   box-shadow:
-    0 16px 38px rgba(0, 0, 0, 0.62),
     inset -1.5px -1.5px 0px #05070C,
     inset 0 1px 0 0 rgba(255, 220, 170, 0.14);
+  transition:
+    --gl-fill var(--gl-dur-off) var(--gl-ease-out),
+    background-color var(--gl-dur-off) var(--gl-ease-out);
 }
 .gl-popover::after {
   content: "";
@@ -1140,6 +1147,26 @@ textarea.gl-input {
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
   pointer-events: none;
+  transition: opacity var(--gl-dur-off) var(--gl-ease-out);
+}
+.gl-popover.is-receded {
+  --gl-fill: 0.35;
+  background-color: rgba(8, 10, 18, 0.86);
+}
+.gl-popover.is-receded::after {
+  opacity: 0.42;
+  background: radial-gradient(
+    65% 85% at 0% 0% in oklab,
+    #FFD89B 0%,
+    #E6F4FF 32%,
+    rgba(187, 154, 247, 0.18) 58%,
+    transparent 74%
+  );
+}
+.gl-popover.gl-popover-sub {
+  z-index: 65;
+  background-color: rgba(9, 12, 20, 0.96);
+  backdrop-filter: blur(28px) saturate(185%);
 }
 .gl-popover > .gl-brick {
   width: 100%;
@@ -1147,11 +1174,24 @@ textarea.gl-input {
   border-radius: 5px;
   justify-content: space-between;
 }
-.gl-popover > .gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert) {
+.gl-popover > .gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-sub-open):not(.gl-alert) {
   background-color: transparent;
   box-shadow:
     inset -1.5px -1.5px 0px rgba(6, 8, 14, 0),
     inset 0 1px 0 0 rgba(255, 255, 255, 0);
+}
+/* 父菜单里已展开子菜单的触发项：退为半亮底座，把满血 .on 刀锋让给子菜单 */
+.gl-popover > .gl-brick.gl-sub-open:not(.on):not(:hover) {
+  --gl-fill: 0.45;
+  color: #D2E0FA;
+  background-color: rgba(18, 22, 32, 0.56);
+  box-shadow:
+    inset -1px -1px 0px #06080E,
+    inset 0 1px 0 0 rgba(255, 220, 170, 0.06);
+}
+.gl-popover > .gl-brick.gl-sub-open:not(.on):not(:hover)::before {
+  background: var(--gl-edge);
+  opacity: 0.32;
 }
 .gl-popover hr {
   border: 0;
@@ -1169,6 +1209,8 @@ textarea.gl-input {
   .gl-brick::before,
   .gl-brick small,
   .gl-card,
+  .gl-popover,
+  .gl-popover::after,
   .gl-pop-in,
   .gl-input,
   .gl-input > .gl-icon,

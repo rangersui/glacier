@@ -52,6 +52,33 @@
   .louver-demo { max-width: 380px; }
   .scroller { max-width: 460px; height: 240px; overflow: auto; padding: 14px; border-radius: 8px; background: rgba(5, 10, 24, 0.56); box-shadow: inset 0 1px 2px rgba(0, 2, 8, 0.75), 0 1px 0 rgba(187, 154, 247, 0.08); display: flex; flex-direction: column; gap: 10px; }
   .scroller .gl-brick { flex: none; }
+  /* 级联浮层、右键实操区、机械键盘阵列与六层深度剖面排版 */
+  .cascade-stage { display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap; }
+  .cascade-pair { position: relative; display: inline-flex; align-items: flex-start; }
+  .cascade-pair .gl-popover-sub { margin-left: -10px; margin-top: 34px; }
+  .cascade-pair .gl-popover-sub.is-hidden { display: none; }
+  .ctx-zone { flex: 1; min-width: 260px; max-width: 420px; min-height: 184px; padding: 18px 20px; border-radius: 8px; border: 1px dashed rgba(196, 208, 245, 0.14); background: rgba(6, 9, 17, 0.46); box-shadow: inset 1.5px 1.5px 0 #03050B; display: flex; flex-direction: column; justify-content: space-between; cursor: context-menu; user-select: none; }
+  .ctx-zone .hint { font: 500 12px/1.6 var(--gl-font-mono); color: #7dcfff; letter-spacing: 0.04em; }
+  .ctx-zone .subhint { font: 400 12.5px/1.6 var(--gl-font-sans); color: #8E9BAE; }
+  .ctx-float { position: fixed; z-index: 200; display: none; }
+  .ctx-float.open { display: inline-flex; }
+  .kb-chassis { display: inline-flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 10px; background: #050811; box-shadow: inset 1.5px 1.5px 0 #020409, inset 0 2px 6px rgba(0, 2, 8, 0.92), 0 1px 0 rgba(187, 154, 247, 0.10); }
+  .kb-row { display: flex; gap: 6px; }
+  .kb-key { width: 52px; height: 48px; padding: 6px 8px; border-radius: 5px; flex-direction: column; align-items: flex-start; justify-content: space-between; font: 500 12px/1 var(--gl-font-mono); }
+  .kb-key small { font-size: 9.5px; letter-spacing: 0.04em; align-self: flex-end; }
+  .kb-key.w-15 { width: 78px; }
+  .kb-key.w-18 { width: 92px; }
+  .kb-key.w-space { width: 174px; flex-direction: row; align-items: center; }
+  .kb-key.is-pressed { transform: translateY(1px); transition-duration: 0.04s; } /* 按压跟手：和 .gl-brick:active 同 40ms，不走弹簧 */
+  .depth-rig { position: relative; max-width: 820px; padding: 22px 24px 36px; border-radius: 10px; border: 1px solid rgba(196, 208, 245, 0.07); background: rgba(10, 12, 20, 0.36); }
+  .depth-tag { display: inline-flex; align-items: center; gap: 8px; font: 600 10.5px/1 var(--gl-font-mono); letter-spacing: 0.08em; color: #7dcfff; margin-bottom: 10px; text-transform: uppercase; }
+  .depth-tag em { font-style: normal; padding: 2px 6px; border-radius: 3px; background: rgba(8, 14, 26, 0.72); color: #FFD89B; }
+  .depth-tag em.concave { color: #64E8E5; }
+  .depth-l1 { padding: 18px 20px 24px; margin-left: 18px; }
+  .depth-l2 { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; margin-left: 18px; border-radius: 8px; background: #060911; box-shadow: inset 1.5px 1.5px 0 #03050B, inset 0 2px 5px rgba(0, 2, 8, 0.88), 0 1px 0 rgba(230, 244, 255, 0.10); }
+  .depth-l3-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .depth-pop-stack { display: flex; align-items: flex-start; margin-top: 14px; margin-left: 24px; flex-wrap: wrap; }
+  .depth-pop-stack .gl-popover-sub { margin-left: -10px; margin-top: 28px; }
   footer { margin-top: 40px; padding-top: 40px; border-top: 1px solid rgba(196, 208, 245, 0.06); color: #6c7aa6; font-size: 12px; }
   @media (max-width: 760px) { .wrap { padding: 20px 18px 80px; } .two { grid-template-columns: 1fr; gap: 24px; } .hero { min-height: auto; padding: 8px 0 44px; } .hero h1 { font-size: 32px; } section { min-height: auto; padding: 64px 0; } }
 </style>
@@ -222,27 +249,118 @@
   </section>
 
   <section>
-    <span class="eyebrow">11 // .GL-POPOVER</span>
-    <h2>瞬态浮层</h2>
-    <p class="rule gl-prose">高密度黑曜石棱镜（<code>blur(22px)</code> + <code>1px</code> 满血外环）。<strong>待机菜单项全透明</strong>，悬停或选中才浮起 <mark>立体玻璃键帽</mark>。</p>
-    <div style="display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap;">
-      <div class="gl-popover" role="menu">
-        <button class="gl-brick on"><span>锁定当前星轨</span><small>⌘L</small></button>
-        <button class="gl-brick"><span>切换银盐负片</span><small>⌘P</small></button>
-        <button class="gl-brick"><span>导出遥测快照</span><small>⌘E</small></button>
-        <hr>
-        <button class="gl-brick gl-alert"><span>⚠ 紧急脱离轨道</span><small>ESC</small></button>
+    <span class="eyebrow">11 // .GL-POPOVER &amp; CASCADE</span>
+    <h2>瞬态浮层与级联菜单</h2>
+    <p class="rule gl-prose"><strong>零外投影，深度全靠光给。</strong>待机项平躺透明，选中项浮起立体键帽（新键 <code>120ms</code> 亮、旧键 <code>240ms</code> 余晖熄）；当二级子菜单（<code>blur(28px)</code>）叠压在上时，<strong>下层父菜单自动退后半档（<code>.is-receded</code>：右半环熄灭、肚子压暗至 <code>35%</code>）</strong>。</p>
+    <div class="cascade-stage">
+      <div class="cascade-pair" id="demoCascade">
+        <div class="gl-popover is-receded" id="parentPopover" role="menu">
+          <button class="gl-brick"><span>锁定当前星轨</span><small>⌘L</small></button>
+          <button class="gl-brick gl-sub-open" data-has-sub="1"><span>星轨曝光预设</span><small>▸</small></button>
+          <button class="gl-brick"><span>切换银盐负片</span><small>⌘P</small></button>
+          <button class="gl-brick"><span>导出遥测快照</span><small>⌘E</small></button>
+          <hr>
+          <button class="gl-brick gl-alert"><span>⚠ 紧急脱离轨道</span><small>ESC</small></button>
+        </div>
+        <div class="gl-popover gl-popover-sub" id="subPopover" role="menu">
+          <button class="gl-brick on"><span>母星 · 冰星黄昏</span><small>16:00</small></button>
+          <button class="gl-brick"><span>卡西尼环缝 · 极暗</span><small>22:00</small></button>
+          <button class="gl-brick"><span>红巨星 · 日冕边缘</span><small>17:36</small></button>
+          <button class="gl-brick"><span>脉冲星 · 高频昼夜</span><small>24 s</small></button>
+        </div>
       </div>
-      <div class="gl-popover" style="min-width: 0; padding: 7px 12px; font: 600 11px/1.4 var(--gl-font-mono); color: #E6F4FF;">
-        SUN TORCH · R = 240PX
+
+      <div style="display: flex; flex-direction: column; gap: 16px; flex: 1; min-width: 260px; max-width: 420px;">
+        <div class="gl-popover" style="align-self: flex-start; min-width: 0; padding: 7px 12px; font: 600 11px/1.4 var(--gl-font-mono); color: #E6F4FF;">
+          SUN TORCH · R = 240PX
+        </div>
+        <div class="ctx-zone" id="ctxZone">
+          <div class="hint">🖱 在此处右键弹出菜单 · ⌨ 按 ↑ ↓ ← → 巡航</div>
+          <div class="subhint" id="ctxStatus">当前焦点：二级子菜单「母星 · 冰星黄昏」。连按 ↑ / ↓ 观察新键帽 120ms 点亮、旧键帽 240ms 余晖冷却；按 ← / → 在父子菜单间切换景深。</div>
+        </div>
       </div>
     </div>
   </section>
 
+  <section>
+    <span class="eyebrow">12 // KEYCAP LATTICE</span>
+    <h2>光学机械键盘（键帽即冰砖）</h2>
+    <p class="rule gl-prose">下沉暗槽底座内嵌小尺寸 <code>.gl-brick</code> 键帽阵列。<strong>直接按你手边的真实键盘</strong>（<code>Q W E R T P L</code>、方向键、<code>Shift</code>、<code>Space</code>、<code>Esc</code>）或用鼠标扫掠——按下的键帽 <code>120ms</code> 亮起 <code>1px</code> 刀锋与电光青印字，松手后 <code>240ms</code> 余晖熄灭。</p>
+    <div class="kb-chassis" id="kbChassis">
+      <div class="kb-row">
+        <button class="gl-brick kb-key gl-alert" data-key="Escape"><span>ESC</span><small>ABORT</small></button>
+        <button class="gl-brick kb-key" data-key="q"><span>Q</span><small>ORBIT</small></button>
+        <button class="gl-brick kb-key" data-key="w"><span>W</span><small>PITCH</small></button>
+        <button class="gl-brick kb-key" data-key="e"><span>E</span><small>EXP</small></button>
+        <button class="gl-brick kb-key" data-key="r"><span>R</span><small>SYNC</small></button>
+        <button class="gl-brick kb-key" data-key="t"><span>T</span><small>TIME</small></button>
+        <button class="gl-brick kb-key" data-key="p"><span>P</span><small>PHOTO</small></button>
+        <button class="gl-brick kb-key on" data-key="l"><span>L</span><small>LOCK</small></button>
+      </div>
+      <div class="kb-row">
+        <button class="gl-brick kb-key w-15" data-key="Meta"><span>⌘</span><small>CMD</small></button>
+        <button class="gl-brick kb-key w-18" data-key="Shift"><span>⇧</span><small>SHIFT</small></button>
+        <button class="gl-brick kb-key" data-key="Alt"><span>⌥</span><small>OPT</small></button>
+        <button class="gl-brick kb-key w-space" data-key=" "><span>SPACE</span><small>PROBE PULSE</small></button>
+        <button class="gl-brick kb-key" data-key="ArrowLeft"><span>←</span><small>W</small></button>
+        <button class="gl-brick kb-key" data-key="ArrowUp"><span>↑</span><small>N</small></button>
+        <button class="gl-brick kb-key" data-key="ArrowDown"><span>↓</span><small>S</small></button>
+        <button class="gl-brick kb-key" data-key="ArrowRight"><span>→</span><small>E</small></button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <span class="eyebrow">13 // DEPTH CROSS-SECTION</span>
+    <h2>六层光学深度剖面</h2>
+    <p class="rule gl-prose">把 <code>L0</code> 至 <code>L5</code> 六层叠在一个切面上：<strong>同一道左上角来光，遇到凸面（卡片 / 键帽 / 浮层）亮左上 <code>1px</code> 刀锋、落右下 <code>#06080E</code> 沉降槽；遇到凹面（暗槽 / 输入框）压左上 <code>#03050B</code> 暗崖、擦亮底部 <code>1px</code> 迎光细唇。</strong></p>
+    <div class="depth-rig">
+      <div class="depth-tag">L0 · .GL-STAGE <em>基底 · #13141C + 银盐底片</em></div>
+      <div class="gl-card depth-l1">
+        <div class="depth-tag">L1 · .GL-CARD <em>凸 · 左上 1PX 刀锋 + 右下 #06080E 内暗槽</em></div>
+        <div class="depth-l2">
+          <div class="depth-tag">L2 · .GL-TRACK &amp; .GL-INPUT <em class="concave">凹 · 左上 #03050B 暗崖 + 底部 1PX 迎光唇</em></div>
+          <div class="depth-l3-row">
+            <span class="depth-tag" style="margin:0 6px 0 0;">L3 · .GL-BRICK <em>凸 · 槽内键帽</em></span>
+            <button class="gl-brick">待机平躺</button>
+            <button class="gl-brick on"><span>选中凸起键帽</span><small>L3.ON</small></button>
+            <div class="gl-input" style="max-width: 220px; padding: 6px 10px;">
+              <span class="gl-icon">⌕</span>
+              <input type="text" value="凹槽底唇受光" aria-label="剖面暗槽示例">
+            </div>
+          </div>
+          <div class="depth-pop-stack">
+            <div class="gl-popover is-receded" role="menu">
+              <div class="depth-tag" style="padding: 4px 6px 2px;">L4 · .GL-POPOVER.IS-RECEDED <em>凸 · 退后半档</em></div>
+              <button class="gl-brick"><span>下层待机项</span><small>01</small></button>
+              <button class="gl-brick gl-sub-open"><span>展开子层入口</span><small>▸</small></button>
+              <button class="gl-brick"><span>右半环已收暗</span><small>03</small></button>
+            </div>
+            <div class="gl-popover gl-popover-sub" role="menu">
+              <div class="depth-tag" style="padding: 4px 6px 2px;">L5 · .GL-POPOVER-SUB <em>凸 · 焦平面 BLUR(28PX)</em></div>
+              <button class="gl-brick on"><span>顶层焦点键帽</span><small>100%</small></button>
+              <button class="gl-brick"><span>满血 1px 刀锋</span><small>OKLAB</small></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 右键实操弹出的浮动菜单 -->
+  <div class="gl-popover ctx-float" id="ctxFloat" role="menu">
+    <button class="gl-brick on"><span>锁定当前星轨</span><small>⌘L</small></button>
+    <button class="gl-brick"><span>切换银盐负片</span><small>⌘P</small></button>
+    <button class="gl-brick"><span>导出遥测快照</span><small>⌘E</small></button>
+    <button class="gl-brick"><span>重置太阳探针</span><small>⌘R</small></button>
+    <hr>
+    <button class="gl-brick gl-alert"><span>⚠ 紧急脱离轨道</span><small>ESC</small></button>
+  </div>
+
   <!-- ================= 调光台 ================= -->
 
   <section>
-    <span class="eyebrow">12 // CONSOLE</span>
+    <span class="eyebrow">14 // CONSOLE</span>
     <h2>调光台</h2>
     <p class="rule gl-prose">拨动 <code>24h</code> 星轨时刻、切换 <mark>银盐负片</mark> 与生命周期，实时观测手电与太阳探针读数。</p>
     <div class="gl-card" style="max-width: 780px;">
@@ -294,7 +412,7 @@
   </section>
 
   <section class="stress-stage">
-    <span class="eyebrow">13 // MOTION</span>
+    <span class="eyebrow">15 // MOTION</span>
     <h2>动态与滚动</h2>
     <p class="rule gl-prose">滚动中 <code>0</code> 布局读取，仅平移缓存矩形让双路手电紧跟控件；带 <code>data-gl-track</code> 的漂移节点<strong>逐帧穿过 <mark>手电与太阳光场</mark>。</strong></p>
     <div class="scroller" id="scroller"></div>
@@ -427,11 +545,132 @@
       b.textContent = "✓ " + b.textContent.replace(/^[⚠✓]\s*/, "");
       return;
     }
-    const group = b.closest(".gl-louver, .gl-lattice, .gl-track, .gl-popover, .bricks, .states, .scroller, .topbar");
+    const group = b.closest(".gl-louver, .gl-lattice, .gl-track, .gl-popover, .bricks, .states, .scroller, .topbar, .kb-chassis, .depth-l3-row");
     if (!group) return;
+    if (group.id === "parentPopover" || group.id === "subPopover") return; // 级联菜单由下方专用逻辑接管
     const was = b.classList.contains("on");
     group.querySelectorAll(".gl-brick.on").forEach((x) => x.classList.remove("on"));
     if (!was) b.classList.add("on");
+  });
+
+  // ---- 级联菜单 + 右键实操菜单 + 键盘巡航 & 物理机械键盘联动 ----
+  const parentPop = $("parentPopover"), subPop = $("subPopover"), ctxFloat = $("ctxFloat"), ctxStatus = $("ctxStatus");
+  let activeMenu = subPop; // 当前方向键控制的菜单（默认停在二级子菜单，直观展示双层景深）
+  // 方向键只在级联展柜露在视口里（或右键菜单打开）时接管，其余时候整页照常用键盘滚动。只在按方向键时读一次矩形
+  const cascadeSection = $("demoCascade").closest("section");
+  const cascadeInView = () => { const r = cascadeSection.getBoundingClientRect(); return r.bottom > innerHeight * 0.25 && r.top < innerHeight * 0.75; };
+
+  const setCascadeFocus = (menu, item) => {
+    activeMenu = menu;
+    const items = [...menu.querySelectorAll(".gl-brick")];
+    const target = item || items[0];
+    items.forEach((x) => x.classList.toggle("on", x === target));
+    if (menu === subPop) {
+      subPop.classList.remove("is-hidden");
+      parentPop.classList.add("is-receded");
+      parentPop.querySelectorAll(".gl-brick").forEach((x) => {
+        x.classList.remove("on");
+        x.classList.toggle("gl-sub-open", x.dataset.hasSub === "1");
+      });
+      ctxStatus.textContent = `当前焦点：二级子菜单「${target.querySelector("span")?.textContent || target.textContent}」（父菜单退后半档 .is-receded）。按 ↑/↓ 巡航，按 ← 退回父菜单。`;
+    } else if (menu === parentPop) {
+      parentPop.classList.remove("is-receded");
+      parentPop.querySelectorAll(".gl-brick").forEach((x) => x.classList.remove("gl-sub-open"));
+      if (target.dataset.hasSub === "1") {
+        subPop.classList.remove("is-hidden");
+        subPop.querySelectorAll(".gl-brick.on").forEach((x) => x.classList.remove("on"));
+      } else {
+        subPop.classList.add("is-hidden");
+      }
+      ctxStatus.textContent = `当前焦点：一级父菜单「${target.querySelector("span")?.textContent || target.textContent}」${target.dataset.hasSub === "1" ? "（按 → 进入二级子菜单）" : ""}。`;
+    } else if (menu === ctxFloat) {
+      ctxStatus.textContent = `右键浮动菜单已弹出：「${target.querySelector("span")?.textContent || target.textContent}」。按 ↑/↓ 巡航，Esc 关闭。`;
+    }
+    gl?.relight();
+  };
+
+  $("demoCascade").addEventListener("click", (e) => {
+    const b = e.target.closest(".gl-brick");
+    if (!b) return;
+    const menu = b.closest(".gl-popover");
+    if (menu === parentPop && b.dataset.hasSub === "1") {
+      setCascadeFocus(subPop, subPop.querySelector(".gl-brick.on") || subPop.querySelector(".gl-brick"));
+    } else if (menu) {
+      setCascadeFocus(menu, b);
+    }
+  });
+
+  // 右键弹出实操菜单（在 #ctxZone 或页面非输入框区域右键）
+  $("ctxZone").addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    const w = 210, h = 190;
+    const x = Math.min(e.clientX, window.innerWidth - w - 12);
+    const y = Math.min(e.clientY, window.innerHeight - h - 12);
+    ctxFloat.style.left = `${Math.max(12, x)}px`;
+    ctxFloat.style.top = `${Math.max(12, y)}px`;
+    ctxFloat.classList.remove("gl-pop-in");
+    void ctxFloat.offsetWidth;
+    ctxFloat.classList.add("open", "gl-pop-in");
+    setCascadeFocus(ctxFloat, ctxFloat.querySelector(".gl-brick.on") || ctxFloat.querySelector(".gl-brick"));
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (ctxFloat.classList.contains("open") && !ctxFloat.contains(e.target)) {
+      ctxFloat.classList.remove("open");
+      activeMenu = subPop.classList.contains("is-hidden") ? parentPop : subPop;
+    }
+  });
+
+  // 键盘联动：1) 机械键盘阵列同步点亮（120ms 亮 / 240ms 余晖熄）；2) 菜单 ↑ ↓ ← → Esc 巡航
+  const findKeycap = (e) => {
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    return document.querySelector(`#kbChassis .kb-key[data-key="${CSS.escape(k)}"]`);
+  };
+  // 按下只加 is-pressed 并临时点亮；松开按 data-was-on 还原，别把 L 键这种本来就选中的键帽按灭
+  const pressCap = (cap) => {
+    if (cap.classList.contains("is-pressed")) return; // 自动重复的 keydown
+    cap.dataset.wasOn = cap.classList.contains("on") ? "1" : "";
+    cap.classList.add("on", "is-pressed");
+  };
+  const releaseCap = (cap) => {
+    cap.classList.remove("is-pressed");
+    if (cap.dataset.wasOn !== "1") cap.classList.remove("on");
+    delete cap.dataset.wasOn;
+  };
+  const releaseAllCaps = () => document.querySelectorAll("#kbChassis .kb-key.is-pressed").forEach(releaseCap);
+  // Win 键会弹开始菜单、Alt+Tab 会切窗口：页面失焦后 keyup 永远收不到，这里兜底清掉
+  window.addEventListener("blur", releaseAllCaps);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) releaseAllCaps(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.target.matches("input, textarea")) return;
+    const cap = findKeycap(e);
+    if (cap) pressCap(cap);
+    if (e.key === "Escape" && ctxFloat.classList.contains("open")) {
+      ctxFloat.classList.remove("open");
+      activeMenu = subPop.classList.contains("is-hidden") ? parentPop : subPop;
+      ctxStatus.textContent = "已关闭右键菜单，焦点回到级联展柜。";
+      return;
+    }
+    const ctxOpen = ctxFloat.classList.contains("open");
+    if ((ctxOpen || cascadeInView()) && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+      e.preventDefault();
+      const menu = ctxOpen ? ctxFloat : activeMenu;
+      const items = [...menu.querySelectorAll(".gl-brick")];
+      const idx = Math.max(0, items.findIndex((x) => x.classList.contains("on")));
+      if (e.key === "ArrowDown") {
+        setCascadeFocus(menu, items[(idx + 1) % items.length]);
+      } else if (e.key === "ArrowUp") {
+        setCascadeFocus(menu, items[(idx - 1 + items.length) % items.length]);
+      } else if (e.key === "ArrowRight" && menu === parentPop) {
+        const subTrigger = parentPop.querySelector('[data-has-sub="1"]');
+        if (items[idx] === subTrigger) setCascadeFocus(subPop, subPop.querySelector(".gl-brick"));
+      } else if (e.key === "ArrowLeft" && menu === subPop) {
+        setCascadeFocus(parentPop, parentPop.querySelector('[data-has-sub="1"]'));
+      }
+    }
+  });
+  document.addEventListener("keyup", (e) => {
+    const cap = findKeycap(e);
+    if (cap) releaseCap(cap);
   });
 
   instrument();
