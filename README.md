@@ -201,6 +201,6 @@ glacier/
 ## 8. 宿主与生态关系
 
 - **本仓库（`glacier`）是 Glacier 设计语言的中心与唯一上游**，`./DESIGN.md` 是设计规格的源头，改设计先改这里。
-- **任何 Web / Electron / WebView 宿主**：直接引入本仓库的 `glacier.css` + `glacier.js`，宿主只需给深色基底（`.gl-stage`）、给 `.gl-*` 类名、调 `Glacier.init()`。内核要求：`@property` 与 `in oklab` 渐变插值（Chromium 111+ / Safari 16.4+ / Firefox 128+）；更老的内核会拿到 `@supports` 兜底的 sRGB 刀锋与手电（结构不丢，只是金白之间少一层奶油过渡），装饰性渐变（滚动条、分割线、引用导轨）则直接退成无。
+- **任何 Web / Electron / WebView 宿主**：直接引入本仓库的 `glacier.css` + `glacier.js`，宿主只需给深色基底（`.gl-stage`）、给 `.gl-*` 类名、调 `Glacier.init()`。内核要求：`@property` 与 `in oklab` 渐变插值（Chromium 111+ / Safari 16.4+ / Firefox 128+）；更老的内核会拿到 `@supports` 兜底的 sRGB 刀锋与手电（结构不丢，只是金白之间少一层奶油过渡），装饰性渐变（分割线、引用导轨）则直接退成无。
 - **Windows 11 系统壳（Windhawk）**：任务栏、开始菜单、通知中心与资源管理器通过静态 XAML 共享同一套三色空间光谱与暗槽光学（配置见 `./windhawk`）。
 - **外部客户端补丁（如 `ui-mod`、`hudd`）**：客户端只是这套设计语言的下游宿主——宿主自己的 DOM 注入、会话列表、终端与网关留在各自仓库维护，宿主版本怎么变都不影响 Glacier 设计语言本身。

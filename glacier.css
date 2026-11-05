@@ -93,21 +93,28 @@
 }
 
 /* 暗座舱滚动条（严格收在 .gl-stage 作用域内，视口那根靠 :root:has(> body.gl-stage) 补齐）：
-   轨道是 6px 微缩暗槽（与 .gl-track 同源），滑块是三色棱镜游丝（竖条 180deg、横条 90deg：香槟暖金 → 冰晶白 → 暮光紫）：
-   平时压在 38%–46% 静态克制亮度，悬停/拖拽时点亮到满血刀锋。
+   滚动条是刻度，不是键帽，更不是灯。光只来自探针（DESIGN.md §3 探针五律），被照的东西不发光，
+   所以拇指在任何状态下都不显影三色光谱——金星带只配做 1px 级的切割刃，灌进一根柱子里就是荧光棒。
+   1. 热区 8px 方便抓，拇指用 3px 透明 border + content-box 裁成 2px 冷银游丝，和旁边输入框的 1px 边同级纤细；
+   2. 轨道全透明，两端留 10px 空当，拇指拉到头也停在容器圆角弧度之内；
+   3. 待机 .16、悬停 .26、抓住 .36：只是冷银明度的机械反馈（和 :active 下沉一个性质），没有色相。
    仅在非 WebKit 引擎（Firefox）回退到标准 scrollbar-width，避免 Chromium 121+ 因声明 scrollbar-color 而禁用 ::-webkit-scrollbar。 */
 :root:has(> body.gl-stage)::-webkit-scrollbar,
 .gl-stage::-webkit-scrollbar,
 .gl-stage ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 :root:has(> body.gl-stage)::-webkit-scrollbar-track,
 .gl-stage::-webkit-scrollbar-track,
 .gl-stage ::-webkit-scrollbar-track {
-  background: rgba(5, 10, 24, 0.48);
-  border-radius: 999px;
-  box-shadow: inset 0 0 0 1px rgba(0, 2, 8, 0.65);
+  background: transparent;
+  margin: 10px 0;
+}
+:root:has(> body.gl-stage)::-webkit-scrollbar-track:horizontal,
+.gl-stage::-webkit-scrollbar-track:horizontal,
+.gl-stage ::-webkit-scrollbar-track:horizontal {
+  margin: 0 10px;
 }
 :root:has(> body.gl-stage)::-webkit-scrollbar-corner,
 .gl-stage::-webkit-scrollbar-corner,
@@ -117,71 +124,26 @@
 :root:has(> body.gl-stage)::-webkit-scrollbar-thumb,
 .gl-stage::-webkit-scrollbar-thumb,
 .gl-stage ::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
   border-radius: 999px;
-  background: linear-gradient(
-    180deg in oklab,
-    rgba(255, 216, 155, 0.38) 0%,
-    rgba(230, 244, 255, 0.46) 45%,
-    rgba(187, 154, 247, 0.34) 100%
-  );
-  box-shadow: inset -1px -1px 0 #06080E;
-}
-:root:has(> body.gl-stage)::-webkit-scrollbar-thumb:horizontal,
-.gl-stage::-webkit-scrollbar-thumb:horizontal,
-.gl-stage ::-webkit-scrollbar-thumb:horizontal {
-  background: linear-gradient(
-    90deg in oklab,
-    rgba(255, 216, 155, 0.38) 0%,
-    rgba(230, 244, 255, 0.46) 45%,
-    rgba(187, 154, 247, 0.34) 100%
-  );
+  background: rgba(180, 200, 230, 0.16) content-box;
 }
 :root:has(> body.gl-stage)::-webkit-scrollbar-thumb:hover,
 .gl-stage::-webkit-scrollbar-thumb:hover,
 .gl-stage ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(
-    180deg in oklab,
-    rgba(255, 216, 155, 0.72) 0%,
-    rgba(230, 244, 255, 0.84) 45%,
-    rgba(187, 154, 247, 0.64) 100%
-  );
-}
-:root:has(> body.gl-stage)::-webkit-scrollbar-thumb:horizontal:hover,
-.gl-stage::-webkit-scrollbar-thumb:horizontal:hover,
-.gl-stage ::-webkit-scrollbar-thumb:horizontal:hover {
-  background: linear-gradient(
-    90deg in oklab,
-    rgba(255, 216, 155, 0.72) 0%,
-    rgba(230, 244, 255, 0.84) 45%,
-    rgba(187, 154, 247, 0.64) 100%
-  );
+  background: rgba(180, 200, 230, 0.26) content-box;
 }
 :root:has(> body.gl-stage)::-webkit-scrollbar-thumb:active,
 .gl-stage::-webkit-scrollbar-thumb:active,
 .gl-stage ::-webkit-scrollbar-thumb:active {
-  background: linear-gradient(
-    180deg in oklab,
-    #FFD89B 0%,
-    #E6F4FF 45%,
-    rgba(187, 154, 247, 0.88) 100%
-  );
-}
-:root:has(> body.gl-stage)::-webkit-scrollbar-thumb:horizontal:active,
-.gl-stage::-webkit-scrollbar-thumb:horizontal:active,
-.gl-stage ::-webkit-scrollbar-thumb:horizontal:active {
-  background: linear-gradient(
-    90deg in oklab,
-    #FFD89B 0%,
-    #E6F4FF 45%,
-    rgba(187, 154, 247, 0.88) 100%
-  );
+  background: rgba(180, 200, 230, 0.36) content-box;
 }
 @supports not selector(::-webkit-scrollbar) {
   :root:has(> body.gl-stage),
   .gl-stage,
   .gl-stage * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(196, 208, 245, 0.28) rgba(5, 10, 24, 0.48);
+    scrollbar-color: rgba(180, 200, 230, 0.16) transparent;
   }
 }
 
