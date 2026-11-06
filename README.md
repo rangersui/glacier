@@ -219,4 +219,4 @@ glacier/
 
 ## 9. 许可
 
-代码与文档 MIT（见 `LICENSE`）。`photos/` 是 NASA 公有领域图片，不在 MIT 之内，逐张署名见 `photos/README.md`；`windhawk/` 里两份 yaml 的元素选择器最早取自 Windhawk 官方 styling guide 的 TranslucentShell / TranslucentStartMenu 主题（该仓库没有许可证文件；选择器本身是 Windows 的元素名，属事实信息），颜色、状态与规则是本仓库写的，按 MIT 发布。
+代码与文档 MIT（见 `LICENSE`，例外清单在 `NOTICE.md`）。`photos/` 是 NASA 公有领域图片，不在 MIT 之内，逐张署名见 `photos/README.md`；`windhawk/` 里两份 yaml 的元素选择器最早取自 Windhawk 官方 styling guide 的 TranslucentShell / TranslucentStartMenu 主题（该仓库没有许可证文件；选择器本身是 Windows 的元素名，属事实信息），颜色、状态与规则是本仓库写的，按 MIT 发布。
