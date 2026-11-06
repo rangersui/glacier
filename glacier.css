@@ -9,6 +9,17 @@
    ========================================================================== */
 
 :root {
+  /* 全文件的颜色只在这里写一次（DESIGN.md §1 唯一锚点）。三色用 R G B 三元组，取用时自带透明度：rgb(var(--gl-gold) / .72)。
+     亮度（透明度）仍按控件各写各的，那是档位问题，下一刀再收；这一刀只收色相。 */
+  --gl-gold: 255 216 155;    /* 香槟暖金 #FFD89B：左上迎光 */
+  --gl-ice: 230 244 255;     /* 冰晶白 #E6F4FF：中段 */
+  --gl-violet: 187 154 247;  /* 金星带暮光紫 #BB9AF7：右下背光 */
+  --gl-cobalt: 45 110 255;   /* 皇家钴蓝：肚子左下呼吸微光 */
+  --gl-obsidian: 18 22 32;   /* 黑曜石烟熏底：冰砖肚子 */
+  --gl-silver: 196 208 245;  /* 冷银：待机文字与分隔线 */
+  --gl-wall: #06080E;        /* 凸起控件右下沉降槽 */
+  --gl-cliff: #03050B;       /* 凹槽左上暗崖 */
+  --gl-trench: #060911;      /* 凹槽内胆 */
   --gl-bg: #13141c;               /* 深空基底：灯与底片用 screen 混合，底下必须是深色 */
   --gl-fg: #c4d0f5;
   --gl-accent-cyan: #2ac3de;
@@ -27,15 +38,15 @@
      那样 .on 的刀锋环和输入框的整块背景会一起消失，所以兜底必须是能解析的普通渐变。 */
   --gl-crest-line: linear-gradient(
     90deg,
-    rgba(255, 216, 155, 0.72) 0%,
-    rgba(230, 244, 255, 0.88) 50%,
-    rgba(187, 154, 247, 0.72) 100%
+    rgb(var(--gl-gold) / 0.72) 0%,
+    rgb(var(--gl-ice) / 0.88) 50%,
+    rgb(var(--gl-violet) / 0.72) 100%
   );
   --gl-edge: radial-gradient(
     100% 100% at 0% 0%,
-    #FFD89B 0%,
-    #E6F4FF 36%,
-    rgba(187, 154, 247, 0.25) 64%,
+    rgb(var(--gl-gold)) 0%,
+    rgb(var(--gl-ice)) 36%,
+    rgb(var(--gl-violet) / 0.25) 64%,
     transparent 88%
   );
   /* --gl-brick-fill 不能放在这里：它乘的 var(--gl-fill) 要在砖自己身上代入（--gl-fill 不继承），
@@ -80,16 +91,16 @@
 .gl-card ::selection,
 .gl-prose::selection,
 .gl-prose ::selection {
-  background-color: rgba(45, 110, 255, 0.28);
+  background-color: rgb(var(--gl-cobalt) / 0.28);
   color: #F0FCFF;
   text-shadow: 0 0 8px rgba(100, 232, 229, 0.35);
 }
 .gl-input::selection,
 .gl-input ::selection,
 .gl-prose code::selection {
-  background-color: rgba(255, 216, 155, 0.20);
-  color: #FFD89B;
-  text-shadow: 0 0 6px rgba(255, 216, 155, 0.30);
+  background-color: rgb(var(--gl-gold) / 0.20);
+  color: rgb(var(--gl-gold));
+  text-shadow: 0 0 6px rgb(var(--gl-gold) / 0.30);
 }
 
 /* 暗座舱滚动条（严格收在 .gl-stage 作用域内，视口那根靠 :root:has(> body.gl-stage) 补齐）：
@@ -225,16 +236,16 @@
   --gl-torch-gain: 1;
   --gl-torch-ring: radial-gradient(
     var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y),
-    rgba(255, 216, 155, calc(0.76 * var(--torch-a) * var(--gl-torch-gain))) 0%,
-    rgba(230, 244, 255, calc(0.42 * var(--torch-a) * var(--gl-torch-gain))) 30%,
-    rgba(187, 154, 247, calc(0.22 * var(--torch-a) * var(--gl-torch-gain))) 54%,
+    rgb(var(--gl-gold) / calc(0.76 * var(--torch-a) * var(--gl-torch-gain))) 0%,
+    rgb(var(--gl-ice) / calc(0.42 * var(--torch-a) * var(--gl-torch-gain))) 30%,
+    rgb(var(--gl-violet) / calc(0.22 * var(--torch-a) * var(--gl-torch-gain))) 54%,
     transparent 74%
   );
   --gl-sun-ring: radial-gradient(
     var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y),
-    rgba(255, 216, 155, calc(0.64 * var(--sun-a) * var(--gl-torch-gain))) 0%,
-    rgba(230, 244, 255, calc(0.34 * var(--sun-a) * var(--gl-torch-gain))) 32%,
-    rgba(187, 154, 247, calc(0.19 * var(--sun-a) * var(--gl-torch-gain))) 56%,
+    rgb(var(--gl-gold) / calc(0.64 * var(--sun-a) * var(--gl-torch-gain))) 0%,
+    rgb(var(--gl-ice) / calc(0.34 * var(--sun-a) * var(--gl-torch-gain))) 32%,
+    rgb(var(--gl-violet) / calc(0.19 * var(--sun-a) * var(--gl-torch-gain))) 56%,
     transparent 76%
   );
 }
@@ -246,15 +257,15 @@
   :root {
     --gl-crest-line: linear-gradient(
       90deg in oklab,
-      rgba(255, 216, 155, 0.72) 0%,
-      rgba(230, 244, 255, 0.88) 50%,
-      rgba(187, 154, 247, 0.72) 100%
+      rgb(var(--gl-gold) / 0.72) 0%,
+      rgb(var(--gl-ice) / 0.88) 50%,
+      rgb(var(--gl-violet) / 0.72) 100%
     );
     --gl-edge: radial-gradient(
       100% 100% at 0% 0% in oklab,
-      #FFD89B 0%,
-      #E6F4FF 36%,
-      rgba(187, 154, 247, 0.25) 64%,
+      rgb(var(--gl-gold)) 0%,
+      rgb(var(--gl-ice)) 36%,
+      rgb(var(--gl-violet) / 0.25) 64%,
       transparent 88%
     );
   }
@@ -264,16 +275,16 @@
   .gl-table tbody tr {
     --gl-torch-ring: radial-gradient(
       var(--torch-r, 160px) circle at var(--torch-x) var(--torch-y) in oklab,
-      rgba(255, 216, 155, calc(0.76 * var(--torch-a) * var(--gl-torch-gain))) 0%,
-      rgba(230, 244, 255, calc(0.42 * var(--torch-a) * var(--gl-torch-gain))) 30%,
-      rgba(187, 154, 247, calc(0.22 * var(--torch-a) * var(--gl-torch-gain))) 54%,
+      rgb(var(--gl-gold) / calc(0.76 * var(--torch-a) * var(--gl-torch-gain))) 0%,
+      rgb(var(--gl-ice) / calc(0.42 * var(--torch-a) * var(--gl-torch-gain))) 30%,
+      rgb(var(--gl-violet) / calc(0.22 * var(--torch-a) * var(--gl-torch-gain))) 54%,
       transparent 74%
     );
     --gl-sun-ring: radial-gradient(
       var(--sun-r, 240px) circle at var(--sun-x) var(--sun-y) in oklab,
-      rgba(255, 216, 155, calc(0.64 * var(--sun-a) * var(--gl-torch-gain))) 0%,
-      rgba(230, 244, 255, calc(0.34 * var(--sun-a) * var(--gl-torch-gain))) 32%,
-      rgba(187, 154, 247, calc(0.19 * var(--sun-a) * var(--gl-torch-gain))) 56%,
+      rgb(var(--gl-gold) / calc(0.64 * var(--sun-a) * var(--gl-torch-gain))) 0%,
+      rgb(var(--gl-ice) / calc(0.34 * var(--sun-a) * var(--gl-torch-gain))) 32%,
+      rgb(var(--gl-violet) / calc(0.19 * var(--sun-a) * var(--gl-torch-gain))) 56%,
       transparent 76%
     );
   }
@@ -289,8 +300,8 @@
     90deg in oklab,
     rgba(8, 12, 24, 0.52) 0%,
     rgba(10, 14, 28, 0.44) 48%,
-    rgba(187, 154, 247, 0.055) 78%,
-    rgba(187, 154, 247, 0.095) 100%
+    rgb(var(--gl-violet) / 0.055) 78%,
+    rgb(var(--gl-violet) / 0.095) 100%
   );
 }
 .gl-bar::after {
@@ -323,16 +334,16 @@
   padding: 9px 12px;
   border: none;
   border-radius: var(--gl-radius, 6px);
-  color: rgba(196, 208, 245, 0.76);
+  color: rgb(var(--gl-silver) / 0.76);
   font: 500 13px/1.3 var(--gl-font-sans);
   text-align: left;
   cursor: pointer;
   user-select: none;
-  background-color: rgba(18, 22, 32, 0.42);
+  background-color: rgb(var(--gl-obsidian) / 0.42);
   /* 肚子两团呼吸微光常驻，强度乘 --gl-fill（rest 0 → hover 0.7 → on 1）；声明在砖上而不是 :root，理由见令牌区注释 */
   --gl-brick-fill:
-    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, calc(0.10 * var(--gl-fill))) 0%, transparent 55%),
-    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, calc(0.16 * var(--gl-fill))) 0%, transparent 65%);
+    radial-gradient(120% 100% at 0% 0%, rgb(var(--gl-gold) / calc(0.10 * var(--gl-fill))) 0%, transparent 55%),
+    radial-gradient(120% 120% at 0% 100%, rgb(var(--gl-cobalt) / calc(0.16 * var(--gl-fill))) 0%, transparent 65%);
   background-image: var(--gl-brick-fill);
   box-shadow:
     inset -1.5px -1.5px 0px rgba(6, 8, 14, 0),
@@ -378,10 +389,10 @@
   color: #F0F6FF;
   text-shadow: none;
   border: none;
-  background-color: rgba(18, 22, 32, 0.78);
+  background-color: rgb(var(--gl-obsidian) / 0.78);
   backdrop-filter: blur(16px) saturate(160%);
   box-shadow:
-    inset -1.5px -1.5px 0px #06080E,
+    inset -1.5px -1.5px 0px var(--gl-wall),
     inset 0 1px 0 0 rgba(255, 220, 170, 0.12);
   transition:
     transform var(--gl-dur-base) var(--gl-ease-spring),
@@ -395,7 +406,7 @@
 }
 .gl-brick:hover:not(.on):not(.gl-fresh):not(.gl-alert) {
   --gl-fill: 0.7;
-  background-color: rgba(18, 22, 32, 0.64);
+  background-color: rgb(var(--gl-obsidian) / 0.64);
 }
 .gl-brick.gl-fresh::before,
 .gl-brick.on::before,
@@ -409,7 +420,7 @@
 }
 .gl-brick small {
   font-family: var(--gl-font-mono);
-  color: rgba(196, 208, 245, 0.5);
+  color: rgb(var(--gl-silver) / 0.5);
   font-variant-numeric: tabular-nums;
   transition: color var(--gl-dur-off) var(--gl-ease-out);
 }
@@ -500,7 +511,7 @@
   background: rgba(5, 10, 24, 0.52);
   box-shadow:
     inset 0 1px 1px rgba(0, 2, 8, 0.7),
-    0 1px 0 rgba(187, 154, 247, 0.08);
+    0 1px 0 rgb(var(--gl-violet) / 0.08);
 }
 .gl-track > .gl-brick:not(:hover):not(.gl-fresh):not(.on):not(.gl-alert) {
   background-color: transparent;
@@ -548,7 +559,7 @@
   height: var(--gl-lattice-cell, 40px);
   font: 600 10px/1 var(--gl-font-mono);
   letter-spacing: 1px;
-  color: rgba(196, 208, 245, 0.38);
+  color: rgb(var(--gl-silver) / 0.38);
 }
 .gl-lattice > .gl-void {
   visibility: hidden;
@@ -584,12 +595,12 @@
   color: #e6edff;
   font: 400 13px/1.55 var(--gl-font-sans);
   background:
-    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.08) 0%, transparent 50%),
-    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.10) 0%, transparent 60%),
+    radial-gradient(120% 100% at 0% 0%, rgb(var(--gl-gold) / 0.08) 0%, transparent 50%),
+    radial-gradient(120% 120% at 0% 100%, rgb(var(--gl-cobalt) / 0.10) 0%, transparent 60%),
     rgba(16, 20, 30, var(--gl-card-alpha, 0.78));
   backdrop-filter: blur(18px) saturate(150%);
   box-shadow:
-    inset -1.5px -1.5px 0px #06080E,
+    inset -1.5px -1.5px 0px var(--gl-wall),
     inset 0 1px 0 0 rgba(255, 220, 170, 0.10);
 }
 
@@ -701,9 +712,9 @@
   margin: 2em 0;
   background: linear-gradient(
     90deg in oklab,
-    rgba(255, 216, 155, 0.45) 0%,
+    rgb(var(--gl-gold) / 0.45) 0%,
     rgba(240, 252, 255, 0.25) 45%,
-    rgba(187, 154, 247, 0.35) 85%,
+    rgb(var(--gl-violet) / 0.35) 85%,
     transparent 100%
   );
 }
@@ -719,8 +730,8 @@
 /* 暖金级重点（核心结论 / 锚点词） */
 .gl-prose mark {
   background: transparent;
-  color: #FFD89B;
-  border-bottom: 1px solid rgba(255, 216, 155, 0.35);
+  color: rgb(var(--gl-gold));
+  border-bottom: 1px solid rgb(var(--gl-gold) / 0.35);
   padding-bottom: 1px;
 }
 
@@ -743,7 +754,7 @@
   padding-left: 1.25em;
   margin: 1.4em 0;
   border-left: 1px solid transparent;
-  border-image: linear-gradient(180deg in oklab, #FFD89B 0%, #F0FCFF 50%, #BB9AF7 100%) 1;
+  border-image: linear-gradient(180deg in oklab, rgb(var(--gl-gold)) 0%, #F0FCFF 50%, rgb(var(--gl-violet)) 100%) 1;
 }
 
 /* ==========================================================================
@@ -773,13 +784,13 @@
     var(--gl-sun-ring) 0 100% / 100% 1px no-repeat,
     linear-gradient(
       90deg in oklab,
-      rgba(255, 216, 155, 0.22) 0%,
-      rgba(230, 244, 255, 0.26) 50%,
-      rgba(187, 154, 247, 0.22) 100%
+      rgb(var(--gl-gold) / 0.22) 0%,
+      rgb(var(--gl-ice) / 0.26) 50%,
+      rgb(var(--gl-violet) / 0.22) 100%
     ) 0 100% / 100% 1px no-repeat,
-    #060911;
+    var(--gl-trench);
   box-shadow:
-    inset 1.5px 1.5px 0 #03050B,
+    inset 1.5px 1.5px 0 var(--gl-cliff),
     inset 0 1px 2px rgba(0, 2, 8, 0.92);
 }
 .gl-slider::-webkit-slider-thumb {
@@ -791,24 +802,24 @@
   border-radius: 4px;
   border: 1px solid transparent;
   background:
-    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.10) 0%, transparent 55%) padding-box,
-    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.16) 0%, transparent 65%) padding-box,
+    radial-gradient(120% 100% at 0% 0%, rgb(var(--gl-gold) / 0.10) 0%, transparent 55%) padding-box,
+    radial-gradient(120% 120% at 0% 100%, rgb(var(--gl-cobalt) / 0.16) 0%, transparent 65%) padding-box,
     linear-gradient(#121622, #121622) padding-box,
     var(--gl-edge) border-box;
   box-shadow:
-    inset -1.5px -1.5px 0 #06080E,
+    inset -1.5px -1.5px 0 var(--gl-wall),
     0 1px 0 0 rgba(0, 2, 8, 0.5);
   transition: transform var(--gl-dur-base) var(--gl-ease-spring), box-shadow var(--gl-dur-base) var(--gl-ease-out);
 }
 .gl-slider:hover::-webkit-slider-thumb,
 .gl-slider:focus-visible::-webkit-slider-thumb {
   background:
-    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.16) 0%, transparent 55%) padding-box,
-    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.22) 0%, transparent 65%) padding-box,
+    radial-gradient(120% 100% at 0% 0%, rgb(var(--gl-gold) / 0.16) 0%, transparent 55%) padding-box,
+    radial-gradient(120% 120% at 0% 100%, rgb(var(--gl-cobalt) / 0.22) 0%, transparent 65%) padding-box,
     linear-gradient(#141926, #141926) padding-box,
     var(--gl-edge) border-box;
   box-shadow:
-    inset -1.5px -1.5px 0 #06080E,
+    inset -1.5px -1.5px 0 var(--gl-wall),
     inset 0 1px 0 rgba(255, 220, 170, 0.16),
     0 1px 0 0 rgba(0, 2, 8, 0.5);
 }
@@ -818,8 +829,8 @@
 .gl-slider::-moz-range-track {
   height: 6px;
   border-radius: 3px;
-  background: #060911;
-  box-shadow: inset 1.5px 1.5px 0 #03050B, 0 1px 0 rgba(187, 154, 247, 0.14);
+  background: var(--gl-trench);
+  box-shadow: inset 1.5px 1.5px 0 var(--gl-cliff), 0 1px 0 rgb(var(--gl-violet) / 0.14);
 }
 .gl-slider::-moz-range-thumb {
   width: 14px;
@@ -827,11 +838,11 @@
   border-radius: 4px;
   border: 1px solid transparent;
   background:
-    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, 0.10) 0%, transparent 55%) padding-box,
-    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, 0.16) 0%, transparent 65%) padding-box,
+    radial-gradient(120% 100% at 0% 0%, rgb(var(--gl-gold) / 0.10) 0%, transparent 55%) padding-box,
+    radial-gradient(120% 120% at 0% 100%, rgb(var(--gl-cobalt) / 0.16) 0%, transparent 65%) padding-box,
     linear-gradient(#121622, #121622) padding-box,
     var(--gl-edge) border-box;
-  box-shadow: inset -1.5px -1.5px 0 #06080E, 0 1px 0 0 rgba(0, 2, 8, 0.5);
+  box-shadow: inset -1.5px -1.5px 0 var(--gl-wall), 0 1px 0 0 rgba(0, 2, 8, 0.5);
 }
 
 /* ==========================================================================
@@ -855,22 +866,22 @@
   background:
     radial-gradient(
       90% 60% at 35% 100% in oklab,
-      rgba(255, 216, 155, calc(0.045 * var(--gl-fill))) 0%,
-      rgba(45, 110, 255, calc(0.055 * var(--gl-fill))) 55%,
+      rgb(var(--gl-gold) / calc(0.045 * var(--gl-fill))) 0%,
+      rgb(var(--gl-cobalt) / calc(0.055 * var(--gl-fill))) 55%,
       transparent 100%
     ) padding-box,
-    linear-gradient(#060911, #060911) padding-box,
-    linear-gradient(180deg, #03050B 0%, #03050B calc(100% - 6px), rgba(3, 5, 11, 0.45) calc(100% - 2px), transparent 100%) border-box,
+    linear-gradient(var(--gl-trench), var(--gl-trench)) padding-box,
+    linear-gradient(180deg, var(--gl-cliff) 0%, var(--gl-cliff) calc(100% - 6px), rgba(3, 5, 11, 0.45) calc(100% - 2px), transparent 100%) border-box,
     var(--gl-crest-line) 0 100% / var(--gl-lip) 100% no-repeat border-box,
     var(--gl-torch-ring) border-box,
     var(--gl-sun-ring) border-box,
-    linear-gradient(rgba(196, 208, 245, 0.08), rgba(196, 208, 245, 0.08)) border-box,
-    linear-gradient(#03050B, #03050B) border-box;
+    linear-gradient(rgb(var(--gl-silver) / 0.08), rgb(var(--gl-silver) / 0.08)) border-box,
+    linear-gradient(var(--gl-cliff), var(--gl-cliff)) border-box;
   color: #8E9BAE;
-  caret-color: #FFD89B;
+  caret-color: rgb(var(--gl-gold));
   font: 400 13px/1.45 var(--gl-font-sans);
   box-shadow:
-    inset 1.5px 1.5px 0 #03050B,
+    inset 1.5px 1.5px 0 var(--gl-cliff),
     inset 0 2px 5px rgba(0, 2, 8, 0.88);
   outline: none;
   transition:
@@ -959,9 +970,9 @@ textarea.gl-input {
   --gl-fill: 1;
   color: #DCE8FF;
   box-shadow:
-    inset 1.5px 1.5px 0 #03050B,
+    inset 1.5px 1.5px 0 var(--gl-cliff),
     inset 0 2px 6px rgba(0, 2, 8, 0.92),
-    0 1px 8px -2px rgba(255, 216, 155, 0.16);
+    0 1px 8px -2px rgb(var(--gl-gold) / 0.16);
   transition:
     --torch-a var(--gl-dur-off) var(--gl-ease-out),
     --sun-a 800ms var(--gl-ease-out),
@@ -1008,14 +1019,14 @@ textarea.gl-input {
     var(--gl-sun-ring) 0 100% / 100% 1px no-repeat,
     radial-gradient(
       85% 90% at 35% 100% in oklab,
-      rgba(255, 216, 155, calc(0.05 * var(--gl-fill))) 0%,
-      rgba(45, 110, 255, calc(0.07 * var(--gl-fill))) 55%,
+      rgb(var(--gl-gold) / calc(0.05 * var(--gl-fill))) 0%,
+      rgb(var(--gl-cobalt) / calc(0.07 * var(--gl-fill))) 55%,
       transparent 100%
     );
 }
 /* 行间 1px 分隔线单独一条规则（末行没有），手电渐变只在上面写一次 */
 .gl-table tbody tr:not(:last-child) td {
-  border-bottom: 1px solid rgba(196, 208, 245, 0.055);
+  border-bottom: 1px solid rgb(var(--gl-silver) / 0.055);
 }
 .gl-table td {
   padding: 10px 14px;
@@ -1086,8 +1097,8 @@ textarea.gl-input {
   --gl-fill: 1;
   background-color: rgba(12, 15, 24, 0.92);
   background-image:
-    radial-gradient(120% 100% at 0% 0%, rgba(255, 216, 155, calc(0.11 * var(--gl-fill))) 0%, transparent 50%),
-    radial-gradient(120% 120% at 0% 100%, rgba(45, 110, 255, calc(0.14 * var(--gl-fill))) 0%, transparent 60%);
+    radial-gradient(120% 100% at 0% 0%, rgb(var(--gl-gold) / calc(0.11 * var(--gl-fill))) 0%, transparent 50%),
+    radial-gradient(120% 120% at 0% 100%, rgb(var(--gl-cobalt) / calc(0.14 * var(--gl-fill))) 0%, transparent 60%);
   backdrop-filter: blur(22px) saturate(170%);
   box-shadow:
     inset -1.5px -1.5px 0px #05070C,
@@ -1119,9 +1130,9 @@ textarea.gl-input {
   opacity: 0.42;
   background: radial-gradient(
     65% 85% at 0% 0% in oklab,
-    #FFD89B 0%,
-    #E6F4FF 32%,
-    rgba(187, 154, 247, 0.18) 58%,
+    rgb(var(--gl-gold)) 0%,
+    rgb(var(--gl-ice)) 32%,
+    rgb(var(--gl-violet) / 0.18) 58%,
     transparent 74%
   );
 }
@@ -1146,9 +1157,9 @@ textarea.gl-input {
 .gl-popover > .gl-brick.gl-sub-open:not(.on):not(:hover) {
   --gl-fill: 0.45;
   color: #D2E0FA;
-  background-color: rgba(18, 22, 32, 0.56);
+  background-color: rgb(var(--gl-obsidian) / 0.56);
   box-shadow:
-    inset -1px -1px 0px #06080E,
+    inset -1px -1px 0px var(--gl-wall),
     inset 0 1px 0 0 rgba(255, 220, 170, 0.06);
 }
 .gl-popover > .gl-brick.gl-sub-open:not(.on):not(:hover)::before {

@@ -4,6 +4,7 @@
  * 一盏灯，两个消费者（轨道游标、黑白底片探照灯遮罩），加一个把它们装到页面上的 init()：
  *   Glacier.sun          太阳模型：时间 → 位置（横跨整个视口的轨道）→ 光色与亮度；关键帧表 sampleTable / stateFromTable
  *   Glacier.Lamp         灯 overlay：柔光球 + 三色光谱轨迹弧 + 刻度 + 当前时间（静态层不随时间重建）
+ *   Camera（内部）        运镜：弹簧借光 focus / 向心样条巡航 tour / 焦点租期；Instance 持有一个，自己只管钟、灯、手电
  *   Glacier.applySunVars 把底片探照灯坐标与微弱明度呼吸（--gl-sun-x / --gl-sun-y / --gl-sun-exposure）写到一个元素（通常是 body）上
  *   Glacier.init(options) 建画布、起太阳、画灯、鼠标手电（控件材质走 CSS 焊死的 1px 环 + 100% 100% at 0% 0% 归一化三色常量，零内联 --ice-*），
  *                         返回句柄 { setHour, setMode, setLoop, setSunTable, focus, tour, setBackground, setPhoto, relight, stop, destroy, sun … }
@@ -38,7 +39,7 @@
     return { x: W * (0.5 + 0.56 * u), y: H * (0.6 + 0.55 * u * u), u, isDay: false };
   };
 
-  const COLOR_KEYS = ["sunCrest", "sunSheen", "sunTint", "sunCaustic", "orbCore", "orbCorona", "orbRayColor"];
+  const COLOR_KEYS = ["orbCore", "orbCorona"]; // 只剩星核与日冕两色：其余逐帧颜色自第三刀砍掉 Scene 后再无消费者（第五刀）
   const parseColor = (c) => {
     if (typeof c !== "string") return null;
     const t = c.trim();
@@ -80,24 +81,16 @@
     return out;
   };
   const PAL_NIGHT = {
-    sunCrest: "rgba(180, 232, 255, 0.88)", sunSheen: "rgba(165, 215, 255, 0.26)",
-    sunTint: "rgba(187, 154, 247, 0.38)", sunCaustic: "rgba(122, 162, 247, 0.34)",
-    orbCore: "#F0F8FF", orbCorona: "#BB9AF7", orbRayColor: "#C4B5FD"
+    orbCore: "#F0F8FF", orbCorona: "#BB9AF7"
   };
   const PAL_DAWN = {
-    sunCrest: "rgba(255, 206, 145, 0.94)", sunSheen: "rgba(255, 200, 140, 0.34)",
-    sunTint: "rgba(255, 145, 105, 0.42)", sunCaustic: "rgba(55, 175, 255, 0.45)",
-    orbCore: "#FFFDF5", orbCorona: "#FF9EB5", orbRayColor: "#FFC4D6"
+    orbCore: "#FFFDF5", orbCorona: "#FF9EB5"
   };
   const PAL_NOON = {
-    sunCrest: "rgba(240, 252, 255, 0.95)", sunSheen: "rgba(220, 245, 255, 0.34)",
-    sunTint: "rgba(110, 210, 255, 0.40)", sunCaustic: "rgba(42, 195, 222, 0.42)",
-    orbCore: "#FFFFFF", orbCorona: "#7DCFFF", orbRayColor: "#E0F7FF"
+    orbCore: "#FFFFFF", orbCorona: "#7DCFFF"
   };
   const PAL_DUSK = {
-    sunCrest: "rgba(255, 206, 145, 0.94)", sunSheen: "rgba(255, 200, 140, 0.34)",
-    sunTint: "rgba(255, 145, 105, 0.42)", sunCaustic: "rgba(55, 175, 255, 0.45)",
-    orbCore: "#FFFDF5", orbCorona: "#FF9E44", orbRayColor: "#FFD285"
+    orbCore: "#FFFDF5", orbCorona: "#FF9E44"
   };
 
   const computeSunState = (hour, W, H) => {
@@ -124,7 +117,7 @@
   Glacier.sun = { lampPointAt, computeSunState };
 
   // ---- 关键帧表："几点钟长什么样"是一张表，上面的公式只是默认那张 ----------------------
-  // 关键帧：{ hour, u, v, glow, isDay, sunCrest, sunSheen, sunTint, sunCaustic, orbCore, orbCorona, orbRayColor }
+  // 关键帧：{ hour, u, v, glow, isDay, orbCore, orbCorona }
   //   u / v  灯在视口里的归一化位置（0–1，可超出）；glow 灯的亮度 0–1；颜色是 rgba(...) 或 #hex。
   //   少写的字段用公式在同一小时的值补齐，所以只写想改的就行。相邻两帧之间线性插值（颜色按通道插），
   //   最后一帧到第一帧跨午夜接上。
@@ -586,6 +579,339 @@
   const sameRect = (a, b) => a && Math.abs(a.left - b.left) < 0.5 && Math.abs(a.top - b.top) < 0.5 && Math.abs(a.width - b.width) < 0.5 && Math.abs(a.height - b.height) < 0.5;
   const viewport = () => [window.innerWidth || 1280, window.innerHeight || 800];
 
+  // ==========================================================================
+  // 3b. 运镜（Camera）：弹簧（focus 定点借光）+ 向心样条巡航（tour）+ 焦点租期。
+  //     Instance 持有一个，自己只管时钟、灯、手电；Camera 借 Instance 的钟和灯，把太阳游标暂时带离轨道，到期还回去。
+  //     对外：focus / tour / focusEl；对 Instance：active / parked / trail / stateFor / wake / pause / resume / dispose
+  // ==========================================================================
+  class Camera {
+    constructor(gl) {
+      this.gl = gl;
+      this.focusEl = null; this.focusTimer = 0; this.tourTimer = 0; this.preTourState = null;
+      this.spring = { active: false, parked: false, u: 0.5, v: 0.25, vu: 0, vv: 0, prevTu: null, prevTv: null, glow: 0.85, lastTime: 0, raf: 0, trail: [] };
+    }
+    get active() { return this.spring.active; }
+    get parked() { return this.spring.parked; }
+    get trail() { return this.spring.trail; }
+    /** stop()：借光中的弹簧一并暂停 */
+    pause() { if (this.spring.raf) { cancelAnimationFrame(this.spring.raf); this.spring.raf = 0; } }
+    /** start()：暂停前飞到一半的弹簧接着飞 */
+    resume() { if (this.spring.active && !this.spring.parked) this.wake(false, false); }
+    dispose() {
+      clearTimeout(this.focusTimer); this.focusTimer = 0;
+      clearTimeout(this.tourTimer); this.tourTimer = 0;
+      this.pause();
+      if (this.focusEl) { delete this.focusEl.__glRect; this.focusEl = null; }
+      this.spring.active = false; this.spring.parked = false; this.spring.trail = [];
+    }
+    resolveTarget(target) {
+      const gl = this.gl;
+      if (!target) return null;
+      if (target.nodeType === 1) return target;
+      if (typeof target === "string") {
+        const s = target.trim();
+        if (!s) return null;
+        try {
+          const el = gl.root.querySelector(s) || document.querySelector(s);
+          if (el) return el;
+        } catch {}
+        return document.getElementById(s.replace(/^#/, ""));
+      }
+      return null;
+    }
+    springTarget(orb, W, H) {
+      const el = this.focusEl;
+      if (el && el.isConnected) {
+        const r = el.__glRect || (el.__glRect = rectOf(el.getBoundingClientRect()));
+        if (r.width > 0 || r.height > 0) {
+          return [(r.left + r.width * 0.5) / W, (r.top + r.height * 0.5) / H, Math.max(orb.lampGlow ?? 0.85, 0.92)];
+        }
+      }
+      return [orb.sunU, orb.sunV, orb.lampGlow ?? 0.85];
+    }
+    // 弹簧此刻的太阳状态：轨道状态打底（钟、昼夜、颜色都照旧），只换位置和亮度
+    stateFor(orb, W, H) {
+      const sp = this.spring;
+      const sx = sp.u * W, sy = sp.v * H;
+      return {
+        ...orb,
+        sunU: sp.u,
+        sunV: sp.v,
+        sunX: sx,
+        sunY: sy,
+        orbScreenX: sx,
+        orbScreenY: sy,
+        lampGlow: sp.glow,
+        offOrbit: true
+      };
+    }
+    wake(launchKick = false, resetTargetVel = true) {
+      const gl = this.gl;
+      if (gl.destroyed) return;
+      const [W, H] = viewport();
+      const hour = gl.currentHour();
+      const orb = gl.computeOrbitalState(hour, W, H);
+      const sp = this.spring;
+      if (!sp.active) {
+        sp.active = true;
+        sp.u = gl.state ? gl.state.sunU : orb.sunU;
+        sp.v = gl.state ? gl.state.sunV : orb.sunV;
+        sp.vu = 0;
+        sp.vv = 0;
+        sp.glow = gl.state ? (gl.state.lampGlow ?? 0.85) : 0.85;
+        sp.trail = [{ x: sp.u * W, y: sp.v * H }];
+      }
+      if (resetTargetVel) { sp.prevTu = null; sp.prevTv = null; }
+      sp.parked = false;
+      const [tu, tv] = this.springTarget(orb, W, H);
+      // 从静止/低速起跳时，朝目标方向注入初速度并叠加 0.38 倍侧向偏置（取轨道切线朝向），确保静止钟或任意目标方位都能甩出圆润弧线；
+      // 若已在飞行中途切换目标（sp.vu/sp.vv 非零），保留实时速度矢量，保证空中变向二阶导数连续
+      if (launchKick && Math.hypot(sp.vu, sp.vv) < 0.08) {
+        const du = tu - sp.u, dv = tv - sp.v, dist = Math.hypot(du, dv);
+        if (dist > 1e-3) {
+          const pA = gl.computeOrbitalState(hour - 0.25, W, H);
+          const pB = gl.computeOrbitalState(hour + 0.25, W, H);
+          let tx = pB.sunU - pA.sunU, ty = pB.sunV - pA.sunV;
+          const tLen = Math.hypot(tx, ty) || 1;
+          tx /= tLen; ty /= tLen;
+          if (tx * du + ty * dv < -0.15 * dist) { tx = -tx; ty = -ty; }
+          const cross = tx * dv - ty * du;
+          const nx = -ty, ny = tx;
+          const sign = cross >= 0 ? -1 : 1;
+          const speed = Math.min(2.2, Math.max(0.35, dist * SPRING_OMEGA * 0.48));
+          sp.vu = (tx * 0.82 + nx * sign * 0.38) * speed;
+          sp.vv = (ty * 0.82 + ny * sign * 0.38) * speed;
+        }
+      }
+      sp.lastTime = 0;
+      if (!sp.raf) sp.raf = requestAnimationFrame((now) => this.step(now));
+    }
+    step(now) {
+      const gl = this.gl;
+      const sp = this.spring;
+      sp.raf = 0;
+      if (gl.destroyed || !sp.active) return;
+      if (this.focusEl && !this.focusEl.isConnected) { this.focusEl = null; sp.prevTu = null; sp.prevTv = null; }
+      // 目标还在树里但量出来是 0×0（弹层关了、display:none）：照不到的东西不算焦点，立刻交还，否则弹簧会按静止目标的判据追一条运动轨道追到租期结束
+      const fr = this.focusEl?.__glRect;
+      if (this.focusEl && fr && !(fr.width > 0 || fr.height > 0)) { this.focusEl = null; sp.prevTu = null; sp.prevTv = null; }
+      const [W, H] = viewport();
+      const hour = gl.currentHour();
+      gl.clock.hour = hour;
+      const orb = gl.computeOrbitalState(hour, W, H);
+      const [tu, tv, tGlow] = this.springTarget(orb, W, H);
+      const tNow = performance.now();
+      const dt = sp.lastTime ? Math.min(0.1, Math.max(0.001, (tNow - sp.lastTime) / 1000)) : (1 / 60);
+      sp.lastTime = tNow;
+      // 目标速度差分 vt（目标身份切换首帧 prevTu 为 null，vt = 0，避免把位置阶跃当成速度）
+      let vtu = 0, vtv = 0, tu0 = tu, tv0 = tv;
+      if (sp.prevTu !== null && dt > 1e-4) {
+        vtu = (tu - sp.prevTu) / dt;
+        vtv = (tv - sp.prevTv) / dt;
+        if (Math.hypot(vtu, vtv) <= 4) {
+          tu0 = sp.prevTu;
+          tv0 = sp.prevTv;
+        } else {
+          vtu = 0; vtv = 0;
+        }
+      }
+      sp.prevTu = tu;
+      sp.prevTv = tv;
+      // 二阶临界阻尼状态机（ζ = 1.0, ω_n = SPRING_OMEGA）：a = ω_n² (pt - p) - 2 ω_n (v - vt) 的相对误差闭式解，彻底消除运动轨道的稳态滞后 v/ω 与帧率抖动误差
+      const w = SPRING_OMEGA, exp = Math.exp(-w * dt);
+      const eu0 = sp.u - tu0, ev0 = sp.v - tv0;
+      const evu0 = sp.vu - vtu, evv0 = sp.vv - vtv;
+      const cu = evu0 + w * eu0, cv = evv0 + w * ev0;
+      const eu = (eu0 + cu * dt) * exp;
+      const ev = (ev0 + cv * dt) * exp;
+      const evu = (evu0 - w * cu * dt) * exp;
+      const evv = (evv0 - w * cv * dt) * exp;
+      sp.u = tu + eu;
+      sp.v = tv + ev;
+      sp.vu = vtu + evu;
+      sp.vv = vtv + evv;
+      sp.glow = lerp(sp.glow, tGlow, Math.min(1, dt * 8));
+      const sx = sp.u * W, sy = sp.v * H;
+      sp.trail.unshift({ x: sx, y: sy });
+      if (sp.trail.length > SPRING_TRAIL_N) sp.trail.pop();
+
+      this.gl.state = this.stateFor(orb, W, H);
+      if (gl.lamp && !document.hidden) gl.lamp.draw(gl.state, hour, W, H, gl.lampOpts(W, H));
+      applySunVars(gl.root, gl.state);
+      if (gl.options.torch && gl.options.sunTorch) gl.scheduleTorch();
+      gl.options.onUpdate?.(gl.state);
+
+      const distPx = Math.hypot((tu - sp.u) * W, (tv - sp.v) * H);
+      const relSpeedPx = Math.hypot((sp.vu - vtu) * W, (sp.vv - vtv) * H);
+      const targetMoving = Math.hypot(vtu * W, vtv * H) > 2;
+      const tail = sp.trail[sp.trail.length - 1];
+      const trailSpan = tail ? Math.hypot(sx - tail.x, sy - tail.y) : 0;
+      // 交还判定：运动轨道有曲率向心加速度残差（≈ a/ω²，随视口尺寸约 1~5px），误差 < 5.5px 且相对速度收敛即无缝交还；
+      // 静止目标/静止轨道则等尾迹收进星核（trailSpan < 1.5px）后退出或定格休眠
+      const settled = (!this.focusEl && targetMoving)
+        ? (distPx < 5.5 && relSpeedPx < 24)
+        : (distPx < 1.2 && relSpeedPx < 4 && trailSpan < 1.5);
+      if (settled) {
+        sp.u = tu; sp.v = tv; sp.vu = vtu; sp.vv = vtv;
+        sp.trail = [{ x: tu * W, y: tv * H }];
+        if (!this.focusEl) {
+          // 已平顺并入日晷/巡航轨道：退出弹簧态，交还轨道时钟直驱（零后台 rAF）
+          sp.active = false;
+          sp.parked = false;
+          sp.prevTu = null;
+          sp.prevTv = null;
+          sp.trail = [];
+          if (gl.lamp) gl.lamp.lastHour = hour;
+          gl.update();
+          return;
+        }
+        // 已停稳在目标元素中心且余晖收尽：进入定格休眠（0 CPU），滚动/缩放/租期到点时再唤醒
+        sp.vu = 0; sp.vv = 0;
+        sp.parked = true;
+        if (gl.lamp && !document.hidden) gl.lamp.draw(gl.state, hour, W, H, gl.lampOpts(W, H));
+        return;
+      }
+      sp.raf = requestAnimationFrame((t) => this.step(t));
+    }
+    initFocus() {
+      const gl = this.gl;
+      if (this.applyHashFocus()) return;
+      const all = gl.root.querySelectorAll("[data-gl-focus]");
+      if (all.length) this.focus(all[all.length - 1]); // 租期从属性里读，focus() 自己会解析
+    }
+    applyHashFocus() {
+      const gl = this.gl;
+      if (typeof location === "undefined" || !location.hash) return false;
+      const m = /(?:^|[#&])gl-focus=([^&]+)/.exec(location.hash);
+      if (!m) return false;
+      try {
+        const sel = decodeURIComponent(m[1]).trim();
+        const el = this.resolveTarget(sel);
+        if (!el || !el.isConnected) return false;
+        const r = el.getBoundingClientRect();
+        const [, H] = viewport();
+        if (r.bottom < 0 || r.top > H) {
+          el.scrollIntoView({ block: "center" });
+          gl.measureRects();
+        }
+        return !!this.focus(el);
+      } catch {}
+      return false;
+    }
+
+    clearTourLease() {
+      clearTimeout(this.tourTimer); this.tourTimer = 0;
+      this.preTourState = null;
+    }
+    /**
+     * 定点借光（focus）：太阳游标按二阶临界阻尼弹簧（ζ = 1.0, ω_n = 9.5 rad/s）脱离原日晷轨道滑向 target 中心，
+     * 照亮其 1px 金星带刀锋与背后的银盐底片；背景日晷轨道线留在原地，内部时钟一秒不停。
+     * @param {Element|string|null} target 目标元素或 CSS 选择器；传 null 立即归还回轨
+     * @param {{ lease?: number }} [opts] lease 租期毫秒（默认 options.focusLease = 8000；传 0 或 Infinity 则常驻直到手动释放或移除 data-gl-focus）
+     */
+    focus(target, opts = {}) {
+      const gl = this.gl;
+      if (gl.destroyed) return null;
+      clearTimeout(this.focusTimer); this.focusTimer = 0;
+      const el = this.resolveTarget(target);
+      if (!el || !el.isConnected) {
+        if (!this.focusEl && !this.spring.active) return null;
+        this.focusEl = null;
+        this.wake(true, true);
+        return null;
+      }
+      const r = rectOf(el.getBoundingClientRect());
+      if (r.width === 0 && r.height === 0) return null;
+      el.__glRect = r;
+      const launchKick = !this.spring.active || this.spring.parked;
+      this.focusEl = el;
+      this.wake(launchKick, true);
+      const rawAttr = el.getAttribute?.("data-gl-focus");
+      const attrLease = rawAttr !== null && rawAttr !== "" && Number.isFinite(Number(rawAttr)) ? Number(rawAttr) : undefined;
+      const lease = opts.lease !== undefined ? Number(opts.lease) : (attrLease !== undefined ? attrLease : Number(gl.options.focusLease));
+      if (Number.isFinite(lease) && lease > 0) {
+        this.focusTimer = setTimeout(() => { this.focusTimer = 0; this.focus(null); }, lease);
+      }
+      return el;
+    }
+    /**
+     * 多点星轨巡航（tour）：把 2 个或以上 DOM 节点（或选择器 / {u,v} 坐标）用向心 Catmull-Rom（α = 0.5）样条
+     * 串成临时 1px 金星带星轨（2 点时自动拱起法向天桥弧），太阳游标平滑切入并沿轨来回巡航；到期自动归还巡航前的日晷轨道。
+     * @param {Array<Element|string|{u:number,v:number}>|null} targets 节点或选择器数组；传 null 恢复巡航前的日晷轨道与时钟
+     * @param {{ duration?: number, bounce?: boolean, closed?: boolean, frames?: number, lease?: number, loop?: boolean }} [opts]
+     */
+    tour(targets, opts = {}) {
+      const gl = this.gl;
+      if (gl.destroyed) return null;
+      clearTimeout(this.tourTimer); this.tourTimer = 0;
+      if (!targets || (Array.isArray(targets) && !targets.length)) {
+        const saved = this.preTourState;
+        this.preTourState = null;
+        gl.options.sunTable = saved ? saved.sunTable : null;
+        gl.tableVersion++;
+        if (saved) {
+          gl.clock.mode = saved.mode;
+          gl.clock.hour = saved.hour;
+          if (saved.loop) gl.clock.loop = { ...saved.loop, start: performance.now() };
+          if (!gl.stopped) gl.startClock();
+        }
+        this.focusEl = null;
+        this.wake(true, true);
+        return null;
+      }
+      if (!Array.isArray(targets)) return this.focus(targets, opts);
+      const [W, H] = viewport();
+      const pts = [];
+      let singleEl = null;
+      for (const item of targets) {
+        if (item && typeof item === "object" && Number.isFinite(item.u) && Number.isFinite(item.v)) {
+          pts.push({ u: Number(item.u), v: Number(item.v), glow: item.glow, isDay: item.isDay });
+        } else {
+          const el = this.resolveTarget(item);
+          if (!el || !el.isConnected) continue;
+          const r = rectOf(el.getBoundingClientRect());
+          if (r.width === 0 && r.height === 0) continue;
+          el.__glRect = r;
+          singleEl = el;
+          pts.push({ u: (r.left + r.width * 0.5) / W, v: (r.top + r.height * 0.5) / H });
+        }
+      }
+      if (pts.length === 1 && singleEl) return this.focus(singleEl, opts);
+      const table = tableFromPoints(pts, { closed: !!opts.closed, frames: opts.frames || 48 });
+      if (!table) return null;
+      if (!this.preTourState) {
+        this.preTourState = {
+          sunTable: gl.options.sunTable,
+          mode: gl.clock.mode,
+          hour: gl.clock.hour,
+          loop: gl.clock.loop ? { ...gl.clock.loop } : null
+        };
+      }
+      clearTimeout(this.focusTimer); this.focusTimer = 0;
+      this.focusEl = null;
+      const saved = this.preTourState;
+      gl.options.sunTable = table;
+      gl.tableVersion++;
+      const dur = Number(opts.duration) || 10000;
+      if (opts.loop !== false) {
+        gl.setLoopSpec({
+          from: 0,
+          to: 24,
+          duration: dur,
+          bounce: opts.bounce !== undefined ? !!opts.bounce : !opts.closed
+        }, true);
+      }
+      this.preTourState = saved;
+      this.wake(true, true);
+      const defaultLease = Math.max(Number(gl.options.focusLease) || 8000, dur);
+      const lease = opts.lease !== undefined ? Number(opts.lease) : defaultLease;
+      if (Number.isFinite(lease) && lease > 0) {
+        this.tourTimer = setTimeout(() => { this.tourTimer = 0; this.tour(null); }, lease);
+      }
+      return table;
+    }
+  }
+
   class Instance {
     constructor(options) {
       this.options = { ...DEFAULTS, ...options };
@@ -600,8 +926,7 @@
       this.shownPhoto = null; // 当前挂着的底片 URL（photo 模式）
       this.torched = new Set(); this.torchEls = []; this.torchPos = null; this.torchFocus = null; this.torchRaf = 0;
       this.tracked = []; this.trackRaf = 0; this.observer = null; this.observeTimer = 0;
-      this.focusEl = null; this.focusTimer = 0; this.tourTimer = 0; this.preTourState = null;
-      this.spring = { active: false, parked: false, u: 0.5, v: 0.25, vu: 0, vv: 0, prevTu: null, prevTv: null, glow: 0.85, lastTime: 0, raf: 0, trail: [] };
+      this.camera = new Camera(this); // 运镜：弹簧、巡航、焦点租期都在它那
       this.clock = { mode: "manual", hour: 12 };
       this.setTimeOption(o.time);
       this.background = "none";
@@ -625,7 +950,7 @@
       this.update();
       this.scheduleRelight();
       this.startClock();
-      this.initFocus();
+      this.camera.initFocus();
     }
 
     // ---- 背景层 ------------------------------------------------------------
@@ -715,10 +1040,11 @@
       const hour = this.currentHour();
       this.clock.hour = hour;
       const orb = this.computeOrbitalState(hour, W, H);
-      if (this.spring.active) {
+      const cam = this.camera;
+      if (cam.active) {
         // 离轨借光期间：若未聚焦元素（回轨途中）且轨道钟本身在走，唤醒弹簧继续追当前轨道位置
-        if (!this.focusEl && this.spring.parked) this.wakeSpring(false);
-        this.applySpringState(orb, W, H);
+        if (!cam.focusEl && cam.parked) cam.wake(false);
+        this.state = cam.stateFor(orb, W, H);
       } else {
         this.state = orb;
       }
@@ -741,200 +1067,8 @@
         pathKey: table ? `table${this.tableVersion}` : "formula",
         loop: L ? { from: L.from, span: L.span } : null,
         open,
-        trail: this.spring.active ? this.spring.trail : null
+        trail: this.camera.active ? this.camera.trail : null
       };
-    }
-
-    // ---- 纯光学运镜：二阶临界阻尼弹簧（focus 定点借光）+ 向心样条巡航（tour） ----
-    resolveTarget(target) {
-      if (!target) return null;
-      if (target.nodeType === 1) return target;
-      if (typeof target === "string") {
-        const s = target.trim();
-        if (!s) return null;
-        try {
-          const el = this.root.querySelector(s) || document.querySelector(s);
-          if (el) return el;
-        } catch {}
-        return document.getElementById(s.replace(/^#/, ""));
-      }
-      return null;
-    }
-    springTarget(orb, W, H) {
-      const el = this.focusEl;
-      if (el && el.isConnected) {
-        const r = el.__glRect || (el.__glRect = rectOf(el.getBoundingClientRect()));
-        if (r.width > 0 || r.height > 0) {
-          return [(r.left + r.width * 0.5) / W, (r.top + r.height * 0.5) / H, Math.max(orb.lampGlow ?? 0.85, 0.92)];
-        }
-      }
-      return [orb.sunU, orb.sunV, orb.lampGlow ?? 0.85];
-    }
-    applySpringState(orb, W, H) {
-      const sp = this.spring;
-      const sx = sp.u * W, sy = sp.v * H;
-      this.state = {
-        ...orb,
-        sunU: sp.u,
-        sunV: sp.v,
-        sunX: sx,
-        sunY: sy,
-        orbScreenX: sx,
-        orbScreenY: sy,
-        lampGlow: sp.glow,
-        offOrbit: true
-      };
-    }
-    wakeSpring(launchKick = false, resetTargetVel = true) {
-      if (this.destroyed) return;
-      const [W, H] = viewport();
-      const hour = this.currentHour();
-      const orb = this.computeOrbitalState(hour, W, H);
-      const sp = this.spring;
-      if (!sp.active) {
-        sp.active = true;
-        sp.u = this.state ? this.state.sunU : orb.sunU;
-        sp.v = this.state ? this.state.sunV : orb.sunV;
-        sp.vu = 0;
-        sp.vv = 0;
-        sp.glow = this.state ? (this.state.lampGlow ?? 0.85) : 0.85;
-        sp.trail = [{ x: sp.u * W, y: sp.v * H }];
-      }
-      if (resetTargetVel) { sp.prevTu = null; sp.prevTv = null; }
-      sp.parked = false;
-      const [tu, tv] = this.springTarget(orb, W, H);
-      // 从静止/低速起跳时，朝目标方向注入初速度并叠加 0.38 倍侧向偏置（取轨道切线朝向），确保静止钟或任意目标方位都能甩出圆润弧线；
-      // 若已在飞行中途切换目标（sp.vu/sp.vv 非零），保留实时速度矢量，保证空中变向二阶导数连续
-      if (launchKick && Math.hypot(sp.vu, sp.vv) < 0.08) {
-        const du = tu - sp.u, dv = tv - sp.v, dist = Math.hypot(du, dv);
-        if (dist > 1e-3) {
-          const pA = this.computeOrbitalState(hour - 0.25, W, H);
-          const pB = this.computeOrbitalState(hour + 0.25, W, H);
-          let tx = pB.sunU - pA.sunU, ty = pB.sunV - pA.sunV;
-          const tLen = Math.hypot(tx, ty) || 1;
-          tx /= tLen; ty /= tLen;
-          if (tx * du + ty * dv < -0.15 * dist) { tx = -tx; ty = -ty; }
-          const cross = tx * dv - ty * du;
-          const nx = -ty, ny = tx;
-          const sign = cross >= 0 ? -1 : 1;
-          const speed = Math.min(2.2, Math.max(0.35, dist * SPRING_OMEGA * 0.48));
-          sp.vu = (tx * 0.82 + nx * sign * 0.38) * speed;
-          sp.vv = (ty * 0.82 + ny * sign * 0.38) * speed;
-        }
-      }
-      sp.lastTime = 0;
-      if (!sp.raf) sp.raf = requestAnimationFrame((now) => this.stepSpring(now));
-    }
-    stepSpring(now) {
-      const sp = this.spring;
-      sp.raf = 0;
-      if (this.destroyed || !sp.active) return;
-      if (this.focusEl && !this.focusEl.isConnected) { this.focusEl = null; sp.prevTu = null; sp.prevTv = null; }
-      const [W, H] = viewport();
-      const hour = this.currentHour();
-      this.clock.hour = hour;
-      const orb = this.computeOrbitalState(hour, W, H);
-      const [tu, tv, tGlow] = this.springTarget(orb, W, H);
-      const tNow = performance.now();
-      const dt = sp.lastTime ? Math.min(0.1, Math.max(0.001, (tNow - sp.lastTime) / 1000)) : (1 / 60);
-      sp.lastTime = tNow;
-      // 目标速度差分 vt（目标身份切换首帧 prevTu 为 null，vt = 0，避免把位置阶跃当成速度）
-      let vtu = 0, vtv = 0, tu0 = tu, tv0 = tv;
-      if (sp.prevTu !== null && dt > 1e-4) {
-        vtu = (tu - sp.prevTu) / dt;
-        vtv = (tv - sp.prevTv) / dt;
-        if (Math.hypot(vtu, vtv) <= 4) {
-          tu0 = sp.prevTu;
-          tv0 = sp.prevTv;
-        } else {
-          vtu = 0; vtv = 0;
-        }
-      }
-      sp.prevTu = tu;
-      sp.prevTv = tv;
-      // 二阶临界阻尼状态机（ζ = 1.0, ω_n = SPRING_OMEGA）：a = ω_n² (pt - p) - 2 ω_n (v - vt) 的相对误差闭式解，彻底消除运动轨道的稳态滞后 v/ω 与帧率抖动误差
-      const w = SPRING_OMEGA, exp = Math.exp(-w * dt);
-      const eu0 = sp.u - tu0, ev0 = sp.v - tv0;
-      const evu0 = sp.vu - vtu, evv0 = sp.vv - vtv;
-      const cu = evu0 + w * eu0, cv = evv0 + w * ev0;
-      const eu = (eu0 + cu * dt) * exp;
-      const ev = (ev0 + cv * dt) * exp;
-      const evu = (evu0 - w * cu * dt) * exp;
-      const evv = (evv0 - w * cv * dt) * exp;
-      sp.u = tu + eu;
-      sp.v = tv + ev;
-      sp.vu = vtu + evu;
-      sp.vv = vtv + evv;
-      sp.glow = lerp(sp.glow, tGlow, Math.min(1, dt * 8));
-      const sx = sp.u * W, sy = sp.v * H;
-      sp.trail.unshift({ x: sx, y: sy });
-      if (sp.trail.length > SPRING_TRAIL_N) sp.trail.pop();
-
-      this.applySpringState(orb, W, H);
-      if (this.lamp && !document.hidden) this.lamp.draw(this.state, hour, W, H, this.lampOpts(W, H));
-      applySunVars(this.root, this.state);
-      if (this.options.torch && this.options.sunTorch) this.scheduleTorch();
-      this.options.onUpdate?.(this.state);
-
-      const distPx = Math.hypot((tu - sp.u) * W, (tv - sp.v) * H);
-      const relSpeedPx = Math.hypot((sp.vu - vtu) * W, (sp.vv - vtv) * H);
-      const targetMoving = Math.hypot(vtu * W, vtv * H) > 2;
-      const tail = sp.trail[sp.trail.length - 1];
-      const trailSpan = tail ? Math.hypot(sx - tail.x, sy - tail.y) : 0;
-      // 交还判定：运动轨道有曲率向心加速度残差（≈ a/ω²，随视口尺寸约 1~5px），误差 < 5.5px 且相对速度收敛即无缝交还；
-      // 静止目标/静止轨道则等尾迹收进星核（trailSpan < 1.5px）后退出或定格休眠
-      const settled = (!this.focusEl && targetMoving)
-        ? (distPx < 5.5 && relSpeedPx < 24)
-        : (distPx < 1.2 && relSpeedPx < 4 && trailSpan < 1.5);
-      if (settled) {
-        sp.u = tu; sp.v = tv; sp.vu = vtu; sp.vv = vtv;
-        sp.trail = [{ x: tu * W, y: tv * H }];
-        if (!this.focusEl) {
-          // 已平顺并入日晷/巡航轨道：退出弹簧态，交还轨道时钟直驱（零后台 rAF）
-          sp.active = false;
-          sp.parked = false;
-          sp.prevTu = null;
-          sp.prevTv = null;
-          sp.trail = [];
-          if (this.lamp) this.lamp.lastHour = hour;
-          this.update();
-          return;
-        }
-        // 已停稳在目标元素中心且余晖收尽：进入定格休眠（0 CPU），滚动/缩放/租期到点时再唤醒
-        sp.vu = 0; sp.vv = 0;
-        sp.parked = true;
-        if (this.lamp && !document.hidden) this.lamp.draw(this.state, hour, W, H, this.lampOpts(W, H));
-        return;
-      }
-      sp.raf = requestAnimationFrame((t) => this.stepSpring(t));
-    }
-    initFocus() {
-      if (this.applyHashFocus()) return;
-      const all = this.root.querySelectorAll("[data-gl-focus]");
-      if (all.length) {
-        const last = all[all.length - 1];
-        const raw = last.getAttribute("data-gl-focus");
-        const lease = raw !== null && raw !== "" && Number.isFinite(Number(raw)) ? Number(raw) : undefined;
-        this.focus(last, { lease });
-      }
-    }
-    applyHashFocus() {
-      if (typeof location === "undefined" || !location.hash) return false;
-      const m = /(?:^|[#&])gl-focus=([^&]+)/.exec(location.hash);
-      if (!m) return false;
-      try {
-        const sel = decodeURIComponent(m[1]).trim();
-        const el = this.resolveTarget(sel);
-        if (!el || !el.isConnected) return false;
-        const r = el.getBoundingClientRect();
-        const [, H] = viewport();
-        if (r.bottom < 0 || r.top > H) {
-          el.scrollIntoView({ block: "center" });
-          this.measureRects();
-        }
-        return !!this.focus(el);
-      } catch {}
-      return false;
     }
 
     // ---- 手电目标扫描与矩形测量 -----------------------------------------------
@@ -952,15 +1086,15 @@
       const o = this.options;
       this.torchEls = o.torch ? Array.from(this.root.querySelectorAll(o.torchSelector)) : [];
       this.tracked = (o.torch && o.trackSelector) ? this.torchEls.filter((el) => el.matches(o.trackSelector)) : [];
-      if ((this.torchEls.length || this.focusEl) && !this.scrolling) this.measureRects();
+      if ((this.torchEls.length || this.camera.focusEl) && !this.scrolling) this.measureRects();
       if (this.tracked.length) this.startTracking();
       if (this.torchEls.length) this.scheduleTorch(); // 矩形刚量好：两支手电（鼠标、太阳）按新矩形探一轮
     }
     // 砖在哪、多大：纯读一轮矩形给手电与离轨焦点用，零 DOM 样式写入
     measureRects() {
       for (const el of this.torchEls) if (el.isConnected) el.__glRect = rectOf(el.getBoundingClientRect());
-      if (this.focusEl && this.focusEl.isConnected && !this.torchEls.includes(this.focusEl)) {
-        this.focusEl.__glRect = rectOf(this.focusEl.getBoundingClientRect());
+      if (this.camera.focusEl && this.camera.focusEl.isConnected && !this.torchEls.includes(this.camera.focusEl)) {
+        this.camera.focusEl.__glRect = rectOf(this.camera.focusEl.getBoundingClientRect());
       }
       this.syncScrollers();
     }
@@ -992,7 +1126,7 @@
         moved = true;
       }
       if (moved && this.anyTorchLit()) { this.applyTorch(); if (this.options.sunTorch) this.applySunTorch(); }
-      if (moved && this.focusEl && this.tracked.includes(this.focusEl)) this.wakeSpring(false, false);
+      if (moved && this.camera.focusEl && this.tracked.includes(this.camera.focusEl)) this.camera.wake(false, false);
       this.trackRaf = requestAnimationFrame(() => this.trackFrame());
     }
     // ---- 节点增删与 data-gl-focus 属性监听：挂上总线即受光，贴上属性即运镜 ----
@@ -1024,20 +1158,18 @@
           if (m.type === "attributes" && m.attributeName === "data-gl-focus") {
             const el = m.target;
             if (el.nodeType === 1 && el.hasAttribute("data-gl-focus")) nextFocus = el;
-            else if (el === this.focusEl) nextFocus = null;
+            else if (el === this.camera.focusEl) nextFocus = null;
           } else if (m.type === "childList") {
             if (hits(m.addedNodes) || hits(m.removedNodes)) needRelight = true;
             const addedFocus = findFocusIn(m.addedNodes);
             if (addedFocus) nextFocus = addedFocus;
-            else if (this.focusEl && !this.focusEl.isConnected) nextFocus = null;
+            else if (this.camera.focusEl && !this.camera.focusEl.isConnected) nextFocus = null;
           }
         }
         if (needRelight) this.scheduleObservedRelight();
         if (nextFocus !== undefined) {
           if (nextFocus) {
-            const raw = nextFocus.getAttribute("data-gl-focus");
-            const lease = raw !== null && raw !== "" && Number.isFinite(Number(raw)) ? Number(raw) : undefined;
-            this.focus(nextFocus, { lease });
+            this.focus(nextFocus); // 租期从属性里读，focus() 自己会解析
           } else {
             this.focus(null);
           }
@@ -1052,7 +1184,7 @@
     // ---- 滚动：期间不读布局，只平移缓存矩形让手电与离轨焦点跟着砖走；停下 settleDelay 后再真量一轮纠偏 ----
     onScroll(sc) {
       this.scrolling = true;
-      if (sc && (this.torchEls.length || this.focusEl)) {
+      if (sc && (this.torchEls.length || this.camera.focusEl)) {
         const prev = sc.__glScrollPos;
         const now = { x: sc.scrollLeft, y: sc.scrollTop };
         sc.__glScrollPos = now;
@@ -1065,12 +1197,12 @@
               if (!r) continue;
               r.left -= dx; r.right -= dx; r.top -= dy; r.bottom -= dy;
             }
-            if (this.focusEl && this.focusEl.__glRect && !inside.includes(this.focusEl) && (sc === document.scrollingElement || sc.contains(this.focusEl))) {
-              const fr = this.focusEl.__glRect;
+            if (this.camera.focusEl && this.camera.focusEl.__glRect && !inside.includes(this.camera.focusEl) && (sc === document.scrollingElement || sc.contains(this.camera.focusEl))) {
+              const fr = this.camera.focusEl.__glRect;
               fr.left -= dx; fr.right -= dx; fr.top -= dy; fr.bottom -= dy;
             }
             if (this.anyTorchLit()) this.scheduleTorch();
-            if (this.focusEl) this.wakeSpring(false, false);
+            if (this.camera.focusEl) this.camera.wake(false, false);
           }
         }
       }
@@ -1078,9 +1210,9 @@
       this.settleTimer = setTimeout(() => {
         this.settleTimer = 0;
         this.scrolling = false;
-        if (this.torchEls.length || this.focusEl) this.measureRects();
+        if (this.torchEls.length || this.camera.focusEl) this.measureRects();
         if (this.anyTorchLit()) this.scheduleTorch();
-        if (this.focusEl) this.wakeSpring(false, false);
+        if (this.camera.focusEl) this.camera.wake(false, false);
       }, this.options.settleDelay);
     }
 
@@ -1089,7 +1221,7 @@
       const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); this.listeners.push([target, type, fn, opts]); };
       on(window, "resize", () => {
         this.scheduleRelight();
-        if (this.focusEl) this.wakeSpring(false, false);
+        if (this.camera.focusEl) this.camera.wake(false, false);
         this.update();
       });
       // 纯前端导演通道：window 自定义事件 glacier:light + 地址栏 #gl-focus=xxx
@@ -1099,7 +1231,7 @@
         else if ("target" in d) this.focus(d.target, d);
         else if (d.clear || d.reset) { this.focus(null); this.tour(null); }
       });
-      on(window, "hashchange", () => this.applyHashFocus());
+      on(window, "hashchange", () => this.camera.applyHashFocus());
       if (this.options.observe) this.observeRoot();
       if (this.options.torch) {
         // 整页滚动器先登记：首轮量矩形时就记下基线，第一下滚轮的位移不会丢
@@ -1113,7 +1245,7 @@
             // 第一次见到的子容器：scroll 事件到达时它已经滚完了，没法知道滚了多少，
             // 所以真量一轮当基线（一个容器一辈子只多付这一次），而不是把滚完的位置当起点
             this.scrollers.add(sc);
-            if (this.torchEls.length || this.focusEl) this.measureRects(); else this.syncScrollers();
+            if (this.torchEls.length || this.camera.focusEl) this.measureRects(); else this.syncScrollers();
             if (this.anyTorchLit()) this.scheduleTorch(); // 矩形刚变，这一帧手电就按新位置重探
           }
           this.onScroll(sc);
@@ -1132,12 +1264,9 @@
       for (const [t, type, fn, opts] of this.listeners) t.removeEventListener(type, fn, opts);
       this.listeners.length = 0;
       clearTimeout(this.settleTimer); this.settleTimer = 0;
-      clearTimeout(this.focusTimer); this.focusTimer = 0;
-      clearTimeout(this.tourTimer); this.tourTimer = 0;
       if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = 0; }
       if (this.torchRaf) { cancelAnimationFrame(this.torchRaf); this.torchRaf = 0; }
       if (this.trackRaf) { cancelAnimationFrame(this.trackRaf); this.trackRaf = 0; }
-      if (this.spring.raf) { cancelAnimationFrame(this.spring.raf); this.spring.raf = 0; }
       clearTimeout(this.observeTimer); this.observeTimer = 0;
       if (this.observer) { this.observer.disconnect(); this.observer = null; }
       this.tracked = [];
@@ -1218,13 +1347,9 @@
     get sun() { return this.state; }
     get hour() { return this.currentHour(); }
     get mode() { return this.clock.mode; }
-    clearTourLease() {
-      clearTimeout(this.tourTimer); this.tourTimer = 0;
-      this.preTourState = null;
-    }
     /** 定在某个小时（fixed）；external 模式下也用它推时间（保持 external） */
     setHour(h) {
-      this.clearTourLease();
+      this.camera.clearTourLease();
       this.clock.hour = ((Number(h) % 24) + 24) % 24;
       if (this.clock.mode !== "external") { this.clock.mode = "fixed"; this.stopClock(); }
       this.update();
@@ -1232,7 +1357,7 @@
     }
     /** "realtime" | "fixed" | "loop" | "external" | "timelapse"（= 一天循环）；"manual" 等于 "fixed" */
     setMode(mode) {
-      this.clearTourLease();
+      this.camera.clearTourLease();
       if (mode === "loop" && this.clock.loop) { this.clock.mode = "loop"; this.clock.loop.start = performance.now(); }
       else if (mode === "loop") this.setLoopSpec({ from: 0, to: 24, duration: this.options.timelapseDuration }, false);
       else this.setTimeOption(mode === "manual" ? "fixed" : mode);
@@ -1241,114 +1366,16 @@
       return this.clock.mode;
     }
     /** 在某个区间来回：setLoop({ from: 16, to: 19, duration: 12000, bounce: true }) */
-    setLoop(spec) { this.clearTourLease(); this.setLoopSpec(spec, true); this.update(); return { ...this.clock.loop }; }
+    setLoop(spec) { this.camera.clearTourLease(); this.setLoopSpec(spec, true); this.update(); return { ...this.clock.loop }; }
     /** 换"几点钟长什么样"的表；null 回到内置公式。Glacier.sun.sampleTable() 采一张来改 */
-    setSunTable(table) { this.clearTourLease(); this.options.sunTable = Array.isArray(table) && table.length ? table : null; this.tableVersion++; this.update(); return this.options.sunTable; }
-    /**
-     * 定点借光（focus）：太阳游标按二阶临界阻尼弹簧（ζ = 1.0, ω_n = 9.5 rad/s）脱离原日晷轨道滑向 target 中心，
-     * 照亮其 1px 金星带刀锋与背后的银盐底片；背景日晷轨道线留在原地，内部时钟一秒不停。
-     * @param {Element|string|null} target 目标元素或 CSS 选择器；传 null 立即归还回轨
-     * @param {{ lease?: number }} [opts] lease 租期毫秒（默认 options.focusLease = 8000；传 0 或 Infinity 则常驻直到手动释放或移除 data-gl-focus）
-     */
-    focus(target, opts = {}) {
-      if (this.destroyed) return null;
-      clearTimeout(this.focusTimer); this.focusTimer = 0;
-      const el = this.resolveTarget(target);
-      if (!el || !el.isConnected) {
-        if (!this.focusEl && !this.spring.active) return null;
-        this.focusEl = null;
-        this.wakeSpring(true, true);
-        return null;
-      }
-      const r = rectOf(el.getBoundingClientRect());
-      if (r.width === 0 && r.height === 0) return null;
-      el.__glRect = r;
-      const launchKick = !this.spring.active || this.spring.parked;
-      this.focusEl = el;
-      this.wakeSpring(launchKick, true);
-      const rawAttr = el.getAttribute?.("data-gl-focus");
-      const attrLease = rawAttr !== null && rawAttr !== "" && Number.isFinite(Number(rawAttr)) ? Number(rawAttr) : undefined;
-      const lease = opts.lease !== undefined ? Number(opts.lease) : (attrLease !== undefined ? attrLease : Number(this.options.focusLease));
-      if (Number.isFinite(lease) && lease > 0) {
-        this.focusTimer = setTimeout(() => { this.focusTimer = 0; this.focus(null); }, lease);
-      }
-      return el;
-    }
-    /**
-     * 多点星轨巡航（tour）：把 2 个或以上 DOM 节点（或选择器 / {u,v} 坐标）用向心 Catmull-Rom（α = 0.5）样条
-     * 串成临时 1px 金星带星轨（2 点时自动拱起法向天桥弧），太阳游标平滑切入并沿轨来回巡航；到期自动归还巡航前的日晷轨道。
-     * @param {Array<Element|string|{u:number,v:number}>|null} targets 节点或选择器数组；传 null 恢复巡航前的日晷轨道与时钟
-     * @param {{ duration?: number, bounce?: boolean, closed?: boolean, frames?: number, lease?: number, loop?: boolean }} [opts]
-     */
-    tour(targets, opts = {}) {
-      if (this.destroyed) return null;
-      clearTimeout(this.tourTimer); this.tourTimer = 0;
-      if (!targets || (Array.isArray(targets) && !targets.length)) {
-        const saved = this.preTourState;
-        this.preTourState = null;
-        this.options.sunTable = saved ? saved.sunTable : null;
-        this.tableVersion++;
-        if (saved) {
-          this.clock.mode = saved.mode;
-          this.clock.hour = saved.hour;
-          if (saved.loop) this.clock.loop = { ...saved.loop, start: performance.now() };
-          if (!this.stopped) this.startClock();
-        }
-        this.focusEl = null;
-        this.wakeSpring(true, true);
-        return null;
-      }
-      if (!Array.isArray(targets)) return this.focus(targets, opts);
-      const [W, H] = viewport();
-      const pts = [];
-      let singleEl = null;
-      for (const item of targets) {
-        if (item && typeof item === "object" && Number.isFinite(item.u) && Number.isFinite(item.v)) {
-          pts.push({ u: Number(item.u), v: Number(item.v), glow: item.glow, isDay: item.isDay });
-        } else {
-          const el = this.resolveTarget(item);
-          if (!el || !el.isConnected) continue;
-          const r = rectOf(el.getBoundingClientRect());
-          if (r.width === 0 && r.height === 0) continue;
-          el.__glRect = r;
-          singleEl = el;
-          pts.push({ u: (r.left + r.width * 0.5) / W, v: (r.top + r.height * 0.5) / H });
-        }
-      }
-      if (pts.length === 1 && singleEl) return this.focus(singleEl, opts);
-      const table = tableFromPoints(pts, { closed: !!opts.closed, frames: opts.frames || 48 });
-      if (!table) return null;
-      if (!this.preTourState) {
-        this.preTourState = {
-          sunTable: this.options.sunTable,
-          mode: this.clock.mode,
-          hour: this.clock.hour,
-          loop: this.clock.loop ? { ...this.clock.loop } : null
-        };
-      }
-      clearTimeout(this.focusTimer); this.focusTimer = 0;
-      this.focusEl = null;
-      const saved = this.preTourState;
-      this.options.sunTable = table;
-      this.tableVersion++;
-      const dur = Number(opts.duration) || 10000;
-      if (opts.loop !== false) {
-        this.setLoopSpec({
-          from: 0,
-          to: 24,
-          duration: dur,
-          bounce: opts.bounce !== undefined ? !!opts.bounce : !opts.closed
-        }, true);
-      }
-      this.preTourState = saved;
-      this.wakeSpring(true, true);
-      const defaultLease = Math.max(Number(this.options.focusLease) || 8000, dur);
-      const lease = opts.lease !== undefined ? Number(opts.lease) : defaultLease;
-      if (Number.isFinite(lease) && lease > 0) {
-        this.tourTimer = setTimeout(() => { this.tourTimer = 0; this.tour(null); }, lease);
-      }
-      return table;
-    }
+    setSunTable(table) { this.camera.clearTourLease(); this.options.sunTable = Array.isArray(table) && table.length ? table : null; this.tableVersion++; this.update(); return this.options.sunTable; }
+    /** 焦点元素（借光中）；弹簧内部状态见 camera.spring */
+    get focusEl() { return this.camera.focusEl; }
+    get spring() { return this.camera.spring; }
+    /** 定点借光：见 Camera.focus */
+    focus(target, opts) { return this.camera.focus(target, opts); }
+    /** 多点星轨巡航：见 Camera.tour */
+    tour(targets, opts) { return this.camera.tour(targets, opts); }
     /** 换背景模式：none | photo（背景层原地重建，冰砖不动） */
     setBackground(mode) {
       this.unmountBackground();
@@ -1397,9 +1424,17 @@
     /** 重新扫描手电目标并量一轮矩形（宿主自己改了布局且没开 observe 时调）。下一帧做 */
     relight() { this.scheduleRelight(); }
     /** 暂停：时钟停，DOM 留着 */
-    stop() { this.stopped = true; this.stopClock(); return this; }
+    stop() {
+      this.stopped = true; this.stopClock();
+      this.camera.pause();
+      return this;
+    }
     /** 从 stop() 恢复 */
-    start() { this.stopped = false; this.startClock(); this.update(); return this; }
+    start() {
+      this.stopped = false; this.startClock(); this.update();
+      this.camera.resume();
+      return this;
+    }
     /** 全部收回：画布、监听器、定时器、root 和冰砖上的手电变量 */
     destroy() {
       if (this.destroyed) return;
@@ -1411,7 +1446,7 @@
       const rs = this.root.style;
       for (const k of [...SUN_VARS, "--torch-r", "--sun-r", "--gl-dim"]) rs.removeProperty(k);
       for (const el of this.torchEls) delete el.__glRect;
-      if (this.focusEl) { delete this.focusEl.__glRect; this.focusEl = null; }
+      this.camera.dispose();
       for (const el of this.torched) for (const k of TORCH_VARS) el.style.removeProperty(k);
       for (const el of this.sunTorched) for (const k of SUN_TORCH_VARS) el.style.removeProperty(k);
       this.torched.clear(); this.sunTorched.clear(); this.torchEls = [];

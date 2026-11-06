@@ -8,8 +8,9 @@
 glacier/
 ├── DESIGN.md     设计语言源头规格：层次、太阳轨道与探针五律、冰砖三律、阵列与暗座舱、三轨蚀刻排版、凹凸物理、动效与性能守则
 ├── glacier.css   令牌与三色光学常量、三轨字体栈、@property 注册、画布/底片层、.gl-brick / .gl-nav / .gl-card / .gl-bar / .gl-prose / .gl-slider / .gl-input / .gl-table / .gl-popover / .gl-alert / .gl-track 规则（无 !important、无宿主选择器）
-├── glacier.js    Glacier.sun / Lamp / applySunVars，加 Glacier.init()
+├── glacier.js    Glacier.sun / Lamp / Camera（运镜）/ applySunVars，加 Glacier.init()
 ├── demo.html     组件目录：按展柜陈列全部 11 类光学原语 + 调光台与动态滚动压测
+├── demo.js       demo.html 的交互脚本（调光台、级联菜单、键盘阵列、运镜按钮），只演示用法，不属于库
 ├── bridge.html   舰桥：用这套积木搭的暗座舱范例——三个问题（在哪 / 几点 / 有没有事）、两个旋钮（去哪 / 多快）、航点光栅 + 当月日历晶格 + 告警行（A 模拟、Esc 清）
 ├── photos/       5 张 NASA 公有领域 100% 纯黑白银盐灰阶负片与署名说明
 └── README.md     本文件
@@ -98,7 +99,7 @@ glacier/
 | `relight()` | 下一帧重新扫描手电目标并量一轮矩形。宿主关了 `observe` 又自己改了 DOM 时才需要 |
 | `stop()` / `start()` | 暂停 / 恢复时钟，DOM 留着 |
 | `destroy()` | 全部收回：画布、监听器、定时器、观察器、`root` 上的变量、手电半径内砖上的 `--torch-*` 变量 |
-| `sun` | 当前太阳状态：`sunX / sunY / sunU / sunV / h / isDay / lampGlow` 和四组光色 |
+| `sun` | 当前太阳状态：`sunX / sunY / sunU / sunV / h / isDay / lampGlow` 与星核日冕色 `orbCore / orbCorona` |
 | `hour` / `mode` / `background` | 当前时间、时钟模式、背景模式 |
 | `lamp` / `options` | 灯对象和合并后的选项（诊断 / 测速用） |
 
@@ -111,7 +112,7 @@ glacier/
 
 ### 太阳拆成两层：表 + 时钟
 
-- **表（几点钟长什么样）**：`sunTable` 选项 / `setSunTable()`。关键帧 `{ hour, u, v, glow, isDay, sunCrest, sunSheen, sunTint, sunCaustic, orbCore, orbCorona, orbRayColor }`，`u / v` 是灯在视口里的归一化位置，颜色 `rgba()` 或 `#hex`；少写的字段用内置公式在同一小时的值补齐，相邻帧线性插值（颜色按通道），末帧到首帧跨午夜接上。`Glacier.sun.sampleTable(1)` 把内置公式采成 24 帧，改几帧再喂回去就是自己的一天。
+- **表（几点钟长什么样）**：`sunTable` 选项 / `setSunTable()`。关键帧 `{ hour, u, v, glow, isDay, orbCore, orbCorona }`，`u / v` 是灯在视口里的归一化位置，颜色 `rgba()` 或 `#hex`；少写的字段用内置公式在同一小时的值补齐，相邻帧线性插值（颜色按通道），末帧到首帧跨午夜接上。`Glacier.sun.sampleTable(1)` 把内置公式采成 24 帧，改几帧再喂回去就是自己的一天。
 - **时钟（现在几点）**：`time` 选项 / `setMode()` / `setLoop()` / `setHour()`。`realtime` 跟真实时间；数字定住一帧；`loop` 在区间来回（`timelapse` 就是 0→24 的 loop）；`external` 不自己走，由宿主推（hudd 的桌面灯、网关、别的页面的时钟都能当源）。
 
 同一张表配不同时钟：PDF 的台灯、Windhawk 以后按小时换皮、hudd 的桌面灯，都是这个接口。
@@ -134,7 +135,7 @@ glacier/
 | 成员 | 作用 |
 |---|---|
 | `Glacier.sun.lampPointAt(hour, W, H)` | 时间 → 灯在 W×H 里的位置（白天 05–19 抛物线，夜里低轨道从右走回左） |
-| `Glacier.sun.computeSunState(hour, W, H)` | 位置 + 四组光色 + `lampGlow`（靠近下沿渐隐） |
+| `Glacier.sun.computeSunState(hour, W, H)` | 位置 + 星核日冕色（`orbCore / orbCorona`）+ `lampGlow`（靠近下沿渐隐） |
 | `Glacier.sun.tableFromPath(fn, frames = 48)` | 从"相位 → 位置"的函数造一张表：`fn(t)` 返回 `{ u, v, glow?, isDay? }`，`t ∈ [0, 1)` 是一天的相位。任意闭合曲线（圆、扁弧、你自己的一圈）都从这进来；光色从公式同一小时借。曲线必须是钟：单环闭合或单程扫（`DESIGN.md` §3 探针五律） |
 | `Glacier.sun.tableFromPoints(points, { closed, frames })` | 从 2 个或以上归一化点 `[{ u, v, glow?, isDay? }, ...]` 生成向心 Catmull-Rom（$\alpha = 0.5$）关键帧表（2 点时自动沿法线偏移 `0.08–0.12` 合成天桥弧拱顶） |
 | `Glacier.sun.sampleTable(step)` / `stateFromTable(table, hour, W, H)` / `frameFromModel(hour)` | 关键帧表：采样内置公式、按表（向心 Catmull-Rom 三次样条）插值出状态、取公式在某小时的一帧 |
