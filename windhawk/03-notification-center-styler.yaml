@@ -184,6 +184,35 @@ themeResourceVariables:
   - ToggleButtonBackgroundPressed@Dark:=$GlacierBrickPressed
   - ToggleButtonBorderBrushPointerOver@Dark:=$GlacierEdge
   - ToggleButtonBorderBrushPressed@Dark:=$GlacierEdgeDim
+  # 分裂磁贴（Wi-Fi / 蓝牙这类右侧带 › 的）走另一族资源 SplitToggle*（从 Windows.UI.ControlCenter.pri 的 XBF 字符串表里抓的），
+  # 不覆盖就整块是强调色 Light2；开启 / 悬停 / 按下 / 静止四态与上面的 ToggleButton* 一一对应
+  - SplitToggleBackgroundChecked@Dark:=$GlacierBrickActive
+  - SplitToggleBackgroundCheckedPointerOver@Dark:=$GlacierBrickActive
+  - SplitToggleBackgroundCheckedPressed@Dark:=$GlacierBrickPressed
+  - SplitToggleBackgroundCheckedDisabled@Dark:=$GlacierBrickPressed
+  - SplitToggleBorderBrushChecked@Dark:=$GlacierEdge
+  - SplitToggleBorderBrushCheckedPointerOver@Dark:=$GlacierEdge
+  - SplitToggleBorderBrushCheckedPressed@Dark:=$GlacierEdgeDim
+  - SplitToggleBorderBrushCheckedDisabled@Dark:=$GlacierEdgeDim
+  - SplitToggleForegroundChecked@Dark=#F0FCFF
+  - SplitToggleForegroundCheckedPointerOver@Dark=#F0FCFF
+  - SplitToggleForegroundCheckedPressed@Dark=#D5E2FF
+  - SplitToggleForegroundCheckedDisabled@Dark=#8CA0C8
+  - SplitToggleBackgroundPointerOver@Dark:=$GlacierBrickHover
+  - SplitToggleBackgroundPressed@Dark:=$GlacierBrickPressed
+  - SplitToggleBorderBrushPointerOver@Dark:=$GlacierEdge
+  - SplitToggleBorderBrushPressed@Dark:=$GlacierEdgeDim
+  - SplitToggleBackground@Dark=#08FFFFFF
+  - SplitToggleBorderBrush@Dark=Transparent
+  - SplitToggleBackgroundDisabled@Dark=#04FFFFFF
+  - SplitToggleBorderBrushDisabled@Dark=Transparent
+  # 强调色的 AA（无障碍）变体：ControlCenter 的模板里也引用，和 AccentFillColor* 一起换成冰蓝
+  - AccentAAFillColorDefaultBrush@Dark=#7AA2F7
+  - AccentAAFillColorSecondaryBrush@Dark=#E67AA2F7
+  - AccentAAFillColorTertiaryBrush@Dark=#CC7AA2F7
+  - AccentAAFillColorDisabledBrush@Dark=#667AA2F7
+  - TextOnAccentAAFillColorPrimaryBrush@Dark=#F0FCFF
+  - TextOnAccentAAFillColorSecondaryBrush@Dark=#D5E2FF
   # 关闭态磁贴 = 3% 哑光底片（规矩 1 的补丁：底座是哑光，不是没有）；禁用更淡
   - ToggleButtonBackground@Dark=#08FFFFFF
   - ToggleButtonBorderBrush@Dark=Transparent

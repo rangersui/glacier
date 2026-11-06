@@ -87,7 +87,7 @@ Windhawk 对 XAML 部分提供了一组 "Styler" mod（选择器 `target` + 样�
    - **凹凸分离**：资源管理器命令栏整体作为下沉暗槽（`#24050A18`），地址栏内部的面包屑路径段平躺在凹槽内，不叠凸砖。
 2. **文件级常量隔离**：每个 `.yaml` 的 `styleConstants` 独立解析，`$常量` 不跨文件共享；新增引用前必须确认本文件顶部已定义，否则未解析的字面量传给 XAML 解析器会触发 `0xc000027b`。
 3. **资源管理器 XAML 岛防撑高（避免 `…` 溢出菜单向上翻）**：标签、地址栏与命令栏位于固定高度的 XAML 岛内，切勿给外层按钮加垂直 `Margin` 或改标签 `Height`；通过 `explorerFrameContainerHeight: 144`（默认 136）预留 8px 余量即可容纳内层 `1,1,2,2` 边框。
-4. **快速设置（Win+A）开启态防天蓝反扑**：开启态背景由 XAML `Storyboard` 状态动画驱动，优先级高于元素本地属性；必须在 `themeResourceVariables` 中覆盖 `ToggleButtonBackgroundChecked*` / `ToggleButtonBorderBrushChecked*` 资源。
+4. **快速设置（Win+A）开启态防天蓝反扑**：开启态背景由 XAML `Storyboard` 状态动画驱动，优先级高于元素本地属性；必须在 `themeResourceVariables` 中覆盖 `ToggleButtonBackgroundChecked*` / `ToggleButtonBorderBrushChecked*` 资源。带 › 的分裂磁贴（Wi-Fi、蓝牙）走另一族 `SplitToggle*` 资源，要单独覆盖；资源键名从 `C:\Windows\SystemResources\Windows.UI.ControlCenter\Windows.UI.ControlCenter.pri` 的 XBF 字符串表里抓（UTF-16 字符串扫一遍即可，不用 UWPSpy）。改了资源键后要让磁贴重建才生效：结束 `ShellHost.exe`（下次 Win+A 自动拉起）。
 5. **任务栏多窗口叠影**：多窗口状态（`MultiWindowNormal / PointerOver / Pressed / Active`）背后的叠影元素 `Border#MultiWindowElement` 需设 `Opacity=0`（不可设 `Visibility=Collapsed`，否则会破坏 `IconPanel` 布局导致图标偏移）。
 6. **Translucent Windows 默认进程白名单**：全局关闭 `ThemeBackground` 与 `BackgroundEffects`，仅在 `RuledPrograms` 中对 `explorer.exe` 及系统壳宿主进程（`StartMenuExperienceHost.exe`、`SearchHost.exe`、`ShellExperienceHost.exe`、`ShellHost.exe`）开启深空亚克力，避免第三方 Win32 程序的 GDI XOR 光标与文字选中态被 Direct2D 合成吞没。
 7. **免 UWPSpy 抓取 XAML 可视树**：将注册表 `HKLM\SOFTWARE\Windhawk\Engine\Mods\<mod id>` 下 `LoggingEnabled` 设为 `1` 并更新 `SettingsChangeTime`，运行 `.\dbwin-capture.ps1 -OutFile tree.txt -Seconds 60` 即可抓出完整的元素类型与名称树，抓完将 `LoggingEnabled` 改回 `0`。
