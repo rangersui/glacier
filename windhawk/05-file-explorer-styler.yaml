@@ -1,0 +1,227 @@
+# Glacier / 星舰冰川 —— Windows 11 File Explorer Styler（mod id: windows-11-file-explorer-styler）
+# 管：资源管理器窗口上半截的 XAML 部分：标签栏、地址栏 / 搜索框、命令栏（新建 / 剪切 / 复制 / 排序 / 查看 那排）、
+#     "查看 / 排序"下拉和"…"溢出菜单、主页 / 图库页底、详情面板、工具提示。
+# 管不到：左侧导航树和文件列表（这个版本还是 Win32 控件，归 04 Translucent Windows）；
+#     Win11 新版右键菜单（本机已切回 Win10 经典菜单，经典菜单也归 04）。
+# 用法：Windhawk → 该 mod → Settings → "Textual mode" → 全选替换为本文件 → Save settings，或 apply-glacier.ps1 -Only windows-11-file-explorer-styler
+# theme 留空：下面的样式是完整的一套，不靠自带主题打底。
+#
+# ★ 硬约束：上半截是一块固定高度的 XAML 岛（mod 按 136 这个基准数定高，explorerFrameContainerHeight 可改）。
+#   内容一旦比岛高，命令栏底边就"出界"，XAML 判定下面没空间，"…"菜单和下拉就翻到上面去。所以：
+#   - 不给 Grid#RootContainer、NavigationBarControlGrid、CommandBarControlRootGrid 加顶部 / 底部 Margin 或 BorderThickness
+#     （命令栏下沿那 1px 轨迹线是官方 Translucent Explorer11 也有的，可以留）；
+#   - 不给 TabViewItem > Grid#LayoutRoot 设 Height 或上下 Margin；
+#   - 不给 AppBarButton / AppBarToggleButton 本体设上下 Margin、Padding、Height、BorderThickness；冰砖画在内层 Grid 上；
+#   - 不给 Grid#PART_LayoutRoot（地址栏）设 Margin；
+#   - explorerFrameContainerHeight 设成 144（默认 136），留 8 个单位余量，吃掉内层边框那几个像素。
+# ★ 冰砖三条规矩 + 补丁（DESIGN.md §4）：静止态 = 哑光底片或共用暗槽（命令栏整条是槽、按钮透明；标签 3% 底片），砖只在悬停 / 按下 / 选中 / 开启出现；
+#   填充中段平静；边 1,1,2,2 用 01 同款 $GlacierEdge；零外投影。BorderThickness 静止态也保持 1,1,2,2，悬停时内容才不跳。
+theme: ""
+backgroundTranslucentEffect: acrylic
+backgroundTranslucentEffectRegion: ""
+explorerFrameContainerHeight: 144
+styleConstants:
+  - GlacierPanel=<WindhawkBlur BlurAmount="28" TintColor="#CC101424"/>
+  - GlacierInset=<WindhawkBlur BlurAmount="20" TintColor="#5A06080F"/>
+  - GlacierFlat=#10DCEEFF
+  - GlacierFlatDim=#08DCEEFF
+  - GlacierEdge=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#E8FFCE91" Offset="0"/><GradientStop Color="#36F0FCFF" Offset="0.28"/><GradientStop Color="#70081428" Offset="0.55"/><GradientStop Color="#F0050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierEdgeSoft=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#90FFCE91" Offset="0"/><GradientStop Color="#16F0FCFF" Offset="0.28"/><GradientStop Color="#80081428" Offset="0.55"/><GradientStop Color="#E0050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierEdgeDim=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#50FFCE91" Offset="0"/><GradientStop Color="#0AF0FCFF" Offset="0.3"/><GradientStop Color="#60081428" Offset="0.55"/><GradientStop Color="#C0050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierBrickHover=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#1AFFE6CC" Offset="0"/><GradientStop Color="#0A0A1430" Offset="0.5"/><GradientStop Color="#4C0A1430" Offset="1"/></LinearGradientBrush>
+  - GlacierBrickActive=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#24F0FCFF" Offset="0"/><GradientStop Color="#0E101C34" Offset="0.5"/><GradientStop Color="#5C0A1430" Offset="1"/></LinearGradientBrush>
+  - GlacierBrickPressed=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#08F0FCFF" Offset="0"/><GradientStop Color="#7C050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierCrestLine=<LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5"><GradientStop Color="#A0FFCE91" Offset="0"/><GradientStop Color="#D0F0FCFF" Offset="0.5"/><GradientStop Color="#A0BB9AF7" Offset="1"/></LinearGradientBrush>
+controlStyles:
+  # ---- 框架底：全部透明，让窗口自己的亚克力透出来（不加任何边框 / 边距）----
+  - target: Grid#RootContainer
+    styles:
+      - Background=Transparent
+  - target: Grid#NavigationBarControlGrid
+    styles:
+      - Background=Transparent
+  - target: FileExplorerExtensions.CommandBarControl_Wave1 > Grid, Grid#CommandBarControlRootGrid
+    styles:
+      - Background=Transparent
+      - BorderThickness=0,0,0,1
+      - BorderBrush:=$GlacierCrestLine
+  - target: CommandBar#FileExplorerCommandBar
+    styles:
+      - Background=Transparent
+  - target: Grid#HomeViewRootGrid
+    styles:
+      - Background=Transparent
+  - target: FileExplorerExtensions.GalleryViewControl#GalleryViewControl > Grid
+    styles:
+      - Background=Transparent
+  - target: Microsoft.UI.Xaml.Controls.Grid#GalleryRootGrid
+    styles:
+      - Background=Transparent
+  - target: Grid#DetailsViewControlRootGrid
+    styles:
+      - Background=Transparent
+  - target: StackPanel#DetailsViewThumbnail > Grid
+    styles:
+      - Background=Transparent
+  # ---- 标签栏：未选中标签平，当前标签是砖，悬停亮砖（不改高度、不加上下 Margin）----
+  - target: TabViewItem > Grid#LayoutRoot > Canvas
+    styles:
+      - Visibility=Collapsed
+  - target: TabViewItem > Grid#LayoutRoot > Grid#TabContainer
+    styles:
+      - Background=Transparent
+      - BorderBrush=Transparent
+  - target: TabViewItem > Grid#LayoutRoot@CommonStates
+    styles:
+      - CornerRadius=5
+      - Margin=2,0,0,0
+      - BorderThickness=1,1,2,2
+      - Background=#08FFFFFF
+      - BorderBrush=Transparent
+      - Background@Normal=#08FFFFFF
+      - BorderBrush@Normal=Transparent
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Selected:=$GlacierBrickActive
+      - BorderBrush@Selected:=$GlacierEdge
+      - Background@PointerOverSelected:=$GlacierBrickActive
+      - BorderBrush@PointerOverSelected:=$GlacierEdge
+      - Background@PressedSelected:=$GlacierBrickPressed
+      - BorderBrush@PressedSelected:=$GlacierEdgeDim
+  - target: Grid#TabContainer > ContentPresenter > StackPanel > TextBlock
+    styles:
+      - Foreground=#E6F0FF
+  - target: Grid#TabContainerGrid > Border#LeftBottomBorderLine, Grid#TabContainerGrid > Border#RightBottomBorderLine, Microsoft.UI.Xaml.Controls.Border#BottomBorderLine, Microsoft.UI.Xaml.Shapes.Path#LeftRadiusRenderArc, Microsoft.UI.Xaml.Shapes.Path#RightRadiusRenderArc
+    styles:
+      - Visibility=Collapsed
+  - target: Grid#TabContainerGrid > Border > Button#AddButton
+    styles:
+      - Background=#08FFFFFF
+      - BorderBrush=Transparent
+      - BorderThickness=1,1,2,2
+      - CornerRadius=5
+  - target: Grid#TabContainerGrid > Border > Button#AddButton > ContentPresenter@CommonStates
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - BorderBrush=Transparent
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Pressed:=$GlacierBrickPressed
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+  # ---- 地址栏、搜索框：凹进去的玻璃槽，静止只有极淡轮廓，悬停 / 聚焦才亮边（不加 Margin）----
+  - target: Grid#PART_LayoutRoot
+    styles:
+      - Background:=$GlacierInset
+      - BorderBrush:=$GlacierEdgeDim
+      - BorderThickness=1
+      - CornerRadius=5
+  - target: AutoSuggestBox#FileExplorerSearchBox > Grid#LayoutRoot > TextBox > Grid@CommonStates > Border#BorderElement
+    styles:
+      - Background:=$GlacierInset
+      - BorderBrush:=$GlacierEdgeDim
+      - BorderThickness=1
+      - CornerRadius=5
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - BorderBrush@Focused:=$GlacierEdge
+  # ---- 地址栏里的路径段（BreadcrumbBar，控件名用 mod 日志抓的）：平躺在槽底，无底无边，悬停只轻微亮一下（淡填充，不要墙）----
+  - target: Button#PART_ItemButton, Button#PART_ChevronButton, Button#PART_LastItemContentPresenter, Button#PART_FirstCrumb, Button#PART_BreadCrumbBarIcon, ToggleButton#PART_RootChevronButton
+    styles:
+      - Background=Transparent
+      - BorderBrush=Transparent
+      - BorderThickness=0
+      - CornerRadius=4
+  - target: Button#PART_ItemButton > ContentPresenter@CommonStates, Button#PART_ChevronButton > ContentPresenter@CommonStates, Button#PART_LastItemContentPresenter > ContentPresenter@CommonStates, Button#PART_FirstCrumb > ContentPresenter@CommonStates, Button#PART_BreadCrumbBarIcon > ContentPresenter@CommonStates, ToggleButton#PART_RootChevronButton > ContentPresenter@CommonStates
+    styles:
+      - CornerRadius=4
+      - BorderThickness=0
+      - BorderBrush=Transparent
+      - Background=Transparent
+      - Background@Normal=Transparent
+      - Background@PointerOver=#14F0FCFF
+      - Background@Pressed=#0AF0FCFF
+      - Background@Checked=#14F0FCFF
+      - BorderBrush@PointerOver=Transparent
+      - BorderBrush@Pressed=Transparent
+  # ---- 命令栏按钮组之间：1px 极暗竖缝（AppBarSeparator 里的 Rectangle#SeparatorRectangle）----
+  - target: Rectangle#SeparatorRectangle
+    styles:
+      - Fill=#90050A18
+  # ---- 命令栏整条 = 一条下沉的暗槽（track）：比面板暗 3%，圆角 8，不带金边；按钮静止态透明躺在槽里，选中 / 悬停的那颗亮砖 ----
+  - target: CommandBar#FileExplorerCommandBar > Grid#LayoutRoot > Grid#ContentRoot
+    styles:
+      - Background=#24050A18
+      - CornerRadius=8
+      - BorderThickness=0
+  # ---- 命令栏按钮（含后退 / 前进 / 向上 / 刷新）：静止和禁用一律平，悬停 / 按下 / 开启才是砖；砖画在内层 Grid 上 ----
+  - target: Microsoft.UI.Xaml.Controls.AppBarButton, Microsoft.UI.Xaml.Controls.AppBarToggleButton
+    styles:
+      - Background=Transparent
+      - BorderThickness=0
+      - CornerRadius=5
+      - Margin=2,0,2,0
+  - target: Microsoft.UI.Xaml.Controls.AppBarButton > Grid@CommonStates, Microsoft.UI.Xaml.Controls.AppBarToggleButton > Grid@CommonStates
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - Background=Transparent
+      - BorderBrush=Transparent
+      - Background@Normal=Transparent
+      - BorderBrush@Normal=Transparent
+      - Background@Disabled=Transparent
+      - BorderBrush@Disabled=Transparent
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Pressed:=$GlacierBrickPressed
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+      - Background@Checked:=$GlacierBrickActive
+      - BorderBrush@Checked:=$GlacierEdge
+      - Background@CheckedPointerOver:=$GlacierBrickActive
+      - BorderBrush@CheckedPointerOver:=$GlacierEdge
+      - Background@CheckedPressed:=$GlacierBrickPressed
+      - BorderBrush@CheckedPressed:=$GlacierEdgeDim
+  # 按钮模板里还有一层内缩的 Border#AppBarButtonInnerBorder，Win11 原生悬停高亮画在它上面，会和冰砖叠成两圈；全部透明化（不加 Margin）
+  - target: Microsoft.UI.Xaml.Controls.AppBarButton > Grid#Root@CommonStates > Border#AppBarButtonInnerBorder, Microsoft.UI.Xaml.Controls.AppBarToggleButton > Grid#Root@CommonStates > Border#AppBarButtonInnerBorder
+    styles:
+      - Background=Transparent
+      - BorderBrush=Transparent
+      - BorderThickness=0
+      - Background@PointerOver=Transparent
+      - BorderBrush@PointerOver=Transparent
+      - Background@Pressed=Transparent
+      - BorderBrush@Pressed=Transparent
+      - Background@Checked=Transparent
+      - BorderBrush@Checked=Transparent
+      - Background@CheckedPointerOver=Transparent
+      - BorderBrush@CheckedPointerOver=Transparent
+      - Background@CheckedPressed=Transparent
+      - BorderBrush@CheckedPressed=Transparent
+      - Background@Disabled=Transparent
+      - BorderBrush@Disabled=Transparent
+  # ---- 下拉菜单（查看 / 排序）、"…"溢出菜单、工具提示 ----
+  - target: MenuFlyoutPresenter > Border
+    styles:
+      - Background:=$GlacierPanel
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+  - target: CommandBarOverflowPresenter#SecondaryItemsControl > Grid#LayoutRoot
+    styles:
+      - Background:=$GlacierPanel
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+  - target: CommandBarOverflowPresenter#SecondaryItemsControl > Grid#LayoutRoot > Border
+    styles:
+      - BorderBrush:=$GlacierEdgeSoft
+  - target: CommandBarFlyoutCommandBar > Grid#LayoutRoot
+    styles:
+      - Background:=$GlacierPanel
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+  - target: ToolTip
+    styles:
+      - Background:=$GlacierPanel
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1

@@ -505,7 +505,7 @@
   //                  小时数       定住某一帧（fixed）
   //                  "timelapse" 一天循环（= loop，从当前时刻起一圈 timelapseDuration 毫秒）
   //                  { loop: { from, to, duration, bounce } }  在某个区间来回：from/to 小时、duration 毫秒一圈、bounce 到头折返
-  //                  "external"  不自己走，宿主用 setHour() 推（hudd、网关、别的时钟）
+  //                  "external"  不自己走，宿主用 setHour() 推（桌面微件、网关、别的时钟）
   //   sunTable     "几点钟长什么样"的关键帧表（Glacier.sun.sampleTable() 采一张改）；null = 用内置公式
   //   lampOverlay  是否画灯 overlay（轨迹按 sunTable / 公式采样画，loop 区间加亮，游标 + 时间）
   //   torch        鼠标手电（Win10 Reveal）：待机态的砖平时无玻璃无边，鼠标 torchRadius 像素内的砖按远近显出 1px 三色边缘；

@@ -1,0 +1,172 @@
+# Glacier / 星舰冰川 —— Windows 11 Taskbar Styler（mod id: windows-11-taskbar-styler）
+# 用法：Windhawk → 该 mod → Settings → 右上角 "Textual mode" → 全选替换为本文件 → Save settings
+# 颜色来源：glacier.css 与 DESIGN.md §3（正午光色）
+styleConstants:
+  - GlacierGlass=<WindhawkBlur BlurAmount="24" TintColor="#B812131D" TintSaturation="1.15" NoiseOpacity="0.02"/>
+  - GlacierPanel=<WindhawkBlur BlurAmount="28" TintColor="#CC101424"/>
+  - GlacierEdge=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#E8FFCE91" Offset="0"/><GradientStop Color="#36F0FCFF" Offset="0.28"/><GradientStop Color="#70081428" Offset="0.55"/><GradientStop Color="#F0050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierEdgeDim=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#50FFCE91" Offset="0"/><GradientStop Color="#0AF0FCFF" Offset="0.3"/><GradientStop Color="#60081428" Offset="0.55"/><GradientStop Color="#C0050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierEdgeSoft=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#90FFCE91" Offset="0"/><GradientStop Color="#16F0FCFF" Offset="0.28"/><GradientStop Color="#80081428" Offset="0.55"/><GradientStop Color="#E0050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierBrickActive=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#26F0FCFF" Offset="0"/><GradientStop Color="#108CD0FF" Offset="0.35"/><GradientStop Color="#6E0A1430" Offset="1"/></LinearGradientBrush>
+  - GlacierBrickHover=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#20F0FCFF" Offset="0"/><GradientStop Color="#0C9AD8FF" Offset="0.35"/><GradientStop Color="#5C0A1430" Offset="1"/></LinearGradientBrush>
+  - GlacierBrickRest=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#0EF0FCFF" Offset="0"/><GradientStop Color="#2A0A1430" Offset="1"/></LinearGradientBrush>
+  - GlacierBrickPressed=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#06F0FCFF" Offset="0"/><GradientStop Color="#8C050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierCrestLine=<LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5"><GradientStop Color="#A0FFCE91" Offset="0"/><GradientStop Color="#D0F0FCFF" Offset="0.5"/><GradientStop Color="#A0BB9AF7" Offset="1"/></LinearGradientBrush>
+controlStyles:
+  - target: Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground > Grid > Rectangle#BackgroundFill
+    styles:
+      - Fill:=$GlacierGlass
+  - target: Rectangle#BackgroundStroke
+    styles:
+      - Fill:=$GlacierCrestLine
+  - target: Taskbar.TaskbarBackground#HoverFlyoutBackgroundControl > Grid > Rectangle#BackgroundFill
+    styles:
+      - Fill:=$GlacierPanel
+  - target: Taskbar.TaskListButton, Taskbar.ExperienceToggleButton, Taskbar.SearchBoxButton
+    styles:
+      - CornerRadius=5
+  - target: Grid#IconPanel@CommonStates > Border#BackgroundElement, Taskbar.TaskListLabeledButtonPanel@CommonStates > Border#BackgroundElement
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - Background@InactivePointerOver:=$GlacierBrickHover
+      - BorderBrush@InactivePointerOver:=$GlacierEdgeSoft
+      - Background@InactivePressed:=$GlacierBrickPressed
+      - BorderBrush@InactivePressed:=$GlacierEdgeDim
+      - Background@ActiveNormal:=$GlacierBrickActive
+      - BorderBrush@ActiveNormal:=$GlacierEdge
+      - Background@ActivePointerOver:=$GlacierBrickActive
+      - BorderBrush@ActivePointerOver:=$GlacierEdge
+      - Background@ActivePressed:=$GlacierBrickPressed
+      - BorderBrush@ActivePressed:=$GlacierEdgeDim
+      # 同一程序多个窗口时按钮走另外四个状态（MultiWindow*），外观和单窗口完全一致（静止态同样没有底片）
+      - Background@MultiWindowNormal=Transparent
+      - BorderBrush@MultiWindowNormal=Transparent
+      - Background@MultiWindowPointerOver:=$GlacierBrickHover
+      - BorderBrush@MultiWindowPointerOver:=$GlacierEdgeSoft
+      - Background@MultiWindowPressed:=$GlacierBrickPressed
+      - BorderBrush@MultiWindowPressed:=$GlacierEdgeDim
+      - Background@MultiWindowActive:=$GlacierBrickActive
+      - BorderBrush@MultiWindowActive:=$GlacierEdge
+  # 多窗口时叠在后面的那层"叠罗汉"影子（Border#MultiWindowElement）：极简方案，直接藏掉——
+  # 多窗口按钮和单窗口按钮长得一样，"开了几个窗口"只靠底部指示条表达（原生指示条在多窗口时本来就会变）
+  # 注意不能 Visibility=Collapsed：它一退出布局，图标面板的排布就变了（图标往左下沉、砖框在右上露边）。
+  # 只用 Opacity=0 让它继续占位但不显示。
+  - target: Border#MultiWindowElement
+    styles:
+      - Visibility=Visible
+      - Opacity=0
+      - BorderThickness=0
+      - BorderBrush=Transparent
+      - Background=Transparent
+  - target: Grid#IconPanel@RunningIndicatorStates > Rectangle#RunningIndicator, Taskbar.TaskListLabeledButtonPanel@RunningIndicatorStates > Rectangle#RunningIndicator
+    styles:
+      - Fill=#7AA2F7
+      - Height=2
+      - Width=10
+      - RadiusX=1
+      - RadiusY=1
+      - Fill@ActiveRunningIndicator=#25F4EE
+      - Width@ActiveRunningIndicator=22
+      - Fill@RequestingAttentionRunningIndicator=#FE2C55
+  - target: SystemTray.TextIconContent > Grid#ContainerGrid > SystemTray.AdaptiveTextBlock#Base > TextBlock#InnerTextBlock
+    styles:
+      - Foreground=#D5E2FF
+  - target: Border#OverflowFlyoutBackgroundBorder
+    styles:
+      - Background:=$GlacierPanel
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=10
+      - Margin=-2,-2,-2,-2
+  - target: MenuFlyoutPresenter > Border
+    styles:
+      - Background:=$GlacierPanel
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+      - Padding=3,4,3,4
+  - target: Grid#ConfirmatorMainGrid
+    styles:
+      - Background:=$GlacierPanel
+      - BorderThickness=0
+  - target: WindowsInternal.ComposableShell.Experiences.Switcher.AltTab > Grid#ModalRootGrid > Border#BackgroundElement
+    styles:
+      - Background=Transparent
+  - target: WindowsInternal.ComposableShell.Experiences.Switcher.AltTab > Grid#ModalRootGrid > Border#BackgroundElement > WindowsInternal.ComposableShell.Experiences.Switcher.SwitchItemList
+    styles:
+      - Background:=$GlacierPanel
+  - target: Windows.UI.Xaml.Controls.Border#BackgroundDimmingLayer
+    styles:
+      - Background=#B006080F
+  # ---- 第五版：多窗口切换与预览（只改颜色 / 边框，不设 Height / Margin / Padding，卡片尺寸不变）----
+  # 任务栏悬停缩略图：外框、标题、关闭按钮
+  - target: Taskbar.TaskItemThumbnailView > Grid@CommonStates > Border#BackgroundBorder
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - Background@Normal:=$GlacierBrickRest
+      - BorderBrush@Normal:=$GlacierEdgeSoft
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+  - target: Taskbar.TaskItemThumbnailView > Grid > TextBlock#DisplayNameTextBlock
+    styles:
+      - Foreground=#E6F0FF
+  - target: Taskbar.TaskItemThumbnailView > Grid > Button#CloseButton
+    styles:
+      - CornerRadius=5
+  - target: Taskbar.TaskItemThumbnailView > Grid > Button#CloseButton > ContentPresenter@CommonStates
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Pressed:=$GlacierBrickPressed
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+  # Alt+Tab 和任务视图（Win+Tab）共用同一套 Switcher 控件：窗口卡片
+  - target: WindowsInternal.ComposableShell.Experiences.Switcher.SwitchItemListViewItem > Grid#Root@CommonStates > Border#BackgroundBorder
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - Background@Normal:=$GlacierBrickRest
+      - BorderBrush@Normal:=$GlacierEdgeSoft
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Pressed:=$GlacierBrickPressed
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+      - Background@Selected:=$GlacierBrickActive
+      - BorderBrush@Selected:=$GlacierEdge
+      - Background@PointerOverSelected:=$GlacierBrickActive
+      - BorderBrush@PointerOverSelected:=$GlacierEdge
+      - Background@PressedSelected:=$GlacierBrickPressed
+      - BorderBrush@PressedSelected:=$GlacierEdgeDim
+  - target: WindowsInternal.ComposableShell.Experiences.Switcher.SwitchItemElement > Grid#RootGrid > Grid#TitleGrid > TextBlock#DisplayName
+    styles:
+      - Foreground=#E6F0FF
+  - target: Button#SwitchItemElementCloseButton > ContentPresenter@CommonStates
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Pressed:=$GlacierBrickPressed
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+  # 任务视图：桌面卡片和"新建桌面"
+  - target: WindowsInternal.ComposableShell.Experiences.Switcher.VirtualDesktopElementThemed > Grid#MainGrid > Border#BorderHighlight, WindowsInternal.ComposableShell.Experiences.Switcher.NewVirtualDesktopElementThemed > Grid#MainGrid > Border#BorderHighlight
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - Background:=$GlacierBrickRest
+      - BorderBrush:=$GlacierEdgeSoft
+  - target: WindowsInternal.ComposableShell.Experiences.Switcher.VirtualDesktopElementThemed > Grid#MainGrid@CommonStates > Border#BorderHighlight, WindowsInternal.ComposableShell.Experiences.Switcher.NewVirtualDesktopElementThemed > Grid#MainGrid@CommonStates > Border#BorderHighlight
+    styles:
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Pressed:=$GlacierBrickPressed
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+  - target: WindowsInternal.ComposableShell.Experiences.Switcher.VirtualDesktopElementThemed > Grid#MainGrid > Border#ActiveDesktopPill
+    styles:
+      - Background=#25F4EE
+  - target: TextBlock#VirtualDesktopNameBlock
+    styles:
+      - Foreground=#E6F0FF

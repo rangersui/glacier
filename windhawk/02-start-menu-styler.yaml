@@ -1,0 +1,180 @@
+# Glacier / 星舰冰川 —— Windows 11 Start Menu Styler（mod id: windows-11-start-menu-styler）
+# 用法：Windhawk → 该 mod → Settings → "Textual mode" → 全选替换为本文件 → Save settings
+# 基于官方 TranslucentStartMenu（新版开始菜单变体）的 target；按 DESIGN.md §4"冰砖三条规矩"重做：
+#   1 砖是状态不是底座 + 补丁：静止态是 3% 哑光底片（#08FFFFFF，零边零影），不是全透明；砖只在悬停 / 按下 / 选中出现，砖只在悬停 / 按下 / 选中出现；
+#   2 光只在边上，中心平静：填充中段接近透明，迎光角一点暖灰，背光角沉深海蓝；
+#   3 厚度在内侧的墙：BorderThickness 1,1,2,2，BorderBrush 用 01 同款 $GlacierEdge，零外投影。
+#   BorderThickness 在静止态也保持 1,1,2,2（只是刷子透明），这样悬停时内容不会跳 1–2px。不设 Height / Margin / Padding。
+styleConstants:
+  - GlacierGlass=<WindhawkBlur BlurAmount="28" TintColor="#C212131D" TintSaturation="1.15" NoiseOpacity="0.02"/>
+  - GlacierPanel=<WindhawkBlur BlurAmount="28" TintColor="#CC101424"/>
+  - GlacierInset=<WindhawkBlur BlurAmount="25" TintColor="#2A06080F"/>
+  - GlacierFlat=#10DCEEFF
+  - GlacierFlatDim=#08DCEEFF
+  - GlacierEdge=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#E8FFCE91" Offset="0"/><GradientStop Color="#36F0FCFF" Offset="0.28"/><GradientStop Color="#70081428" Offset="0.55"/><GradientStop Color="#F0050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierEdgeSoft=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#90FFCE91" Offset="0"/><GradientStop Color="#16F0FCFF" Offset="0.28"/><GradientStop Color="#80081428" Offset="0.55"/><GradientStop Color="#E0050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierEdgeDim=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#50FFCE91" Offset="0"/><GradientStop Color="#0AF0FCFF" Offset="0.3"/><GradientStop Color="#60081428" Offset="0.55"/><GradientStop Color="#C0050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierBrickHover=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#1AFFE6CC" Offset="0"/><GradientStop Color="#0A0A1430" Offset="0.5"/><GradientStop Color="#4C0A1430" Offset="1"/></LinearGradientBrush>
+  - GlacierBrickActive=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#24F0FCFF" Offset="0"/><GradientStop Color="#0E101C34" Offset="0.5"/><GradientStop Color="#5C0A1430" Offset="1"/></LinearGradientBrush>
+  - GlacierBrickPressed=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#08F0FCFF" Offset="0"/><GradientStop Color="#7C050A18" Offset="1"/></LinearGradientBrush>
+controlStyles:
+  # ---- 面板：玻璃 + 1px 轮廓（面板不是砖，轮廓只是让它从背景里分出来）----
+  - target: Border#AcrylicBorder
+    styles:
+      - Background:=$GlacierGlass
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+  - target: Border#AcrylicOverlay
+    styles:
+      - Visibility=Collapsed
+  - target: Border#BorderElement
+    styles:
+      - Background:=$GlacierInset
+      - BorderThickness=0
+      - CornerRadius=8
+  - target: MenuFlyoutPresenter > Border
+    styles:
+      - Background:=$GlacierPanel
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+  - target: Border#AppBorder
+    styles:
+      - Background:=$GlacierGlass
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+  - target: Border#AccentAppBorder
+    styles:
+      - Background:=$GlacierGlass
+      - BorderThickness=0
+      - CornerRadius=8
+  - target: Border#LayerBorder, Border#AccentLayerBorder
+    styles:
+      - Visibility=Collapsed
+  - target: Border#TaskbarSearchBackground
+    styles:
+      - Background:=$GlacierInset
+      - BorderBrush:=$GlacierEdgeDim
+      - BorderThickness=1
+      - CornerRadius=8
+  - target: StartMenu.SearchBoxToggleButton > Grid > Border#BorderElement
+    styles:
+      - BorderBrush:=$GlacierEdgeDim
+      - BorderThickness=1
+  # ---- 固定磁贴、最近项：静止平，悬停 / 按下才是砖 ----
+  - target: Border#ContentBorder@CommonStates > Grid#DroppedFlickerWorkaroundWrapper > Border
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - Background=#08FFFFFF
+      - BorderBrush=Transparent
+      - Background@Normal=#08FFFFFF
+      - BorderBrush@Normal=Transparent
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Pressed:=$GlacierBrickPressed
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+  - target: Button#ShowAllAppsButton > ContentPresenter@CommonStates
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - Background=#08FFFFFF
+      - BorderBrush=Transparent
+      - Background@Normal=#08FFFFFF
+      - BorderBrush@Normal=Transparent
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Pressed:=$GlacierBrickPressed
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+  - target: StartDocked.NavigationPaneButton#UserTileButton > Grid@CommonStates > Border, StartDocked.NavigationPaneButton#PowerButton > Grid@CommonStates > Border
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - Background=#08FFFFFF
+      - BorderBrush=Transparent
+      - Background@Normal=#08FFFFFF
+      - BorderBrush@Normal=Transparent
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Pressed:=$GlacierBrickPressed
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+  - target: StartDocked.AppListViewItem > Grid@CommonStates > Border
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - Background=#08FFFFFF
+      - BorderBrush=Transparent
+      - Background@Normal=#08FFFFFF
+      - BorderBrush@Normal=Transparent
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Pressed:=$GlacierBrickPressed
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+  - target: ListViewItem > Grid#ContentBorder@CommonStates
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - Background=#08FFFFFF
+      - BorderBrush=Transparent
+      - Background@Normal=#08FFFFFF
+      - BorderBrush@Normal=Transparent
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Pressed:=$GlacierBrickPressed
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+      - Background@Selected:=$GlacierBrickActive
+      - BorderBrush@Selected:=$GlacierEdge
+      - Background@PointerOverSelected:=$GlacierBrickActive
+      - BorderBrush@PointerOverSelected:=$GlacierEdge
+  - target: Button > Grid@CommonStates > Border
+    styles:
+      - CornerRadius=5
+      - BorderThickness=1,1,2,2
+      - BorderBrush=Transparent
+      - Background@Normal=Transparent
+      - BorderBrush@Normal=Transparent
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Pressed:=$GlacierBrickPressed
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+  - target: Microsoft.UI.Xaml.Controls.DropDownButton > Grid#RootGrid
+    styles:
+      - Background=#08FFFFFF
+      - BorderBrush=Transparent
+      - BorderThickness=1,1,2,2
+      - CornerRadius=5
+  - target: DropDownButton
+    styles:
+      - Background=Transparent
+  - target: Button#Header > Border#Border@CommonStates
+    styles:
+      - Background=Transparent
+      - BorderThickness=1,1,2,2
+      - BorderBrush=Transparent
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@PointerOver:=$GlacierBrickHover
+  # ---- 其它 ----
+  - target: ToolTip > ContentPresenter#LayoutRoot
+    styles:
+      - Background:=$GlacierPanel
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+  - target: Border#dropshadow
+    styles:
+      - CornerRadius=9
+      - Margin=-1
+  - target: Border#StartDropShadow
+    styles:
+      - CornerRadius=8
+      - Margin=-1
+  - target: TextBlock#Text
+    styles:
+      - Foreground=#E6F0FF
+  - target: StartMenu.FolderModal > Grid > Border
+    styles:
+      - Background:=$GlacierPanel
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8

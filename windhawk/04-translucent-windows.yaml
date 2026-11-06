@@ -1,0 +1,66 @@
+# Glacier / 星舰冰川 —— Translucent Windows（mod id: translucent-windows）
+# 管：Win32 窗口背景、资源管理器的文件列表 / 左侧导航树（它自己用 Direct2D 重画）、经典右键菜单 / 下拉菜单 / 工具提示的毛玻璃。
+# 用法：Windhawk → 该 mod → Settings → "Textual mode" → 全选替换为本文件 → Save settings，或 apply-glacier.ps1 -Only translucent-windows
+#
+# ★ 键名必须按下面这样分组嵌套：mod 源码读的是 RenderingMod.ThemeBackground / BackgroundEffects.type 这种带前缀的名字。
+#
+# ★ 默认是白名单（2026-11-02 起）：这个 mod 注入所有进程，"自定义渲染"（Direct2D 重画控件 + GDI 文字 alpha 合成）会把
+#   记事本、Zoom 这类 Win32 程序的文字光标（XOR 反色画的）和选中高亮吞掉，编辑区还蒙一层灰雾。所以：
+#   - 全局：什么都不做（不渲染、不上色、不做背景效果），第三方程序一律不碰；
+#   - 只给 explorer.exe 和壳进程开亚克力 + 深空色调（explorer 还开自定义渲染，文件列表 / 导航树才是圆角玻璃条）；
+#   - 想让某个第三方程序也变玻璃：在 RuledPrograms 里加一条，只开 BackgroundEffects，别开 ThemeBackground（Zoom 那条就是例子）。
+RenderingMod:
+  ThemeBackground: false
+  SysColors: false
+  AccentColorControls: false
+BackgroundEffects:
+  type: none
+  AccentBlurBehind: 8A12131D
+FlyoutsEffects: true
+RuledPrograms:
+  # 资源管理器：文件列表 / 导航树要自定义渲染才有圆角玻璃条和主题色边；经典右键菜单的毛玻璃也靠它
+  - target: explorer.exe
+    RenderingMod:
+      ThemeBackground: true
+      AccentColorControls: true
+    BackgroundEffects:
+      type: acrylicblur
+      AccentBlurBehind: 8A12131D
+  # 壳进程：开始菜单 / 搜索 / 通知中心 / 快速设置的宿主窗口，只要背景效果，不碰文字
+  - target: StartMenuExperienceHost.exe
+    RenderingMod:
+      ThemeBackground: false
+      AccentColorControls: false
+    BackgroundEffects:
+      type: acrylicblur
+      AccentBlurBehind: 8A12131D
+  - target: SearchHost.exe
+    RenderingMod:
+      ThemeBackground: false
+      AccentColorControls: false
+    BackgroundEffects:
+      type: acrylicblur
+      AccentBlurBehind: 8A12131D
+  - target: ShellExperienceHost.exe
+    RenderingMod:
+      ThemeBackground: false
+      AccentColorControls: false
+    BackgroundEffects:
+      type: acrylicblur
+      AccentBlurBehind: 8A12131D
+  - target: ShellHost.exe
+    RenderingMod:
+      ThemeBackground: false
+      AccentColorControls: false
+    BackgroundEffects:
+      type: acrylicblur
+      AccentBlurBehind: 8A12131D
+  # Zoom：彻底不碰（2026-11-02 上课时只开背景效果也出事：参会者名字整列消失、聊天气泡深灰压深灰）。
+  #   这条留着是为了显式钉死"原生"，别人改全局也波及不到它。想试玻璃就把 type 改 acrylicblur，自己担风险。
+  - target: Zoom.exe
+    RenderingMod:
+      ThemeBackground: false
+      AccentColorControls: false
+    BackgroundEffects:
+      type: none
+      AccentBlurBehind: 8A12131D

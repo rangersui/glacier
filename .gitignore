@@ -3,3 +3,4 @@ desktop.ini
 Thumbs.db
 *.log
 node_modules/
+*.local.json

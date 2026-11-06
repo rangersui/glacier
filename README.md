@@ -13,6 +13,7 @@ glacier/
 ├── demo.js       demo.html 的交互脚本（调光台、级联菜单、键盘阵列、运镜按钮），只演示用法，不属于库
 ├── bridge.html   舰桥：用这套积木搭的暗座舱范例——三个问题（在哪 / 几点 / 有没有事）、两个旋钮（去哪 / 多快）、航点光栅 + 当月日历晶格 + 告警行（A 模拟、Esc 清）
 ├── photos/       5 张 NASA 公有领域 100% 纯黑白银盐灰阶负片与署名说明
+├── windhawk/     Windows 11 系统壳（任务栏、开始菜单、通知中心、资源管理器、Win32 亚克力）5 套 Windhawk 主题与一键脚本
 └── README.md     本文件
 ```
 
@@ -113,9 +114,9 @@ glacier/
 ### 太阳拆成两层：表 + 时钟
 
 - **表（几点钟长什么样）**：`sunTable` 选项 / `setSunTable()`。关键帧 `{ hour, u, v, glow, isDay, orbCore, orbCorona }`，`u / v` 是灯在视口里的归一化位置，颜色 `rgba()` 或 `#hex`；少写的字段用内置公式在同一小时的值补齐，相邻帧线性插值（颜色按通道），末帧到首帧跨午夜接上。`Glacier.sun.sampleTable(1)` 把内置公式采成 24 帧，改几帧再喂回去就是自己的一天。
-- **时钟（现在几点）**：`time` 选项 / `setMode()` / `setLoop()` / `setHour()`。`realtime` 跟真实时间；数字定住一帧；`loop` 在区间来回（`timelapse` 就是 0→24 的 loop）；`external` 不自己走，由宿主推（hudd 的桌面灯、网关、别的页面的时钟都能当源）。
+- **时钟（现在几点）**：`time` 选项 / `setMode()` / `setLoop()` / `setHour()`。`realtime` 跟真实时间；数字定住一帧；`loop` 在区间来回（`timelapse` 就是 0→24 的 loop）；`external` 不自己走，由宿主推（桌面微件、网关、别的页面的时钟都能当源）。
 
-同一张表配不同时钟：PDF 的台灯、Windhawk 以后按小时换皮、hudd 的桌面灯，都是这个接口。
+同一张表配不同时钟：PDF 的台灯、Windhawk 按小时换皮、桌面微件的太阳灯，都是这个接口。
 
 ### 挂上总线即受光
 
@@ -209,7 +210,7 @@ glacier/
 
 ## 8. 宿主与生态关系
 
-- **本仓库（`glacier`）是 Glacier 设计语言的中心与唯一上游**，`./DESIGN.md` 是设计规格的源头，改设计先改这里。
+- **本仓库是 Glacier 设计语言的中心与唯一上游**，`./DESIGN.md` 是设计规格的源头，改设计先改这里。
 - **任何 Web / Electron / WebView 宿主**：直接引入本仓库的 `glacier.css` + `glacier.js`，宿主只需给深色基底（`.gl-stage`）、给 `.gl-*` 类名、调 `Glacier.init()`。内核要求：`@property` 与 `in oklab` 渐变插值（Chromium 111+ / Safari 16.4+ / Firefox 128+）；更老的内核会拿到 `@supports` 兜底的 sRGB 刀锋与手电（结构不丢，只是金白之间少一层奶油过渡），装饰性渐变（分割线、引用导轨）则直接退成无。
-- **Windows 11 系统壳（Windhawk）**：任务栏、开始菜单、通知中心与资源管理器通过静态 XAML 共享同一套三色空间光谱与暗槽光学（配置见 `./windhawk`）。
-- **外部客户端补丁（如 `ui-mod`、`hudd`）**：客户端只是这套设计语言的下游宿主——宿主自己的 DOM 注入、会话列表、终端与网关留在各自仓库维护，宿主版本怎么变都不影响 Glacier 设计语言本身。
+- **Windows 11 系统壳（[`./windhawk/`](windhawk/README.md)）**：任务栏、开始菜单、通知中心与资源管理器通过静态 XAML 共享同一套三色空间光谱与暗槽光学（5 套 `.yaml` 与一键脚本 `windhawk/apply-glacier.ps1` 已收入本仓库，冰砖三律正是从这套任务栏与开始菜单磁贴反推出来的）。
+- **外部客户端补丁（Electron / WebView 宿主）**：客户端只是这套设计语言的下游宿主——宿主自己的 DOM 注入、会话列表、终端与网关留在各自仓库维护，宿主版本怎么变都不影响 Glacier 设计语言本身。

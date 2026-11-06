@@ -1,0 +1,209 @@
+# Glacier / 星舰冰川 —— Windows 11 Notification Center Styler（mod id: windows-11-notification-center-styler）
+# 管：通知中心、日历、快速设置（Wi-Fi / 音量面板）、媒体控件、Toast 弹窗、跳转列表
+# 用法：Windhawk → 该 mod → Settings → "Textual mode" → 全选替换为本文件 → Save settings
+# 基于官方 TranslucentShell，换成 Glacier 深空玻璃；磁贴按 DESIGN.md §4"冰砖三条规矩"：
+#   静止 / 关闭态 = 3% 哑光底片（ToggleButtonBackground 资源），砖只在悬停 / 按下 / 开启出现，砖只在悬停 / 按下 / 开启出现；填充中段平静；边 1,1,2,2 用 $GlacierEdge。
+styleConstants:
+  - GlacierGlass=<WindhawkBlur BlurAmount="28" TintColor="#C212131D" TintSaturation="1.15" NoiseOpacity="0.02"/>
+  - GlacierPanel=<WindhawkBlur BlurAmount="28" TintColor="#CC101424"/>
+  - GlacierFlat=#10DCEEFF
+  - GlacierEdge=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#E8FFCE91" Offset="0"/><GradientStop Color="#36F0FCFF" Offset="0.28"/><GradientStop Color="#70081428" Offset="0.55"/><GradientStop Color="#F0050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierEdgeSoft=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#90FFCE91" Offset="0"/><GradientStop Color="#16F0FCFF" Offset="0.28"/><GradientStop Color="#80081428" Offset="0.55"/><GradientStop Color="#E0050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierEdgeDim=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#50FFCE91" Offset="0"/><GradientStop Color="#0AF0FCFF" Offset="0.3"/><GradientStop Color="#60081428" Offset="0.55"/><GradientStop Color="#C0050A18" Offset="1"/></LinearGradientBrush>
+  - GlacierBrickHover=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#1AFFE6CC" Offset="0"/><GradientStop Color="#0A0A1430" Offset="0.5"/><GradientStop Color="#4C0A1430" Offset="1"/></LinearGradientBrush>
+  - GlacierBrickActive=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#24F0FCFF" Offset="0"/><GradientStop Color="#0E101C34" Offset="0.5"/><GradientStop Color="#5C0A1430" Offset="1"/></LinearGradientBrush>
+  - GlacierBrickPressed=<LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#08F0FCFF" Offset="0"/><GradientStop Color="#7C050A18" Offset="1"/></LinearGradientBrush>
+  - thumbnailImageSize=300
+controlStyles:
+  - target: Grid#NotificationCenterGrid
+    styles:
+      - Background:=$GlacierGlass
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+  - target: Grid#CalendarCenterGrid
+    styles:
+      - Background:=$GlacierGlass
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+  - target: ScrollViewer#CalendarControlScrollViewer
+    styles:
+      - Background=Transparent
+  - target: Border#CalendarHeaderMinimizedOverlay
+    styles:
+      - Background=Transparent
+  - target: ActionCenter.FocusSessionControl#FocusSessionControl > Grid#FocusGrid
+    styles:
+      - Background=Transparent
+  - target: MenuFlyoutPresenter > Border
+    styles:
+      - Background:=$GlacierPanel
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+      - Padding=2,4,2,4
+  - target: Border#JumpListRestyledAcrylic
+    styles:
+      - Background:=$GlacierPanel
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+      - Margin=-2,-2,-2,-2
+  - target: Grid#ControlCenterRegion
+    styles:
+      - Background:=$GlacierGlass
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+  - target: Windows.UI.Xaml.Controls.Grid#L1Grid > Border
+    styles:
+      - Background:=<SolidColorBrush Color="Transparent"/>
+  - target: Windows.UI.Xaml.Controls.Grid#MediaTransportControlsRegion
+    styles:
+      - Background:=$GlacierPanel
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+  - target: Grid#MediaTransportControlsRoot
+    styles:
+      - Background:=<SolidColorBrush Color="Transparent"/>
+  - target: ContentPresenter#PageContent
+    styles:
+      - Background:=<SolidColorBrush Color="Transparent"/>
+  - target: ContentPresenter#PageContent > Grid > Border
+    styles:
+      - Background:=<SolidColorBrush Color="Transparent"/>
+  - target: QuickActions.ControlCenter.AccessibleWindow#PageWindow > ContentPresenter > Grid#FullScreenPageRoot
+    styles:
+      - Background:=<SolidColorBrush Color="Transparent"/>
+  - target: QuickActions.ControlCenter.AccessibleWindow#PageWindow > ContentPresenter > Grid#FullScreenPageRoot > ContentPresenter#PageHeader
+    styles:
+      - Background:=<SolidColorBrush Color="Transparent"/>
+  - target: ScrollViewer#ListContent
+    styles:
+      - Background:=<SolidColorBrush Color="Transparent"/>
+  - target: ActionCenter.FlexibleToastView#FlexibleNormalToastView
+    styles:
+      - Background:=<SolidColorBrush Color="Transparent"/>
+  - target: Border#ToastBackgroundBorder, Border#ToastBackgroundBorder2
+    styles:
+      - Background:=$GlacierPanel
+      - BorderBrush:=$GlacierEdgeSoft
+      - BorderThickness=1
+      - CornerRadius=8
+  - target: JumpViewUI.SystemItemListViewItem > Grid#LayoutRoot > Border#BackgroundBorder
+    styles:
+      - FocusVisualPrimaryThickness=0,0,0,0
+      - FocusVisualSecondaryThickness=0,0,0,0
+  - target: JumpViewUI.JumpListListViewItem > Grid#LayoutRoot > Border#BackgroundBorder
+    styles:
+      - FocusVisualPrimaryThickness=0,0,0,0
+  - target: ActionCenter.FlexibleItemView
+    styles:
+      - CornerRadius=8
+  - target: ControlCenter.MediaTransportControls#MediaTransportControls > Windows.UI.Xaml.Controls.Grid#MediaTransportControlsRegion
+    styles:
+      - Height=Auto
+  - target: Windows.UI.Xaml.Controls.Grid#ThumbnailImage
+    styles:
+      - Width=$thumbnailImageSize
+      - Height=$thumbnailImageSize
+      - HorizontalAlignment=Center
+      - VerticalAlignment=Top
+      - Grid.Column=1
+      - Margin=0,2,0,45
+  - target: Windows.UI.Xaml.Controls.Grid#ThumbnailImage > Windows.UI.Xaml.Controls.Border
+    styles:
+      - CornerRadius=8
+  - target: Windows.UI.Xaml.Controls.StackPanel#PrimaryAndSecondaryTextContainer
+    styles:
+      - VerticalAlignment=Bottom
+      - Grid.Column=0
+  - target: Windows.UI.Xaml.Controls.StackPanel#PrimaryAndSecondaryTextContainer > Windows.UI.Xaml.Controls.TextBlock#TitleText
+    styles:
+      - TextAlignment=Center
+  - target: Windows.UI.Xaml.Controls.StackPanel#PrimaryAndSecondaryTextContainer > Windows.UI.Xaml.Controls.TextBlock#SubtitleText
+    styles:
+      - TextAlignment=Center
+  # ---- 快速设置（Win+A）磁贴（只改颜色 / 边框，不设 Height / Margin / Padding / CornerRadius）----
+  # 可视树（用 mod 日志抓的）：ControlCenter.PaginatedToggleButton#ToggleButton → ContentPresenter#ContentPresenter（模板根）
+  #   → ContentPresenter#Content → Grid#ToggleButtonContent（图标、On/Off 文字）；Grid#RootGrid 是外面装整块磁贴的容器。
+  # 开启态的颜色是视觉状态的 Storyboard 动画刷的，动画值优先级高于本地赋值，所以颜色靠下面 themeResourceVariables 里的
+  #   ToggleButton* 资源（已验证有效）；这里只管边框。静止态：原生暗底 + 透明边 = 平。
+  - target: ControlCenter.PaginatedToggleButton#ToggleButton > ContentPresenter#ContentPresenter@CommonStates, ControlCenter.PaginatedToggleButton#SplitL2Button > ContentPresenter#ContentPresenter@CommonStates, QuickActions.AccessibleToggleButton#ToggleButton > ContentPresenter#ContentPresenter@CommonStates, QuickActions.AccessibleToggleButton#SplitL2Button > ContentPresenter#ContentPresenter@CommonStates
+    styles:
+      - BorderThickness=1,1,2,2
+      - BorderBrush=Transparent
+      - BorderBrush@Normal=Transparent
+      - BorderBrush@Disabled=Transparent
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+      - BorderBrush@Checked:=$GlacierEdge
+      - BorderBrush@CheckedPointerOver:=$GlacierEdge
+      - BorderBrush@CheckedPressed:=$GlacierEdgeDim
+      - Foreground@Checked=#F0FCFF
+      - Foreground@CheckedPointerOver=#F0FCFF
+      - Foreground@CheckedPressed=#D5E2FF
+  # 亮度 / 音量滑块：已填充段和圆点冰蓝，未填充段深蓝灰
+  - target: Rectangle#HorizontalDecreaseRect
+    styles:
+      - Fill=#7AA2F7
+  - target: Rectangle#HorizontalTrackRect
+    styles:
+      - Fill=#3A2A3A5E
+  - target: Ellipse#SliderInnerThumb
+    styles:
+      - Fill=#7AA2F7
+  - target: Thumb#HorizontalThumb > * > Border, Thumb#HorizontalThumb > Border
+    styles:
+      - Background=#7AA2F7
+      - BorderBrush=#8037AFFF
+  # 底栏：电量、设置齿轮、编辑按钮——静止平，悬停 / 按下才是砖
+  - target: Button[AutomationProperties.AutomationId=Microsoft.QuickAction.Battery] > ContentPresenter#ContentPresenter@CommonStates, Button#FooterButton > ContentPresenter#ContentPresenter@CommonStates
+    styles:
+      - BorderThickness=1,1,2,2
+      - BorderBrush=Transparent
+      - BorderBrush@Normal=Transparent
+      - Background@PointerOver:=$GlacierBrickHover
+      - BorderBrush@PointerOver:=$GlacierEdge
+      - Background@Pressed:=$GlacierBrickPressed
+      - BorderBrush@Pressed:=$GlacierEdgeDim
+themeResourceVariables:
+  # 磁贴开启态 / 悬停 / 按下：ToggleButton 的状态动画引用这些资源，改这里才压得住天蓝（第九版验证过）
+  - ToggleButtonBackgroundChecked@Dark:=$GlacierBrickActive
+  - ToggleButtonBackgroundCheckedPointerOver@Dark:=$GlacierBrickActive
+  - ToggleButtonBackgroundCheckedPressed@Dark:=$GlacierBrickPressed
+  - ToggleButtonBorderBrushChecked@Dark:=$GlacierEdge
+  - ToggleButtonBorderBrushCheckedPointerOver@Dark:=$GlacierEdge
+  - ToggleButtonBorderBrushCheckedPressed@Dark:=$GlacierEdgeDim
+  - ToggleButtonForegroundChecked@Dark=#F0FCFF
+  - ToggleButtonForegroundCheckedPointerOver@Dark=#F0FCFF
+  - ToggleButtonForegroundCheckedPressed@Dark=#D5E2FF
+  - ToggleButtonBackgroundPointerOver@Dark:=$GlacierBrickHover
+  - ToggleButtonBackgroundPressed@Dark:=$GlacierBrickPressed
+  - ToggleButtonBorderBrushPointerOver@Dark:=$GlacierEdge
+  - ToggleButtonBorderBrushPressed@Dark:=$GlacierEdgeDim
+  # 关闭态磁贴 = 3% 哑光底片（规矩 1 的补丁：底座是哑光，不是没有）；禁用更淡
+  - ToggleButtonBackground@Dark=#08FFFFFF
+  - ToggleButtonBorderBrush@Dark=Transparent
+  - ToggleButtonBackgroundDisabled@Dark=#04FFFFFF
+  - ToggleButtonBorderBrushDisabled@Dark=Transparent
+  # 兜底：系统 accent 填充资源换成冰蓝（实色）
+  - AccentFillColorDefaultBrush@Dark=#7AA2F7
+  - AccentFillColorSecondaryBrush@Dark=#E67AA2F7
+  - AccentFillColorTertiaryBrush@Dark=#CC7AA2F7
+  - SliderTrackValueFill@Dark=#7AA2F7
+  - SliderTrackValueFillPointerOver@Dark=#8EB4FF
+  - SliderTrackValueFillPressed@Dark=#6A90E0
+  - SliderThumbBackground@Dark=#7AA2F7
+  - SliderInnerThumbBackground@Dark=#7AA2F7
+  - SliderInnerThumbBackgroundPointerOver@Dark=#8EB4FF
+  - SliderInnerThumbBackgroundPressed@Dark=#6A90E0
+  - SliderThumbBackgroundPointerOver@Dark=#8EB4FF
+  - SliderThumbBackgroundPressed@Dark=#6A90E0
+  - SliderTrackFill@Dark=#3A2A3A5E
+  - SliderTrackFillPointerOver@Dark=#50304070
+  - SliderTrackFillPressed@Dark=#50304070
+  - PipsPagerSelectedPipFill@Dark=#25F4EE
+  - PipsPagerNormalPipFill@Dark=#7AA2F7
