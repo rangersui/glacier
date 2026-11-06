@@ -216,3 +216,7 @@ glacier/
 
 - 需要 `@property`、`mask-composite`、`backdrop-filter`、`isolation: isolate` 和 `in oklab` 渐变插值：Chromium 111+ / Safari 16.4+ / Firefox 128+。更老的内核拿到 `@supports` 兜底的 sRGB 刀锋与手电（结构不丢，只是金白之间少一层奶油过渡），分割线、引用导轨这类装饰性渐变退成无。
 - `windhawk/` 是同一套颜色与暗槽常量的 Windows 11 系统壳版本（任务栏、开始菜单、通知中心、资源管理器、Win32 亚克力），5 套 `.yaml` 加一键脚本 `apply-glacier.ps1`，见 [windhawk/README.md](windhawk/README.md)。冰砖的三条规矩就是从那块任务栏磁贴反推出来的。
+
+## 9. 许可
+
+代码与文档 MIT（见 `LICENSE`）。`photos/` 是 NASA 公有领域图片，不在 MIT 之内，逐张署名见 `photos/README.md`；`windhawk/` 里两份 yaml 的元素选择器最早取自 Windhawk 官方 styling guide 的 TranslucentShell / TranslucentStartMenu 主题（该仓库没有许可证文件；选择器本身是 Windows 的元素名，属事实信息），颜色、状态与规则是本仓库写的，按 MIT 发布。
