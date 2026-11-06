@@ -83,11 +83,11 @@ Windhawk 对 XAML 部分提供了一组 "Styler" mod（选择器 `target` + 样�
 ## 6. 核心实现要点与避坑记录
 
 1. **冰砖三律在 XAML 里的落地**：
-   - **静止态是哑光底片而非全员皆砖**：未选中磁贴与标签仅保留 3% 哑光底片 `#08FFFFFF`（槽内按钮彻底透明），同时保持 `BorderThickness=1,1,2,2` 且 `BorderBrush=Transparent`，确保悬停点亮时零像素跳动。
+   - **静止态是哑光底片而非全员皆砖**：未选中磁贴与标签仅保留 3% 哑光底片 `#08FFFFFF`（槽内按钮透明），同时保持 `BorderThickness=1,1,2,2` 且 `BorderBrush=Transparent`，确保悬停点亮时零像素跳动。
    - **凹凸分离**：资源管理器命令栏整体作为下沉暗槽（`#24050A18`），地址栏内部的面包屑路径段平躺在凹槽内，不叠凸砖。
 2. **文件级常量隔离**：每个 `.yaml` 的 `styleConstants` 独立解析，`$常量` 不跨文件共享；新增引用前必须确认本文件顶部已定义，否则未解析的字面量传给 XAML 解析器会触发 `0xc000027b`。
 3. **资源管理器 XAML 岛防撑高（避免 `…` 溢出菜单向上翻）**：标签、地址栏与命令栏位于固定高度的 XAML 岛内，切勿给外层按钮加垂直 `Margin` 或改标签 `Height`；通过 `explorerFrameContainerHeight: 144`（默认 136）预留 8px 余量即可容纳内层 `1,1,2,2` 边框。
 4. **快速设置（Win+A）开启态防天蓝反扑**：开启态背景由 XAML `Storyboard` 状态动画驱动，优先级高于元素本地属性；必须在 `themeResourceVariables` 中覆盖 `ToggleButtonBackgroundChecked*` / `ToggleButtonBorderBrushChecked*` 资源。
 5. **任务栏多窗口叠影**：多窗口状态（`MultiWindowNormal / PointerOver / Pressed / Active`）背后的叠影元素 `Border#MultiWindowElement` 需设 `Opacity=0`（不可设 `Visibility=Collapsed`，否则会破坏 `IconPanel` 布局导致图标偏移）。
-6. **Translucent Windows 默认进程白名单**：全局关闭 `ThemeBackground` 与 `BackgroundEffects`，仅在 `RuledPrograms` 中对 `explorer.exe` 及系统壳宿主进程（`StartMenuExperienceHost.exe`、`SearchHost.exe`、`ShellExperienceHost.exe`、`ShellHost.exe`）开启深空亚克力，彻底避免第三方 Win32 程序的 GDI XOR 光标与文字选中态被 Direct2D 合成吞没。
+6. **Translucent Windows 默认进程白名单**：全局关闭 `ThemeBackground` 与 `BackgroundEffects`，仅在 `RuledPrograms` 中对 `explorer.exe` 及系统壳宿主进程（`StartMenuExperienceHost.exe`、`SearchHost.exe`、`ShellExperienceHost.exe`、`ShellHost.exe`）开启深空亚克力，避免第三方 Win32 程序的 GDI XOR 光标与文字选中态被 Direct2D 合成吞没。
 7. **免 UWPSpy 抓取 XAML 可视树**：将注册表 `HKLM\SOFTWARE\Windhawk\Engine\Mods\<mod id>` 下 `LoggingEnabled` 设为 `1` 并更新 `SettingsChangeTime`，运行 `.\dbwin-capture.ps1 -OutFile tree.txt -Seconds 60` 即可抓出完整的元素类型与名称树，抓完将 `LoggingEnabled` 改回 `0`。

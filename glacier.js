@@ -6,7 +6,7 @@
  *   Glacier.Lamp         灯 overlay：柔光球 + 三色光谱轨迹弧 + 刻度 + 当前时间（静态层不随时间重建）
  *   Camera（内部）        运镜：弹簧借光 focus / 向心样条巡航 tour / 焦点租期；Instance 持有一个，自己只管钟、灯、手电
  *   Glacier.applySunVars 把底片探照灯坐标与微弱明度呼吸（--gl-sun-x / --gl-sun-y / --gl-sun-exposure）写到一个元素（通常是 body）上
- *   Glacier.init(options) 建画布、起太阳、画灯、鼠标手电（控件材质走 CSS 焊死的 1px 环 + 100% 100% at 0% 0% 归一化三色常量，零内联 --ice-*），
+ *   Glacier.init(options) 建画布、起太阳、画灯、鼠标手电（控件材质走 CSS 固定的 1px 环 + 100% 100% at 0% 0% 归一化三色常量，零内联 --ice-*），
  *                         返回句柄 { setHour, setMode, setLoop, setSunTable, focus, tour, setBackground, setPhoto, relight, stop, destroy, sun … }
  *   Glacier.preloadPhoto(url) 提前取图并解码，之后 setPhoto 零等待
  *   挂上总线即受光：root 里新出现的 .gl-* 节点自动纳入（observe），会动的节点加 data-gl-track 逐帧跟着被手电探测
@@ -39,7 +39,7 @@
     return { x: W * (0.5 + 0.56 * u), y: H * (0.6 + 0.55 * u * u), u, isDay: false };
   };
 
-  const COLOR_KEYS = ["orbCore", "orbCorona"]; // 只剩星核与日冕两色：其余逐帧颜色自第三刀砍掉 Scene 后再无消费者（第五刀）
+  const COLOR_KEYS = ["orbCore", "orbCorona"]; // 只剩星核与日冕两色：其余逐帧颜色在 Scene 子系统移除后再无消费者
   const parseColor = (c) => {
     if (typeof c !== "string") return null;
     const t = c.trim();
@@ -136,7 +136,7 @@
   };
   /** 按表算某个小时的太阳状态（和 computeSunState 同样的返回结构）。
    *  位置 (u, v) 用向心 Catmull-Rom（α = 0.5，Barry-Goldman 金字塔递推）三次样条插值：严格过点、C¹ 连续，
-   *  且在任意非均匀 DOM 节点排布或稀疏手写表下绝不产生尖角（Cusps）、自交环或过冲。 */
+   *  且在任意非均匀 DOM 节点排布或稀疏手写表下不产生尖角（Cusps）、自交环或过冲。 */
   const catmullRom = (p0, p1, p2, p3, t) => {
     const t2 = t * t, t3 = t2 * t;
     return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
@@ -306,7 +306,7 @@
     return [255, 220, 170];
   };
   const rgba = (c, a) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a.toFixed(3)})`;
-  const PATH_STEP = 0.1;   // 轨迹按表高密采样步长（小时）：240 段 + 二次平滑样条，彻底消灭折线棱角与锯齿
+  const PATH_STEP = 0.1;   // 轨迹按表高密采样步长（小时）：240 段 + 二次平滑样条，消灭折线棱角与锯齿
   const CURSOR_R = 28;     // 游标柔光半径
   const CURSOR_DIRTY = 64; // 游标脏矩形半边
   const TRAIL_H = 1.1, TRAIL_N = 28; // 余晖：游标身后 1.1 小时的平滑光学尾迹
@@ -328,7 +328,7 @@
     static formulaPath(W, H) { return (h) => lampPointAt(h, W, H); }
     // 静态层：纯粹的 1px 连续光学游丝（零刻度毛刺、零虚线锯齿、零文字杂讯）。
     // 色散与 .gl-bar / .gl-brick 完全同源（左香槟暖金 #FFD89B → 中冰晶白 #E6F4FF → 右暮光紫 #BB9AF7，两端向视口边缘柔和消隐）：
-    // 底层垫一圈 4.5px 极淡折射光晕消解像素阶梯，表层走 1.1px 连续锐利刀锋；背阳段（!isDay）只压低明度，绝不画丑陋的虚线。
+    // 底层垫一圈 4.5px 极淡折射光晕消解像素阶梯，表层走 1.1px 连续锐利刀锋；背阳段（!isDay）只压低明度，不画丑陋的虚线。
     buildStatic(W, H, dpr, state, path, pathKey, loop) {
       const subLoop = loop && loop.span < 24 ? loop : null; // 整天循环（timelapse，span=24）不画局部加亮段
       const key = `${W}x${H}@${dpr}:${pathKey}:${subLoop ? `${subLoop.from}+${subLoop.span}` : ""}`;
@@ -717,7 +717,7 @@
       }
       sp.prevTu = tu;
       sp.prevTv = tv;
-      // 二阶临界阻尼状态机（ζ = 1.0, ω_n = SPRING_OMEGA）：a = ω_n² (pt - p) - 2 ω_n (v - vt) 的相对误差闭式解，彻底消除运动轨道的稳态滞后 v/ω 与帧率抖动误差
+      // 二阶临界阻尼状态机（ζ = 1.0, ω_n = SPRING_OMEGA）：a = ω_n² (pt - p) - 2 ω_n (v - vt) 的相对误差闭式解，消除运动轨道的稳态滞后 v/ω 与帧率抖动误差
       const w = SPRING_OMEGA, exp = Math.exp(-w * dt);
       const eu0 = sp.u - tu0, ev0 = sp.v - tv0;
       const evu0 = sp.vu - vtu, evv0 = sp.vv - vtv;
@@ -1072,7 +1072,7 @@
     }
 
     // ---- 手电目标扫描与矩形测量 -----------------------------------------------
-    // 控件的 1px 环与玻璃内胆直接焊死在 glacier.css 里，零内联变量写入；
+    // 控件的 1px 环与玻璃内胆直接固定在 glacier.css 里，零内联变量写入；
     // 这里只找受手电探测的元素并读一轮矩形（滚动中不量，停下再量）
     scheduleRelight() {
       if (this.rafId || this.destroyed) return;
@@ -1131,7 +1131,7 @@
     }
     // ---- 节点增删与 data-gl-focus 属性监听：挂上总线即受光，贴上属性即运镜 ----
     // 1. 节点增删：只看增删的节点本身是不是（或装着）手电目标元素，命中就隔 120ms 重量一轮；
-    // 2. data-gl-focus：属性变更或新插入带 data-gl-focus 的节点时，太阳游标自动脱离轨道滑向最新那一个（data-gl-alert 只亮红灯芯、绝不抢镜头）。
+    // 2. data-gl-focus：属性变更或新插入带 data-gl-focus 的节点时，太阳游标自动脱离轨道滑向最新那一个（data-gl-alert 只亮红灯芯、不抢镜头）。
     observeRoot() {
       const sel = this.options.torchSelector;
       const hits = (nodes) => {
